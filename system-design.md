@@ -206,13 +206,26 @@ GET 待辦     → { items[] }（who / what / due / source_seq）
 | --- | --- | --- | --- |
 | `pi_*`（PiHarness 管理）| M02 | 由套件定義 | 套件內部，本專案不直接寫 |
 | `meeting` | M01 建立 / M02 收尾 | `id` / `title` / `started_at` / `ends_at`（= `started_at` + 2 小時上限）/ `ended_at` / `status` | 建立時寫入 `ends_at`；結束或達上限時更新 |
-| `transcript_segment` | M02 寫入（M01 產生）| `idempotency_key`（PK）/ `seq` / `meeting_id` / `speaker_id` / `start_ms` / `end_ms` / `text` | **append-only** |
+| `transcript_segment` | M02 寫入（M01 產生）；`text` 由 M04 編輯 | `idempotency_key`（PK）/ `seq` / `meeting_id` / `speaker_id` / `start_ms` / `end_ms` / `text` / `edited_at`（可 null）| **捕捉期 append-only**；`text` 可被 M04-US-401 更新並寫 `edited_at` |
 | `speaker` | M01 命名 | `meeting_id` + `speaker_id`（複合鍵）/ `display_name` / `first_seen_seq` | 命名時 upsert |
 | `action_item` | M02 | `id` / `meeting_id` / `who` / `what` / `due`（可 null）/ `source_seq` | `upsert_action` |
 | `note` | M02 | `meeting_id`（PK）/ `decisions` / `disputes` / `conclusions` / `generated_at` | `finalize_notes` |
 
-**為什麼 `transcript_segment` 是 append-only**：M01-US-103 AC-3 明訂不得改寫既有句子。
-若允許 UPDATE，錯誤的 interim 覆寫 final 會造成逐字稿損毀且無法回溯。
+**`transcript_segment` 的寫入規則（v2.0 修正：由「永遠 append-only」改為分兩期）**：
+
+| 時期 | 規則 | 誰 | 依據 |
+| --- | --- | --- | --- |
+| **捕捉期**（會議進行中）| append-only：只 INSERT，不得改寫或重排既有句子 | M01 → M02 | M01-US-103 AC-3 |
+| **編輯期**（會議結束後）| 可 UPDATE `text`，同時寫入 `edited_at`；**不保留舊文字** | M04-US-401 / 402 | 決策 D7 / D8 |
+
+捕捉期為何必須 append-only：若允許 UPDATE，錯誤的 interim 覆寫 final 會造成逐字稿損毀且無法回溯
+（去重與順序完整性全靠「只新增」這個不變量）。
+
+編輯期為何允許改寫：決策 D7（用戶拍板）——收音品質造成的 STT 錯字是真實痛點，
+而保留舊版對「修錯字」無幫助；D8 以 `edited_at` 保留「此句被人工改過」的唯一訊號。
+
+> ⚠️ 兩者作用時間不重疊（會議進行中不會有編輯 UI），因此可並存。
+> 但**任何新的寫入路徑都必須先問「這是捕捉期還是編輯期」**，這是本表存在的理由。
 
 ---
 
@@ -253,3 +266,4 @@ GET 待辦     → { items[] }（who / what / due / source_seq）
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：技術棧 / 部件圖 / Module 邊界 / 資料流 / 介面契約 / 儲存模型 / 失敗模式 / 部署 | Agent（dav-designer Step 3）|
+| 2026-10-07 | v1.1 | §6 `transcript_segment` 寫入規則由「永遠 append-only」改為**分捕捉期 / 編輯期兩期**（新增 `edited_at` 欄位）；理由：決策 D7 / D8 與 `M01-US-103 AC-3` 的措辭矛盾（AC v1.1 已限定範圍）| §2.1 補規劃（M04 編輯能力）|

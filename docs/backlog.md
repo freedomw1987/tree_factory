@@ -314,7 +314,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 - **AC**:
   - **AC-1**: Given 2 至 4 人在同一支手機前輪流說話 When 每人各說一句 Then 逐字稿為每句標上 speaker 編號，且同一人跨句編號一致
   - **AC-2**: Given 任一段發言 When 產生逐字稿 Then 附帶該段起訖時間戳（相對會議開始）
-  - **AC-3**: Given 會議進行中 When 收到逐字稿事件 Then 伺服端以 append-only 方式寫入，不得改寫既有句子
+  - **AC-3**: Given 會議進行中 When 收到逐字稿事件 Then 伺服端以 append-only 方式寫入，不得改寫既有句子（**只約束 M01 寫入階段**；會議後的人工編輯見 M04-US-401 / 決策 D7、D8）
   - **AC-4**: Given 兩人同時說話 When 轉譯 Then 不得靜默丟句（可標為重疊或合併，但必須留下紀錄）
   - **AC-5** (DoD): 探針 `REGRESSION_MODULE=M01` 通過
 - **依賴**: SPIKE-001
