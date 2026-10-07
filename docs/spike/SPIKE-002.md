@@ -93,8 +93,7 @@ backlog §1 把「Tauri iOS webview 能不能當錄音來源」列為 M01 的成
 | 問題 | 結論 |
 | --- | --- |
 | Tauri iOS webview 能否 `getUserMedia` 收音 | ✅ 可以（前台、需授權、`isSecureContext=true`） |
-| 鎖屏 / 背景行為 | ❌ **背景不收音**（`UIBackgroundModes: [audio]` 已寫進 Info.plist 也無效——
-  Tauri 的 webview 不走 native audio session 的續航路徑） |
+| 鎖屏 / 背景行為 | ❌ **背景不收音**（`UIBackgroundModes: [audio]` 已寫進 Info.plist 也無效——Tauri 的 webview 不走 native audio session 的續航路徑） |
 | 音檔能否落地 | ✅ `MediaRecorder` blob → POST 回本機（ATS 例外已開） |
 
 ## 5. 對設計的影響（要回寫的文件）

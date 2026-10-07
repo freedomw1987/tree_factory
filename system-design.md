@@ -16,16 +16,17 @@
 | 前端外殼 | **Tauri 2**（iOS target）| 需求指定；webview 可放 `VoiceClient` | 需 rustup + iOS target（TECH-001）|
 | 前端 UI | Web（HTML/CSS/JS）於 Tauri webview | 與 `@cloudflare/voice` 的 `VoiceClient` 同語言，免跨語言膠水 | 無前端框架（v1 不引入 build tool？見 §1.1）|
 | 雲端 runtime | **Cloudflare Workers + Agents SDK** | 需求指定 Pi Durable | Beta API |
-| 語音轉譯 | `@cloudflare/voice` 的 **`withVoiceInput`** + Workers AI `@cf/deepgram/nova-3`（`diarize`）| 純 STT、無 TTS、無 onTurn → 會議模式不需回音處理 | `diarize` 串流支援性未證實（SPIKE-001）|
-| Agent 耐久層 | **`@earendil-works/pi-durable` 的 `PiHarness`** | 需求指定；transcript/inbox/工具/重試/crash recovery 存在 DO SQLite | Beta，官方明示 API 會變（SPIKE-003）|
-| 儲存 | Durable Object SQLite（`PiHarness` 的 `pi_*` 表 + 本專案表）| 與 DO 同交易邊界，evict 後仍存活 | 單物件寫入吞吐上限 |
-| 模型（LLM）| Workers AI（`AI` binding）| 零外部 key、音訊與文字不離開 Cloudflare | 模型選擇需 SPIKE-004 依成本定 |
-| 會後 TTS | `@cloudflare/voice` 的 **`withVoice`**（M02-US-205）| 會後無回音疑慮，可用完整語音 loop | 只在會後掛載，不與會議模式同時 |
+| 語音轉譯 | **`agents/voice`** 的 `withVoiceInput` 服務 + **自寫 `DiarizingNova3Transcriber`**（走 nova-3 WS，`diarize=true`）| 純 STT、無 TTS、無 onTurn；SDK 的 transcriber 公開可覆寫 | `@cloudflare/voice` 已棄用→改依 `agents`（TECH-003）；模型層 diarize **已證實**，SDK 層沒傳參數（SPIKE-001）|
+| Agent 耐久層 | **`@earendil-works/pi-durable` 的 `Harness.open(storage, options, context)`**（原名 `PiHarness` 是誤稱）| 需求指定；transcript/inbox/工具/重試/crash recovery 存在 DO SQLite | Beta，官方明示 API 會變（SPIKE-003 已證實可在 DO 內運作）|
+| 儲存 | Durable Object SQLite（`Harness` 的 9 張 `STRICT` `pi_*` 表 + 本專案表）| 與 DO 同交易邊界，evict 後仍存活 | 單物件寫入吞吐上限；`SqliteStorage` 需 100 行 `DoSqliteDatabase` façade（SPIKE-003）|
+| 模型（LLM）| **pi-ai 內建的 `cloudflare-workers-ai` provider**（`Provider<"openai-completions">`）＋分階段模型：即時 8b / 會後筆記 70b | 全 Workers AI、音訊與文字不離開 Cloudflare；分階段讓成本降一個數量級（SPIKE-004）| pi-ai 走 REST（非 `AI` binding）→ 憑證注入方式待 SPIKE-004b；`llama-3.3-70b-fp8-fast` **只有 24k 上下文** |
+| 會後 TTS | **`agents/voice`** 的 `withVoice`（M02-US-205）| 會後無回音疑慮，可用完整語音 loop | 只在會後掛載，不與會議模式同時 |
 | 認證 | device token（WS handshake 帶）| 單人自用，無帳號系統（決策 R5）| token 儲存於 iOS Keychain |
 | 本機儲存 | Tauri fs（音訊分段檔 + 待送佇列）| 斷網/被殺時不回饋到雲端（M01-US-102）| 需清理策略（backlog Q4）|
+| **錄音來源** | **目標＝原生層**（Tauri plugin：Swift `AVAudioEngine`）；v1 探針為 webview `MediaRecorder` | **webview 在背景/鎖屏會停止收音**（SPIKE-002：35 秒錄音只解出 5.1 秒）→ 只有原生 audio session 能續錄 | 原生 plugin 尚未實作（SPIKE-002b / M01 新票）；過渡期以 `visibilitychange` 標記 `TRANSCRIPT_GAP` |
 | **問答檢索（M03）** | **待 SPIKE-005 決定**：DO SQLite 全文比對／向量索引／直接餵 LLM | 檢索方式決定成本與可回溯性，且必須**唯一**（不能兩個呼叫端各做一套）| 兩種方式的品質與成本差距未量測（SPIKE-005）|
 | **概念提取（M04）** | Workers AI LLM（會議結束後批次，非即時）| 概念層是加值層，**失敗不得影響記錄**（F17）| 粒度與噪音率為 SPIKE-006 |
-| **對話語音輸入（M03）** | **重用 `withVoiceInput` 服務、不重用會議收音管線** | 對話是單人短句：無 `diarize`、無分段上傳、無本地緩存回補 | 辨識錯字由使用者確認（先填後送，M03-US-308 AC-1）|
+| **對話語音輸入（M03）** | **重用 `agents/voice` 的 `withVoiceInput` 服務、不重用會議收音管線** | 對話是單人短句：無 `diarize`、無分段上傳、無本地緩存回補 | 辨識錯字由使用者確認（先填後送，M03-US-308 AC-1）|
 | **對話持久化（M03）** | DO SQLite（`conversation` / `message` / `message_source`）| 對話串要跨 app 重啟存活（M03-US-304 AC-1），不能只存裝置端 | 長對話的儲存成長需 D12 之後觀察 |
 
 ### 1.1 待 SPIKE 決定、本檔暫不定案
@@ -33,9 +34,9 @@
 | 事項 | 由誰決定 | 為什麼不在這裡決定 |
 | --- | --- | --- |
 | 前端是否引入框架（React / Solid / 純 vanilla）| §2.3 執行 | 取決於原型複雜度與 `VoiceClient` 整合方式，需先看 SPIKE-002 |
-| `diarize` 走串流或批次 | SPIKE-001 | 官方文件未載明，猜測會導致 M01 架構做錯 |
-| `PiHarness` 是否可與 `withVoiceInput` 同在一個 DO 類 | SPIKE-003 | 兩者都是 mixin/DO 導向，組合方式未證實 |
-| 2 小時上限的計時用 DO alarm 或請求時比對 | SPIKE-003 | alarm 精度與 evict 後的重建行為需實測；兩者到期行為可能不同 |
+| ~~`diarize` 走串流或批次~~ | **已由 SPIKE-001 結案** | 串流可用，但須自寫 `DiarizingNova3Transcriber`（自按 word-level speaker 聚段） |
+| `Harness` 是否可與 `withVoiceInput` 同在一個 DO 類 | **部分由 SPIKE-003 結案**（Harness 可在 DO 內運作）；同一類共存仍待整合驗證 | 兩者都是 DO 導向；Harness 的排程器與 DO 凍結的共存方式需實作驗證 |
+| 2 小時上限的計時用 DO alarm 或請求時比對 | **SPIKE-003 建議用 alarm**（排程器不能跨越 DO 凍結）；精度仍待實測 | 兩者到期行為可能不同 |
 | 跨會議檢索用全文／向量／餵 LLM | **SPIKE-005** | 直接決定 M03 的架構與成本上限；猜錯會讓「來源可回溯」做不到（P7）|
 | 檢索的會議數上限 N | **SPIKE-005** | 影響 M03-US-303 AC-4 的文案與 UX；未量測前不敢寫死 |
 | 概念提取的粒度（一句一概念 vs 一場 5-15 個）| **SPIKE-006** | 抽太細 → 概念卡爆炸變噪音；抽太粗 → 沒有 wiki 價值 |
@@ -425,6 +426,8 @@ edit_action({ action_id, field, value })     → { due_source: "user" | "model" 
 | F19 | 跨會議檢索超過上下文 / 上限 | 符合條件的會議數 > N | 明說「只搜尋了最近 N 場，可能還有更早的」+「擴大範圍」；**不得靜默截斷後宣稱這是全部** | M03-US-303 AC-4 |
 | F20 | agent 記憶與編輯後文字不一致 | 回答引用到已被編輯的句子 | **來源一律在回答時從 DB 讀**（§5.4 規則 4），所以 `edited_at` 一定是最新的；但**模型的推理可能基於舊文字** → v1 已知限制，接受（逐句改寫通常不改變語意），並在 §5.4 規則 4 明寫 | M04-US-402 |
 | F21 | 裝置端標籤 / 範圍顯示與實際不符 | 對話的 `scope` 變更後未更新指示 | 範圍指示由 `conversation.scope` 單一來源渲染；切換時同步更新，不另存副本 | M03-US-307 |
+| **F22** | **webview 進背景 / 鎖屏期間錄音中止** | app 非前景（`visibilitychange → hidden`）| 實測：iOS 會停止供音且凍結 JS 計時器，**背景期間的音訊永久缺失**（無回補來源）→ ①立即標記 `TRANSCRIPT_GAP`，在逐字稿顯示「此段未錄到」②以 `WakeLock` 降低發生率 ③**架構解＝把錄音移到原生層**（SPIKE-002 / M01 新票）| M01-US-1xx（新）|
+| **F23** | **上下文窗口溢出（長會議）** | 2 小時逐字稿約 20k tokens，`llama-3.3-70b-fp8-fast` 只有 24k 窗口 | 明訂壓縮政策（`reserveTokens` / `keepRecentTokens`）；**逐字稿的 source of truth 是 `transcript_segment` 表**，代理一律用工具檢索，不靠常駐上下文（SPIKE-004）| M02-US-2xx（新）|
 
 ---
 
@@ -447,5 +450,6 @@ edit_action({ action_id, field, value })     → { due_source: "user" | "model" 
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：技術棧 / 部件圖 / Module 邊界 / 資料流 / 介面契約 / 儲存模型 / 失敗模式 / 部署 | Agent（dav-designer Step 3）|
 | 2026-10-07 | v1.1 | §6 `transcript_segment` 寫入規則由「永遠 append-only」改為**分捕捉期 / 編輯期兩期**（新增 `edited_at` 欄位）；理由：決策 D7 / D8 與 `M01-US-103 AC-3` 的措辭矛盾（AC v1.1 已限定範圍）| §2.1 補規劃（M04 編輯能力）|
+| 2026-10-08 | v2.2 | 依 SPIKE-001~004 回寫：§1 `PiHarness`→`Harness.open`、`@cloudflare/voice`→`agents/voice`、模型改 pi-ai `cloudflare-workers-ai`（分階段 8b/70b）；新增「錄音來源」列（webview 背景不收音→原生 plugin）；§1.1 三項結案/部分結案 | Agent（trust mode 執行階段）|
 | 2026-10-07 | v2.1 | Step 4.5 簽核後落地：§1 技術棧新增「對話語音輸入」列（重用 `withVoiceInput`、不重用會議收音管線）；§5.2 錯誤碼表補 `SOURCE_UNRESOLVED` / `CONCEPT_FAILED`（共 10 碼）並明訂「查無資料不是錯誤碼」；§5.4 規則 3 依 `M03-US-302 AC-4` 改寫（來源失效的結論**不輸出**，改以查無呈現）；§4.7 明訂丟棄 0 來源的概念 | Agent（dav-designer Step 4.5 / D11）|
 | 2026-10-07 | v2.0 | 第二輪（M03 問 / M04 編）：§1 新增檢索 / 概念提取 / 對話持久化三列；§1.1 新增 SPIKE-005 / 006 與 D11 / D12；§2 部件圖補 M03 / M04 並新增「寫入權集中 / 檢索權集中」兩個邊界判準；§3 新增 M03 / M04 邊界與 2 條規則；§4.4 改為呼叫 M03 引擎、新增 §4.5 問答 / §4.6 編輯 / §4.7 概念提取；§5.3 補對話 / 概念 / 標籤讀取與 `due_source`；**新增 §5.4 `ask()` 契約（7 條規則）與 §5.5 編輯 API 契約（5 條規則）**；§6 新增 7 張表（conversation / message / message_source / concept / concept_alias / concept_source / tag / tag_ref）與「三個不留舊版的例外」；§7 新增 F13~F21 | Agent（dav-designer Step 3，第二輪）|
