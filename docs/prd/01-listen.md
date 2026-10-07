@@ -83,17 +83,17 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 
 | FR | User Story | 對應畫面 | 原型檔案 | 狀態 |
 | --- | --- | --- | --- | --- |
-| FR-101 開始/結束錄音 | M01-US-101 | 準備開始 sheet、會議中 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-102 麥克風權限 | M01-US-101 | 權限被拒 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-103 中斷誠實告知 | M01-US-101 | 會議中 — 中斷橫幅 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-104 本地分段緩存 | M01-US-102 | 會議中（背景行為，UI 見橫幅）| `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-105 斷線回補 | M01-US-102 | 會議中 — 回補進度 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-106 未完成 session 續傳 | M01-US-102 | 待續傳 session sheet | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-107 多人即時轉譯 | M01-US-103 | 會議中 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-108 重疊發言不丟句 | M01-US-103 | 會議中（重疊標記）| `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-109 即時逐字稿顯示 | M01-US-104 | 會議中 | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-110 speaker 命名 | M01-US-105 | speaker 命名 sheet | `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-111 未命名 fallback | M01-US-105 | 會議詳情 — 逐字稿（M02 畫面）| `docs/prd/02-record.html` | ⏳ 待原型 |
+| FR-101 開始/結束錄音 | M01-US-101 | 準備開始 sheet、會議中 → `01-listen.html §start → §meeting` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-102 麥克風權限 | M01-US-101 | 權限被拒 → `01-listen.html §perm` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-103 中斷誠實告知 | M01-US-101 | 會議中 — 中斷橫幅 → `01-listen.html §meeting（interrupted 態）` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-104 本地分段緩存 | M01-US-102 | `01-listen.html §meeting`（背景行為，UI 僅見 netdown 橫幅）| `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-105 斷線回補 | M01-US-102 | 會議中 — 回補進度 → `01-listen.html §meeting（netdown / backfilling 態）` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-106 未完成 session 續傳 | M01-US-102 | 待續傳 session sheet → `01-listen.html §resume` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-107 多人即時轉譯 | M01-US-103 | 會議中 → `01-listen.html §meeting` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-108 重疊發言不丟句 | M01-US-103 | 會議中（重疊標記） → `01-listen.html §meeting（edge 態，overlap chip）` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-109 即時逐字稿顯示 | M01-US-104 | 會議中 → `01-listen.html §meeting（interim 樣式）` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-110 speaker 命名 | M01-US-105 | speaker 命名 sheet → `01-listen.html §speaker` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-111 未命名 fallback | M01-US-105 | 會議詳情 — 逐字稿（M02 畫面） → `02-record.html §tr（發言者 N fallback）` | `docs/prd/02-record.html` | ✅ 已原型 |
 
 **幽靈檢查**：
 - 每個 FR 都有對應 US ✓（11 FR / 5 US）
@@ -109,7 +109,7 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 
 | 跨模組 US | 性質 | 對應畫面 | 原型檔案 | 狀態 |
 | --- | --- | --- | --- | --- |
-| INT-M01-M02-01 | 非 FR（M01 × M02 端到端）| 會議中 → 記錄詳情 全流程 | `docs/prd/01-listen.html`（E2E 分頁）+ `docs/prd/02-record.html` | ⏳ 待原型 |
+| INT-M01-M02-01 | 非 FR（M01 × M02 端到端）| 會議中 → 長按結束（防誤觸）→ 記錄產生中 | `docs/prd/01-listen.html` §meeting → `docs/prd/02-record.html` §gen | ✅ 已原型 |
 
 **為什麼不硬塞一個 FR 給它**：它的 AC 是「3 秒內出現逐字稿」「斷 30 秒後 20 秒內補齊」「伺服端與螢幕一致」——
 每一條都是兩個 Module 的行為相乘，既不是 M01 的功能也不是 M02 的功能。硬編成 FR 會讓追溯矩陣說謊
@@ -133,3 +133,34 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：11 FR / 5 US / 依賴圖 / 追溯矩陣 | Agent（dav-designer Step 4）|
+
+---
+
+## 8. 原型與驗證證據（Step 5）
+
+| 項目 | 值 |
+| --- | --- |
+| 原型檔案 | `docs/prd/01-listen.html` |
+| 檔案行數 | 307（上限 500 ✓） |
+| 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
+| 覆蓋畫面 | 6 個（`home` / `start` / `meeting` / `perm` / `resume` / `speaker`），hash router |
+| 可切換狀態 | 21 組（= 6 畫面的 DoD-Full 五狀態展開） |
+| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
+| 驗證結果 | 21/21 狀態渲染非空；9/9 互動斷言通過；JavaScript 錯誤 0 |
+
+互動斷言（實測輸出）：
+
+| # | 斷言 | 結果 |
+| --- | --- | --- |
+| 1 | 輸入框打字不失焦（`V.title` 狀態 + focus 保留） | ✓ 連續輸入後值為 `Q4 預算檢討` |
+| 2 | 標題空白時「開始錄音」CTA 為 disabled | ✓ |
+| 3 | 長按「結束會議」有填滿動效（防誤觸） | ✓ 300ms 時進度 21% |
+| 4 | speaker 改名套用到歷史句子 | ✓ 逐字稿出現「阿明」 |
+| 5 | 分頁切到「待辦」 | ✓ |
+| 6 | 點待辦展開逐字稿原句 | ✓ 展開第 6 句 |
+| 7 | 匯出 loading 期間 CTA disabled，完成後 toast | ✓ |
+| 8a | 追問正常題 → 答案含人名 + 回溯來源句 | ✓ |
+| 8b | 追問超範圍題 → 明說查不到 | ✓ |
+| 9 | barge-in 打斷 TTS | ✓ 顯示「已停止播放」 |
+
+> 未達標項：無。`home` 的 loading 態為純 skeleton（無文字），這是刻意的，不是空白畫面。

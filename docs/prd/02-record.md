@@ -87,22 +87,22 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 
 | FR | User Story | 對應畫面 | 原型檔案 | 狀態 |
 | --- | --- | --- | --- | --- |
-| FR-201 逐字稿持久化 | M02-US-201 | 會議詳情 — 逐字稿 | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-202 崩潰後續接 | M02-US-201 | 待續傳 session sheet（M01 畫面）| `docs/prd/01-listen.html` | ⏳ 待原型 |
-| FR-203 物件 evict 後醒回 | M02-US-201 | （無 UI，後端行為）| — | ⏳ 待原型 |
-| FR-204 冪等去重 | M02-US-201 | （無 UI，後端行為）| — | ⏳ 待原型 |
-| FR-205 上下文壓縮 | M02-US-201 | 會議詳情 — 摘要（長會議提示）| `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-206 `append_transcript` | M02-US-202 | （無 UI，agent 工具）| — | ⏳ 待原型 |
-| FR-207 `upsert_action` | M02-US-202 | 會議詳情 — 待辦 | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-208 `finalize_notes` | M02-US-202 | 記錄產生中 | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-209 三層記錄呈現 | M02-US-203 | 會議詳情（3 tabs）| `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-210 待辦期限誠實 | M02-US-203 | 會議詳情 — 待辦（無期限態）| `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-211 待辦回溯 | M02-US-203 | 會議詳情 — 待辦（展開原句）| `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-212 匯出 Markdown | M02-US-204 | 匯出 / 分享 sheet | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-213 系統分享 | M02-US-204 | 匯出 / 分享 sheet | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-214 會後語音追問 | M02-US-205 | 會後追問 | `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-215 查無此資訊 | M02-US-205 | 會後追問（not-found 態）| `docs/prd/02-record.html` | ⏳ 待原型 |
-| FR-216 barge-in | M02-US-205 | 會後追問 | `docs/prd/02-record.html` | ⏳ 待原型 |
+| FR-201 逐字稿持久化 | M02-US-201 | 會議詳情 — 逐字稿 → `02-record.html §tr` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-202 崩潰後續接 | M02-US-201 | 待續傳 session sheet（M01 畫面） → `01-listen.html §resume（資料正確性由 M02 保證）` | `docs/prd/01-listen.html` | ✅ 已原型 |
+| FR-203 物件 evict 後醒回 | M02-US-201 | （無 UI，後端行為）（無對應原型） | — | ⬜ 不適用（無 UI） |
+| FR-204 冪等去重 | M02-US-201 | （無 UI，後端行為）（無對應原型） | — | ⬜ 不適用（無 UI） |
+| FR-205 上下文壓縮 | M02-US-201 | 會議詳情 — 摘要（長會議提示） → `02-record.html §gen（edge：長會議）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-206 `append_transcript` | M02-US-202 | （無 UI，agent 工具）（無對應原型） | — | ⬜ 不適用（無 UI） |
+| FR-207 `upsert_action` | M02-US-202 | 會議詳情 — 待辦 → `02-record.html §act` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-208 `finalize_notes` | M02-US-202 | 記錄產生中 → `02-record.html §gen` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-209 三層記錄呈現 | M02-US-203 | 會議詳情（3 tabs） → `02-record.html §summary / §tr / §act（3 分頁）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-210 待辦期限誠實 | M02-US-203 | 會議詳情 — 待辦（無期限態） → `02-record.html §act（「未提及期限」態）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-211 待辦回溯 | M02-US-203 | 會議詳情 — 待辦（展開原句） → `02-record.html §act（點擊展開原句）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-212 匯出 Markdown | M02-US-204 | 匯出 / 分享 sheet → `02-record.html §export` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-213 系統分享 | M02-US-204 | 匯出 / 分享 sheet → `02-record.html §export（edge：無可分享 app）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-214 會後語音追問 | M02-US-205 | 會後追問 → `02-record.html §fup` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-215 查無此資訊 | M02-US-205 | 會後追問（not-found 態） → `02-record.html §fup（error 態）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-216 barge-in | M02-US-205 | 會後追問 → `02-record.html §fup（edge 態：打斷）` | `docs/prd/02-record.html` | ✅ 已原型 |
 
 **幽靈檢查**：
 - 每個 FR 都有對應 US ✓（16 FR / 5 US）
@@ -135,3 +135,32 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：16 FR / 5 US / 依賴圖 / 追溯矩陣 | Agent（dav-designer Step 4）|
+
+---
+
+## 8. 原型與驗證證據（Step 5）
+
+| 項目 | 值 |
+| --- | --- |
+| 原型檔案 | `docs/prd/02-record.html` |
+| 檔案行數 | 300（上限 500 ✓） |
+| 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
+| 覆蓋畫面 | 6 個（`gen` / `summary` / `tr` / `act` / `export` / `fup`），前 3 個為「會議詳情」的 3 個分頁 |
+| 可切換狀態 | 26 組（= 6 畫面的 DoD-Full 五狀態展開） |
+| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
+| 驗證結果 | 26/26 狀態渲染非空；8/8 互動斷言通過；JavaScript 錯誤 0 |
+
+關鍵互動（實測輸出）：
+
+| # | 斷言 | 結果 |
+| --- | --- | --- |
+| 5 | 摘要 / 逐字稿 / 待辦 分頁切換 | ✓ |
+| 6 | 待辦點擊展開逐字稿原句（FR-211） | ✓ 顯示「陳大文 · 01:02（第 6 句）」 |
+| 7 | 匯出 → loading（CTA disabled）→ 成功 toast | ✓ 400–500ms 可感知 |
+| 8a | 追問「誰負責預算明細」→ 人名 + 回溯句（FR-214） | ✓ |
+| 8b | 追問超範圍題 → 明說查無（FR-215） | ✓ |
+| 9 | barge-in 打斷播放（FR-216） | ✓ 顯示「已停止播放」 |
+| — | 待辦「未提及期限」顯示為未提及而非猜測日期（FR-210） | ✓ `due` 為 null 的那一筆顯示「未提及期限」 |
+| — | 摘要 error 態 → 按「重試摘要與待辦」→ skeleton → 成功（FR-208） | ✓ 全鏈路可走完，不停在 error |
+
+> 未達標項：無。

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M01 聽 — 互動原型（tree_factory）</title>
+<style>
+:root{--bg:#0B0F14;--s:#131A22;--s2:#1B242E;--bd:#28323D;--tx:#E8EEF5;--dim:#94A3B3;
+--rec:#FF4D4D;--ac:#4DA3FF;--ok:#35C68A;--warn:#F5A623;--err:#FF6B6B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080B;color:var(--tx);font:14px -apple-system,"SF Pro Text","PingFang TC",system-ui,sans-serif;
+display:flex;gap:20px;padding:20px;justify-content:center;align-items:flex-start;min-height:100vh}
+.mono{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+aside{width:250px;flex:0 0 250px}
+.rme{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.rme h1{font-size:14px;margin-bottom:6px}
+.rme p{font-size:12px;color:var(--dim);line-height:1.6}
+.rme b{color:var(--ac)}
+.panel{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.panel h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px}
+.panel h2:first-child{margin-top:0}
+.panel button{display:block;width:100%;text-align:left;background:var(--s2);color:var(--tx);border:1px solid var(--bd);
+border-radius:8px;padding:6px 9px;margin-bottom:4px;font-size:12px;cursor:pointer;font-family:inherit}
+.panel button:hover{border-color:var(--ac)}
+.panel button.on{background:#123;border-color:var(--ac);color:var(--ac)}
+.phone{width:390px;flex:0 0 390px;height:760px;background:var(--bg);border:1px solid var(--bd);border-radius:36px;
+overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px #000a}
+.sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+font-size:12px;color:var(--dim)}
+.tbar{flex:0 0 52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--bd)}
+.tbar h3{font-size:16px;font-weight:600;flex:1}
+.back{background:none;border:0;color:var(--ac);font-size:13px;cursor:pointer;font-family:inherit}
+.body{flex:1;overflow-y:auto;padding:14px 16px 20px}
+.foot{flex:0 0 auto;padding:12px 16px 20px;border-top:1px solid var(--bd);background:var(--bg)}
+.rec{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s);border:1px solid var(--bd);
+border-radius:14px;margin-bottom:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--rec);animation:p 1.4s infinite}
+@keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+@media(prefers-reduced-motion:reduce){.dot{animation:none}}
+.rec .t{flex:1;font-size:12px;color:var(--dim)}
+.wave{display:flex;gap:2px;align-items:center;height:18px}
+.wave i{width:2px;background:var(--ac);border-radius:2px;animation:w 1s infinite ease-in-out}
+.wave i:nth-child(1){height:6px;animation-delay:0s}.wave i:nth-child(2){height:14px;animation-delay:.15s}
+.wave i:nth-child(3){height:9px;animation-delay:.3s}.wave i:nth-child(4){height:16px;animation-delay:.45s}
+.wave i:nth-child(5){height:7px;animation-delay:.6s}
+@keyframes w{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+.bn{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;margin-bottom:12px}
+.bn.warn{background:#3a2c0e;color:#F5D9A3;border:1px solid #6b5217}
+.bn.err{background:#3a1616;color:#FFC9C9;border:1px solid #7a2b2b}
+.bn.info{background:#0f2438;color:#BBDDFF;border:1px solid #1d4368}
+.line{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #1a222b;align-items:flex-start}
+.line .g{flex:0 0 62px}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--s2);color:var(--ac);
+border:1px solid var(--bd);cursor:pointer;white-space:nowrap}
+.chip.n{color:var(--dim)}
+.chip.ov{color:var(--warn);border-color:#6b5217}
+.line .c{flex:1;font-size:15px;line-height:1.6;word-break:break-word}
+.line.interim .c{opacity:.62;border-left:2px dashed var(--bd);padding-left:8px}
+.line .tm{font-size:11px;color:var(--dim);padding-top:4px}
+.sk{background:linear-gradient(90deg,#1b242e,#28323d,#1b242e);background-size:200% 100%;animation:sh 1.2s infinite;
+border-radius:6px;height:14px;margin-bottom:10px}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.card{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+.card:hover{border-color:var(--ac)}
+.card.pin{border-color:#7a2b2b;background:#1c1214}
+.card .r1{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.card .t{font-weight:600;font-size:14px;flex:1}
+.card .m{font-size:11.5px;color:var(--dim)}
+.badge{font-size:10.5px;padding:2px 7px;border-radius:999px}
+.badge.rec{background:#3a1616;color:var(--rec)}.badge.int{background:#3a2c0e;color:var(--warn)}
+.badge.done{background:#123026;color:var(--ok)}
+.cta{width:100%;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;
+background:var(--ac);color:#04121f;font-family:inherit}
+.cta:disabled{opacity:.5;cursor:not-allowed}
+.cta.ghost{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+.cta.hold{background:linear-gradient(90deg,#7a2b2b var(--p,0%),var(--s2) var(--p,0%));color:var(--tx);
+border:1px solid #7a2b2b;user-select:none}
+.fld{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:11px 12px;color:var(--tx);
+font-size:15px;font-family:inherit}
+.fld:focus{outline:none;border-color:var(--ac)}
+.err-t{color:var(--err);font-size:12px;margin-top:6px;display:flex;gap:6px}
+.cnt{font-size:11px;color:var(--dim);text-align:right;margin-top:4px}
+.empty{text-align:center;padding:44px 18px}
+.empty .ic{font-size:40px;opacity:.5;margin-bottom:12px}
+.empty h4{font-size:16px;margin-bottom:6px}
+.empty p{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:18px}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.box h4{font-size:14px;margin-bottom:8px}
+.box p{font-size:12.5px;color:var(--dim);line-height:1.6}
+.bar{height:6px;border-radius:6px;background:var(--s2);overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--ac);transition:width .3s}
+.bar i.w{background:var(--warn)}
+.sheet{position:absolute;inset:0;background:#000a;display:flex;align-items:flex-end;z-index:20}
+.sheet .p{background:var(--s);border-radius:22px 22px 0 0;padding:18px 16px 22px;width:100%;border-top:1px solid var(--bd)}
+.sheet h4{font-size:16px;margin-bottom:4px}
+.sheet .sub{font-size:12.5px;color:var(--dim);margin-bottom:14px;line-height:1.5}
+.row{display:flex;gap:8px;margin-bottom:8px}
+.row .cta{flex:1}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1B242E;border:1px solid var(--ok);color:var(--tx);
+border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:8px}
+.auto{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--dim);padding:6px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
+</style>
+</head>
+<body>
+
+<aside>
+  <section class="prototype-readme rme">
+    <h1>M01「聽」互動原型</h1>
+    <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
+    <b>主流程</b>：首頁 → 開始會議 → 會議中（逐字稿長出來）→ 長按結束。<br>
+    <b>重點試</b>：①會議中切「網路中斷」看黃橫幅 ②切「鎖屏」看紅燈熄滅 + 誠實文案
+    ③長按「結束會議」直到填滿（防誤觸）④點「發言者 2」改名，看歷史句子一起變。</p>
+  </section>
+  <div class="panel" id="panel"></div>
+</aside>
+
+<div class="phone">
+  <div class="sbar mono"><span>9:41</span><span>tree_factory</span><span>􀙇 􀙈 100%</span></div>
+  <div id="app"></div>
+</div>
+
+<script>
+const CH = [["m1","陳大文"],["m2","林小美"],["m3","發言者 3"]];
+const MOCK = {
+  home:[
+    {id:"5",title:"Q4 預算檢討",pin:"rec",when:"進行中 · 12:04",meta:"3 人 · 逐字稿 118 句"},
+    {id:"4",title:"週一產品例會",pin:null,when:"昨天 10:00",meta:"5 人 · 待辦 4 項"},
+    {id:"3",title:"客戶訪談 — 王經理",pin:null,when:"10/05 15:30",meta:"2 人 · 待辦 2 項"},
+    {id:"2",title:"Sprint 回顧",pin:null,when:"10/03 14:00",meta:"6 人 · 待辦 7 項"}
+  ],
+  lines:[
+    {s:0,n:"陳大文",t:"00:12",x:"那我們先過一下這季的預算。",st:"final"},
+    {s:1,n:"林小美",t:"00:19",x:"我這邊有整理一份表，行銷的部分超支大概 12%。",st:"final"},
+    {s:0,n:"陳大文",t:"00:31",x:"超支的原因是？",st:"final"},
+    {s:1,n:"林小美",t:"00:36",x:"主要是上個月的投放加碼，還有社群的合作案。",st:"final"},
+    {s:2,n:"發言者 3",t:"00:44",x:"那個合作案我知道，是我提的。",st:"overlap"},
+    {s:1,n:"林小美",t:"00:45",x:"（與發言者 3 重疊）對，我有記在會議紀錄裡。",st:"overlap"}
+  ],
+  edge:[
+    {s:0,n:"陳大文",t:"05:01",x:"這是一句超長的話，用來驗證 1000 字元的換行不會破版。"+
+      "我們的預算表包含行銷、研發、人事、差旅、設備五個大項，其中行銷又細分成線上投放、線下活動、社群合作、內容製作四個子項，".repeat(3)+
+      "以上是全部內容。",st:"final"},
+    {s:2,n:"發言者 3",t:"05:40",x:"測試特殊字元：<script>alert(1)<\\/script>、'; DROP TABLE meeting;-- 、😀🎉",st:"final"},
+    {s:1,n:"林小美",t:"05:44",x:"這些都要當純文字顯示，不能當 HTML 解析。",st:"interim"}
+  ]
+};
+const V = {view:"home",st:"happy",spName:"",toast:null,accented:false,
+  title:"",ttlErr:false,backlog:3,job:0,speakName:"",resumeSt:"happy"};
+
+// ---- 視圖：首頁 ----
+function vHome(){
+  const h = `<div class="tbar"><h3>我的會議</h3></div><div class="body">`;
+  if(V.st==="loading") return h+`<div class="sk" style="width:60%"></div><div class="sk"></div><div class="sk" style="width:80%"></div>
+    <div class="sk" style="height:64px"></div><div class="sk" style="height:64px"></div></div>`;
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">🎙️</div><h4>還沒有任何會議</h4>
+    <p>按下開始，把手機放桌上，<br>它會把大家說的話記下來。</p>
+    <button class="cta" onclick="go('start')">開始第一場會議</button></div></div>`;
+  let rows = MOCK.home.map(m=>{
+    const b = m.pin==="rec"?`<span class="badge rec">● 錄音中</span>`
+      : m.pin==="int"?`<span class="badge int">已中斷</span>`:`<span class="badge done">已結束</span>`;
+    return `<div class="card ${m.pin==="rec"?"pin":""}" onclick="${m.pin?"go('meeting')":toastStr('已開啟「'+m.title+'」的會議記錄')}">
+      <div class="r1"><span class="t">${m.title}</span>${b}</div>
+      <div class="m">${m.when} · ${m.meta}</div></div>`;}).join("");
+  if(V.st==="edge") rows = `<div class="bn info">共 1,000 場會議 · 已載入最近 20 場，往下滑載入更多</div>`+rows;
+  const foot = `<div class="foot"><button class="cta" onclick="go('start')">＋ 開始會議</button></div>`;
+  return h+rows+`</div>`+foot;
+}
+function toastStr(s){ return "toast('"+s+"')"; }
+
+// ---- 視圖：準備開始 ----
+function vStart(){
+  const long = V.title.length>60;
+  const shown = V.title.slice(0,60);
+  return `<div class="tbar"><button class="back" onclick="go('home')">‹ 取消</button><h3>開始會議</h3></div>
+  <div class="body">
+    <div class="box"><h4>會議名稱</h4>
+      <input class="fld" id="ti" placeholder="例如：週一產品例會" value="${shown.replace(/"/g,"&quot;")}"
+        oninput="V.title=this.value;V.ttlErr=false;render()">
+      <div class="cnt">${V.title.length}/60${long?" （已達上限，超出部分不顯示）":""}</div>
+      ${V.ttlErr?`<div class="err-t">⚠️ 請輸入會議名稱，或按「用時間命名」</div>`:""}
+    </div>
+    <div class="box"><h4>開始後會發生什麼</h4>
+      <p>・手機放桌上，AI 開始聽，螢幕上會即時出現逐字稿<br>
+      ・會議中 AI <b>不出聲</b>，只出文字，不打斷大家<br>
+      ・中途斷網或 app 被關掉，逐字稿不會不見<br>
+      ・結束後才產生摘要與待辦</p></div>
+    <button class="cta ghost" onclick="V.title='10/07 會議 '+new Date().toTimeString().slice(0,5);render()">用時間命名</button>
+    <div class="note">權限被拒的畫面請由右側控制台切到「權限被拒」（那是一個阻斷頁，不屬於本 sheet）。</div>
+  </div>
+  <div class="foot"><button class="cta" ${V.title.trim()?"":"disabled"} onclick="V.ttlErr=!V.title.trim();if(V.title.trim()){V.accented=false;go('meeting')}else render()">
+    開始錄音</button></div>`;
+}
+
+// ---- 視圖：會議中 ----
+function vMeeting(){
+  const interrupted = V.st==="interrupted", netwin = V.st==="netdown";
+  const lines = V.st==="edge"?MOCK.edge:MOCK.lines;
+  let html = `<div class="tbar"><button class="back" onclick="go('home')">‹ 我的會議</button><h3>Q4 預算檢討</h3></div><div class="body">`;
+  if(netwin) html += `<div class="bn warn"><span>⚠️</span><div><b>網路中斷，錄音繼續</b><br>音訊已存到手機，恢復後會自動補上。</div></div>`;
+  if(interrupted) html += `<div class="bn err"><span>⏹</span><div><b>錄音已中斷（鎖屏，00:47）</b><br>v1 不支援背景錄音。解鎖後可繼續這場會議，時間軸會接續。</div></div>`;
+  if(V.st==="backfilling") html += `<div class="bn info"><span>⟳</span><div><b>回補中 ${V.backlog}/7 段</b><div class="bar"><i style="width:${Math.round(V.backlog/7*100)}%"></i></div></div></div>`;
+  if(V.st==="error") html += `<div class="bn err"><span>⚡</span><div><b>這段無法轉譯</b><br>音檔已保留在手機，可重試。<button class="chip" onclick="toast('已重新送出第 118 段')">重試</button></div></div>`;
+  html += `<div class="rec"><span class="dot" style="${interrupted?"background:#555;animation:none":""}"></span>
+    <div class="t mono">${interrupted?"已中斷 00:47":"錄音中 12:04"}</div>
+    <div class="wave">${interrupted?"":`<i></i><i></i><i></i><i></i><i></i>`}</div></div>`;
+  if(V.st==="loading") html += `<div class="auto">等待第一句話…<span class="wave"><i></i><i></i><i></i></span></div>`;
+  else html += lines.map((l,i)=>{ const nm = (l.s===2&&V.spName)?V.spName:l.n;
+    return `<div class="line ${l.st==="interim"?"interim":""}">
+      <div class="g"><span class="chip ${l.s===2&&!V.accented?"n":""} ${l.st==="overlap"?"ov":""}"
+        onclick="${l.s===2&&!V.accented?"go('speaker')":"toast('改名只對未命名的發言者')"}">${nm}</span></div>
+      <div><div class="c">${l.x.replace(/</g,"&lt;")}</div></div>
+      <div class="tm mono">${l.t}</div></div>`;}).join("");
+  if(lines.some(l=>l.st==="interim")) html += `<div class="auto">↑ 半透明 = 尚未定稿（interim）</div>`;
+  return html+`</div><div class="foot">
+    <button class="cta hold" style="--p:${V.job}%" onmousedown="hold()" onmouseup="unhold()" onmouseleave="unhold()"
+      ontouchstart="hold()" ontouchend="unhold()">${V.job>0?"放開即取消 · 繼續按住結束":"長按結束會議"}</button>
+    <div class="note">會議中 AI 靜音，只出文字。上方「‹ 我的會議」可離場（錄音繼續）。</div></div>`;
+}
+
+// ---- 視圖：權限被拒 ----
+function vPerm(){
+  return `<div class="tbar"><h3>需要麥克風權限</h3></div><div class="body">
+  <div class="empty"><div class="ic">🚫</div><h4>麥克風權限被拒絕</h4>
+    <p>沒有麥克風就無法記錄會議。<br>請到「設定 → tree_factory → 麥克風」開啟。</p>
+    <button class="cta" onclick="toast('模擬：跳轉到 iOS 設定頁')">前往設定</button>
+    <div style="height:8px"></div>
+    <button class="cta ghost" onclick="toast('已重新檢查權限（仍為拒絕）')">我開好了，重新檢查</button></div>
+  <div class="note">這是阻斷式錯誤（AUTH/permission 類）：不進會議、不寫入任何資料。</div></div>`;
+}
+
+// ---- 視圖：待續傳 sheet ----
+function vResume(){
+  const bad = V.resumeSt==="error";
+  return `<div class="tbar"><h3>我的會議</h3></div><div class="body">
+    <div class="sk" style="height:64px"></div><div class="sk" style="height:64px"></div></div>
+  <div class="sheet"><div class="p">
+    <h4>發現未完成的會議</h4>
+    <div class="sub">「Q4 預算檢討」在 12:47 中斷。手機上有 <b>7 段</b>尚未送出的錄音
+      （共 3 分 20 秒），伺服器已存到 00:47。</div>
+    ${bad?`<div class="bn err"><span>⚡</span><div><b>續傳失敗</b><br>第 3 段音檔損毀，無法上傳。其他 6 段可正常補上。</div></div>`:""}
+    <div class="row"><button class="cta" onclick="go('meeting')">繼續這場會議</button></div>
+    <div class="row"><button class="cta ghost" onclick="toast('已存入「我的會議」，之後可再續傳')">稍後再說</button>
+      <button class="cta ghost" onclick="toast('已保留音檔（依 Q4 待定，暫不刪除）')">只要音檔</button></div>
+    <div class="note">不會自動丟棄：未經確認絕不刪除未送出的錄音。損毀分段會標為「此段缺失」但其他段照補。</div>
+  </div></div>`;
+}
+
+// ---- 視圖：speaker 命名 sheet ----
+function vSpeaker(){
+  const named = V.speakName.trim();
+  return `<div class="tbar"><button class="back" onclick="go('home')">‹ 我的會議</button><h3>Q4 預算檢討</h3></div>
+  <div class="body"><div class="sk" style="height:64px"></div><div class="sk" style="height:64px"></div></div>
+  <div class="sheet"><div class="p">
+    <h4>發言者 3 是誰？</h4>
+    <div class="sub">${V.st==="empty"?"這場會議目前只偵測到 2 位發言者，還沒有第 3 位。"
+      :"改名會套用到他全部的句子（已說過 4 句、之後的也會用）。"}</div>
+    ${V.st==="empty"?``:`<input class="fld" id="sp" placeholder="輸入名字，例如：阿明" value="${V.speakName.replace(/"/g,"&quot;")}"
+      oninput="V.speakName=this.value;V.st='happy';render()">
+      <div class="cnt">${V.speakName.length}/20${V.speakName.length>20?" （僅取前 20 字）":""}</div>
+      ${V.st==="error"?`<div class="err-t">⚠️ 名字不能空白。若不想命名，按「保持發言者 3」。</div>`:""}`}
+    <div class="row"><button class="cta" ${V.st==="empty"?"disabled":""}
+      onclick="${V.st==="empty"?"":(named?"applyName()":"V.st='error';render()")}">套用</button></div>
+    <div class="row"><button class="cta ghost" onclick="go('meeting')">保持發言者 3</button></div>
+    <div class="note">UI 一律顯示「發言者 N」；程式碼/資料庫用 <span class="mono">speaker_id = N-1</span>。絕不出現「發言者 0」。</div>
+  </div></div>`;
+}
+function applyName(){ V.accented=true; V.spName=V.speakName.slice(0,20);
+  toast('已把發言者 3 改名為「'+V.spName+'」（歷史 4 句已更新，之後的也會沿用）'); go('meeting'); }
+
+// ---- 路由與渲染 ----
+function go(v){ V.view=v; V.st = v==='home'?'happy':(v==='meeting'?'happy':'happy'); location.hash=v; render(); }
+function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},2400); }
+let holdT=null;
+function hold(){ V.job=0; holdT=setInterval(()=>{ V.job+=7;
+  if(V.job>=100){ clearInterval(holdT); V.job=0; toast('會議已結束（118 句逐字稿已存）→ 產生記錄中'); setTimeout(()=>location.href='02-record.html',900); } render(); },80); }
+function unhold(){ if(holdT){clearInterval(holdT);holdT=null;} V.job=0; render(); }
+
+const VIEWS={home:vHome,start:vStart,meeting:vMeeting,perm:vPerm,resume:vResume,speaker:vSpeaker};
+const STATES={
+  home:[["happy","有會議（含進行中置頂）"],["loading","載入中 skeleton"],["empty","一場都沒有"],["edge","1,000 場 / 分頁"]],
+  start:[["happy","輸入名稱"],["error","名稱為空被擋"],["edge","超長名稱 60 字上限"]],
+  meeting:[["happy","錄音中 + 逐字稿"],["loading","等待第一句"],["error","某段轉譯失敗"],["edge","超長句 / script / emoji"],
+    ["netdown","網路中斷（黃橫幅）"],["interrupted","鎖屏中斷（紅燈熄滅）"],["backfilling","回補中 3/7"]],
+  perm:[["error","權限被拒（阻斷）"]],
+  resume:[["happy","7 段待補"],["error","第 3 段損毀"]],
+  speaker:[["happy","改名"],["empty","尚無第 3 位"],["error","名字空白被擋"],["edge","超長名字截斷"]]
+};
+function panel(){
+  document.getElementById("panel").innerHTML = Object.keys(VIEWS).map(v=>
+    `<h2>${v}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';render()">${l}</button>`).join("")
+  ).join("");
+}
+function render(){
+  const a=document.activeElement, id=a&&a.id, pos=a&&a.selectionStart;
+  document.getElementById("app").innerHTML = VIEWS[V.view]() +
+    (V.toast?`<div class="toast"><span>✅</span><span>${V.toast}</span></div>`:"");
+  if(id){ const el=document.getElementById(id);
+    if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(e){} } }
+  panel();
+}
+window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();} });
+render();
+</script>
+</body>
+</html>
