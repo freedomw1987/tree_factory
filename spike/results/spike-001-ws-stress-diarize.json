@@ -1,0 +1,2978 @@
+{
+  "summary": {
+    "endpoint": "wss://api.cloudflare.com/client/v4/accounts/<acct>/ai/run/@cf/deepgram/nova-3",
+    "fixture": "spike/fixtures/two-speakers-stress-16k.wav",
+    "diarizeRequested": true,
+    "totalMessages": 58,
+    "resultsMessages": 46,
+    "finalMessages": 12,
+    "wordCount": 176,
+    "speakerValuesSeen": [
+      0,
+      1
+    ],
+    "wordSample": [
+      {
+        "w": "Good",
+        "speaker": 0,
+        "start": 0
+      },
+      {
+        "w": "morning.",
+        "speaker": 0,
+        "start": 0.24
+      },
+      {
+        "w": "One.",
+        "speaker": 0,
+        "start": 0.64
+      },
+      {
+        "w": "Good",
+        "speaker": 0,
+        "start": 0
+      },
+      {
+        "w": "morning.",
+        "speaker": 0,
+        "start": 0.24
+      }
+    ],
+    "paragraphs": [],
+    "transcript": "Good morning, one. Thanks for joining the budget review. Thanks. I want to start with the marketing from last quarter. Right. Marketing was over budget by about 12%. Who owns that number, and can we get a breakdown by campaign? I will ask Wade to send the campaign breakdown before Friday. Perfect. Let",
+    "nonResultsTypes": [
+      "SpeechStarted",
+      "UtteranceEnd",
+      "Metadata"
+    ],
+    "errors": []
+  },
+  "messages": [
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 0.07
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning. One.",
+            "confidence": 0.8327637,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.95166016,
+                "speaker": 0,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.64,
+                "confidence": 0.8327637,
+                "speaker": 0,
+                "punctuated_word": "morning."
+              },
+              {
+                "word": "one",
+                "start": 0.64,
+                "end": 0.79999995,
+                "confidence": 0.8312988,
+                "speaker": 0,
+                "punctuated_word": "One."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.2,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning. One.",
+            "confidence": 0.8144531,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.88720703,
+                "speaker": 0,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.64,
+                "confidence": 0.8144531,
+                "speaker": 0,
+                "punctuated_word": "morning."
+              },
+              {
+                "word": "one",
+                "start": 0.64,
+                "end": 0.79999995,
+                "confidence": 0.73217773,
+                "speaker": 0,
+                "punctuated_word": "One."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.2,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning one. Thanks for joining the",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.98828125,
+                "speaker": 0,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.56,
+                "confidence": 0.99902344,
+                "speaker": 0,
+                "punctuated_word": "morning"
+              },
+              {
+                "word": "one",
+                "start": 0.56,
+                "end": 1.12,
+                "confidence": 0.7137451,
+                "speaker": 0,
+                "punctuated_word": "one."
+              },
+              {
+                "word": "thanks",
+                "start": 1.12,
+                "end": 1.4399999,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.4399999,
+                "end": 1.68,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 1.68,
+                "end": 1.92,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 1.92,
+                "end": 2.08,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "the"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.39,
+      "start": 0,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning, one. Thanks for joining the budget review.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.9951172,
+                "speaker": 0,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.64,
+                "confidence": 0.8186035,
+                "speaker": 0,
+                "punctuated_word": "morning,"
+              },
+              {
+                "word": "one",
+                "start": 0.64,
+                "end": 1.12,
+                "confidence": 0.93847656,
+                "speaker": 0,
+                "punctuated_word": "one."
+              },
+              {
+                "word": "thanks",
+                "start": 1.12,
+                "end": 1.4399999,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.4399999,
+                "end": 1.68,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 1.68,
+                "end": 2,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 2,
+                "end": 2.1599998,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "budget",
+                "start": 2.1599998,
+                "end": 2.48,
+                "confidence": 0.9716797,
+                "speaker": 0,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "review",
+                "start": 2.48,
+                "end": 2.8799999,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "review."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.01,
+      "start": 3.39,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "UtteranceEnd",
+      "channel": [
+        0,
+        1
+      ],
+      "last_word_end": 2.8799999
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.01,
+      "start": 3.39,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.01,
+      "start": 3.39,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 7.21
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.01,
+      "start": 3.39,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Thanks.",
+            "confidence": 0.4119873,
+            "words": [
+              {
+                "word": "thanks",
+                "start": 6.99,
+                "end": 7.31,
+                "confidence": 0.4119873,
+                "speaker": 0,
+                "punctuated_word": "Thanks."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0199997,
+      "start": 3.39,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.9899998,
+      "start": 6.41,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Thanks. I want",
+            "confidence": 0.99853516,
+            "words": [
+              {
+                "word": "thanks",
+                "start": 7.29,
+                "end": 7.93,
+                "confidence": 0.99853516,
+                "speaker": 0,
+                "punctuated_word": "Thanks."
+              },
+              {
+                "word": "i",
+                "start": 7.93,
+                "end": 8.17,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 8.17,
+                "end": 8.41,
+                "confidence": 0.87597656,
+                "speaker": 0,
+                "punctuated_word": "want"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.9899998,
+      "start": 6.41,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Thanks. I want to start with the",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "thanks",
+                "start": 7.29,
+                "end": 7.93,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "Thanks."
+              },
+              {
+                "word": "i",
+                "start": 8.01,
+                "end": 8.25,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 8.25,
+                "end": 8.57,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 8.57,
+                "end": 8.73,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 8.73,
+                "end": 8.969999,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 8.969999,
+                "end": 9.13,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 9.13,
+                "end": 9.29,
+                "confidence": 0.96777344,
+                "speaker": 0,
+                "punctuated_word": "the"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.9899998,
+      "start": 6.41,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Thanks. I want to start with the marketing overspend",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "thanks",
+                "start": 7.29,
+                "end": 7.93,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "Thanks."
+              },
+              {
+                "word": "i",
+                "start": 8.01,
+                "end": 8.25,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 8.25,
+                "end": 8.57,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 8.57,
+                "end": 8.73,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 8.73,
+                "end": 8.969999,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 8.969999,
+                "end": 9.21,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 9.21,
+                "end": 9.37,
+                "confidence": 0.9941406,
+                "speaker": 0,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 9.37,
+                "end": 9.7699995,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "marketing"
+              },
+              {
+                "word": "overspend",
+                "start": 9.7699995,
+                "end": 10.25,
+                "confidence": 0.9453125,
+                "speaker": 0,
+                "punctuated_word": "overspend"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 10.2
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.71,
+      "start": 6.41,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Thanks. I want to start with the marketing",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "thanks",
+                "start": 7.29,
+                "end": 7.93,
+                "confidence": 0.9980469,
+                "speaker": 1,
+                "punctuated_word": "Thanks."
+              },
+              {
+                "word": "i",
+                "start": 8.01,
+                "end": 8.25,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 8.25,
+                "end": 8.57,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 8.57,
+                "end": 8.73,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 8.73,
+                "end": 8.969999,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 8.969999,
+                "end": 9.21,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 9.21,
+                "end": 9.37,
+                "confidence": 0.9873047,
+                "speaker": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 9.37,
+                "end": 9.7699995,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "marketing"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.3800001,
+      "start": 10.12,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "from last quarter.",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "from",
+                "start": 10.28,
+                "end": 10.599999,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 10.599999,
+                "end": 11,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "last"
+              },
+              {
+                "word": "quarter",
+                "start": 11,
+                "end": 11.32,
+                "confidence": 0.953125,
+                "speaker": 1,
+                "punctuated_word": "quarter."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.79,
+      "start": 10.12,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "from last quarter.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "from",
+                "start": 10.28,
+                "end": 10.599999,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 10.599999,
+                "end": 11,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "last"
+              },
+              {
+                "word": "quarter",
+                "start": 11,
+                "end": 11.32,
+                "confidence": 0.99609375,
+                "speaker": 1,
+                "punctuated_word": "quarter."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.0900002,
+      "start": 11.91,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "UtteranceEnd",
+      "channel": [
+        0,
+        1
+      ],
+      "last_word_end": 11.32
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.1900005,
+      "start": 11.91,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.1900005,
+      "start": 11.91,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 15.71
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.1900005,
+      "start": 11.91,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right.",
+            "confidence": 0.9970703,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.59,
+                "end": 15.91,
+                "confidence": 0.9970703,
+                "speaker": 1,
+                "punctuated_word": "Right."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.3899994,
+      "start": 11.91,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right.",
+            "confidence": 0.9941406,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.67,
+                "end": 15.91,
+                "confidence": 0.9941406,
+                "speaker": 1,
+                "punctuated_word": "Right."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0200005,
+      "start": 11.91,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.0699997,
+      "start": 14.93,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right. Marketing was",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.650001,
+                "end": 16.29,
+                "confidence": 0.99853516,
+                "speaker": 1,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 16.29,
+                "end": 16.69,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 16.69,
+                "end": 16.93,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "was"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0699997,
+      "start": 14.93,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right. Marketing was over budget by about",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.650001,
+                "end": 16.29,
+                "confidence": 0.99853516,
+                "speaker": 1,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 16.29,
+                "end": 16.69,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 16.69,
+                "end": 16.93,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 16.93,
+                "end": 17.17,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 17.17,
+                "end": 17.49,
+                "confidence": 0.98291016,
+                "speaker": 1,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 17.49,
+                "end": 17.73,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "about",
+                "start": 17.73,
+                "end": 17.970001,
+                "confidence": 0.61083984,
+                "speaker": 1,
+                "punctuated_word": "about"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.0699997,
+      "start": 14.93,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right. Marketing was over budget by about 12%.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.650001,
+                "end": 16.29,
+                "confidence": 0.99853516,
+                "speaker": 1,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 16.29,
+                "end": 16.69,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 16.69,
+                "end": 16.93,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 16.93,
+                "end": 17.25,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 17.25,
+                "end": 17.57,
+                "confidence": 0.9819336,
+                "speaker": 1,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 17.57,
+                "end": 17.81,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "about",
+                "start": 17.81,
+                "end": 18.130001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "about"
+              },
+              {
+                "word": "12%",
+                "start": 18.130001,
+                "end": 18.77,
+                "confidence": 0.95825195,
+                "speaker": 1,
+                "speaker_confidence": 0,
+                "punctuated_word": "12%."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.49,
+      "start": 14.93,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Right. Marketing was over budget by about 12%.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "right",
+                "start": 15.650001,
+                "end": 16.29,
+                "confidence": 0.99853516,
+                "speaker": 0,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 16.29,
+                "end": 16.69,
+                "confidence": 0.99902344,
+                "speaker": 0,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 16.69,
+                "end": 16.93,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 16.93,
+                "end": 17.25,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 17.25,
+                "end": 17.57,
+                "confidence": 0.9819336,
+                "speaker": 0,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 17.57,
+                "end": 17.81,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "about",
+                "start": 17.81,
+                "end": 18.130001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "about"
+              },
+              {
+                "word": "12%",
+                "start": 18.130001,
+                "end": 18.85,
+                "confidence": 0.98950195,
+                "speaker": 0,
+                "speaker_confidence": 0,
+                "punctuated_word": "12%."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.0799999,
+      "start": 19.42,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "UtteranceEnd",
+      "channel": [
+        0,
+        1
+      ],
+      "last_word_end": 18.85
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.1800003,
+      "start": 19.42,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.1800003,
+      "start": 19.42,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 23.23
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.2800007,
+      "start": 19.42,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 22.94,
+                "end": 23.34,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 23.34,
+                "end": 23.58,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "owns"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0200005,
+      "start": 19.42,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.0599995,
+      "start": 22.44,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number?",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 23.16,
+                "end": 23.4,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 23.4,
+                "end": 23.640001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 23.640001,
+                "end": 23.880001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 23.880001,
+                "end": 24.2,
+                "confidence": 0.7468262,
+                "speaker": 0,
+                "punctuated_word": "number?"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0599995,
+      "start": 22.44,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number, and can we get a",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 23.16,
+                "end": 23.4,
+                "confidence": 0.9970703,
+                "speaker": 0,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 23.4,
+                "end": 23.640001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 23.640001,
+                "end": 23.880001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 23.880001,
+                "end": 24.52,
+                "confidence": 0.7468262,
+                "speaker": 0,
+                "punctuated_word": "number,"
+              },
+              {
+                "word": "and",
+                "start": 24.52,
+                "end": 24.68,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "and"
+              },
+              {
+                "word": "can",
+                "start": 24.68,
+                "end": 24.92,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 24.92,
+                "end": 25.08,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 25.08,
+                "end": 25.24,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 25.24,
+                "end": 25.32,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.0599995,
+      "start": 22.44,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number? And can we get a breakdown by campaign?",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "who",
+                "start": 23.16,
+                "end": 23.4,
+                "confidence": 0.99609375,
+                "speaker": 0,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 23.4,
+                "end": 23.640001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 23.640001,
+                "end": 23.880001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 23.880001,
+                "end": 24.52,
+                "confidence": 0.7196045,
+                "speaker": 0,
+                "punctuated_word": "number?"
+              },
+              {
+                "word": "and",
+                "start": 24.52,
+                "end": 24.68,
+                "confidence": 0.9980469,
+                "speaker": 0,
+                "punctuated_word": "And"
+              },
+              {
+                "word": "can",
+                "start": 24.68,
+                "end": 24.92,
+                "confidence": 0.99902344,
+                "speaker": 0,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 24.92,
+                "end": 25.08,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 25.08,
+                "end": 25.24,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 25.24,
+                "end": 25.400002,
+                "confidence": 0.99902344,
+                "speaker": 0,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "breakdown",
+                "start": 25.400002,
+                "end": 25.800001,
+                "confidence": 0.9741211,
+                "speaker": 0,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "by",
+                "start": 25.800001,
+                "end": 26.12,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "campaign",
+                "start": 26.12,
+                "end": 26.44,
+                "confidence": 0.5510254,
+                "speaker": 0,
+                "punctuated_word": "campaign?"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.8899994,
+      "start": 22.44,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number, and can we get a breakdown by campaign?",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 23.08,
+                "end": 23.4,
+                "confidence": 0.9980469,
+                "speaker": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 23.4,
+                "end": 23.640001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 23.640001,
+                "end": 23.880001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 23.880001,
+                "end": 24.52,
+                "confidence": 0.73791504,
+                "speaker": 1,
+                "punctuated_word": "number,"
+              },
+              {
+                "word": "and",
+                "start": 24.52,
+                "end": 24.68,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "and"
+              },
+              {
+                "word": "can",
+                "start": 24.68,
+                "end": 24.92,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 24.92,
+                "end": 25.08,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 25.08,
+                "end": 25.24,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 25.24,
+                "end": 25.48,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "breakdown",
+                "start": 25.48,
+                "end": 25.880001,
+                "confidence": 0.9790039,
+                "speaker": 1,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "by",
+                "start": 25.880001,
+                "end": 26.2,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "campaign",
+                "start": 26.2,
+                "end": 26.68,
+                "confidence": 0.99560547,
+                "speaker": 1,
+                "punctuated_word": "campaign?"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.0699997,
+      "start": 27.33,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "UtteranceEnd",
+      "channel": [
+        0,
+        1
+      ],
+      "last_word_end": 26.68
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.17,
+      "start": 27.33,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.17,
+      "start": 27.33,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 31.13
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.17,
+      "start": 27.33,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.93,
+                "end": 31.17,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.17,
+                "end": 31.33,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "will"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0200005,
+      "start": 27.33,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.0500011,
+      "start": 30.35,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to send the",
+            "confidence": 0.96240234,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.91,
+                "end": 31.23,
+                "confidence": 0.95703125,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.23,
+                "end": 31.39,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 31.39,
+                "end": 31.710001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 31.710001,
+                "end": 31.87,
+                "confidence": 0.26367188,
+                "speaker": 1,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 31.87,
+                "end": 32.03,
+                "confidence": 0.8671875,
+                "speaker": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 32.03,
+                "end": 32.27,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 32.27,
+                "end": 32.35,
+                "confidence": 0.96240234,
+                "speaker": 1,
+                "punctuated_word": "the"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0500011,
+      "start": 30.35,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to send the campaign breakdown",
+            "confidence": 0.9921875,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.91,
+                "end": 31.23,
+                "confidence": 0.9892578,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.23,
+                "end": 31.39,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 31.39,
+                "end": 31.710001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 31.710001,
+                "end": 31.87,
+                "confidence": 0.35180664,
+                "speaker": 1,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 31.87,
+                "end": 32.03,
+                "confidence": 0.82128906,
+                "speaker": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 32.03,
+                "end": 32.27,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 32.27,
+                "end": 32.43,
+                "confidence": 0.94384766,
+                "speaker": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 32.43,
+                "end": 32.83,
+                "confidence": 0.9980469,
+                "speaker": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 32.83,
+                "end": 33.23,
+                "confidence": 0.9921875,
+                "speaker": 1,
+                "punctuated_word": "breakdown"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.050001,
+      "start": 30.35,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to send the campaign breakdown before Friday.",
+            "confidence": 0.98828125,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.91,
+                "end": 31.23,
+                "confidence": 0.9838867,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.23,
+                "end": 31.39,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 31.39,
+                "end": 31.710001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 31.710001,
+                "end": 31.87,
+                "confidence": 0.21264648,
+                "speaker": 1,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 31.87,
+                "end": 32.03,
+                "confidence": 0.7866211,
+                "speaker": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 32.03,
+                "end": 32.27,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 32.27,
+                "end": 32.510002,
+                "confidence": 0.9506836,
+                "speaker": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 32.510002,
+                "end": 32.83,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 32.83,
+                "end": 33.31,
+                "confidence": 0.98828125,
+                "speaker": 1,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 33.31,
+                "end": 33.79,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 33.79,
+                "end": 34.19,
+                "confidence": 0.9187012,
+                "speaker": 1,
+                "punctuated_word": "Friday."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.249998,
+      "start": 30.35,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Wade to send the campaign breakdown before Friday.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.91,
+                "end": 31.23,
+                "confidence": 0.9838867,
+                "speaker": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.23,
+                "end": 31.39,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 31.39,
+                "end": 31.710001,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "wade",
+                "start": 31.710001,
+                "end": 31.95,
+                "confidence": 0.24597168,
+                "speaker": 1,
+                "punctuated_word": "Wade"
+              },
+              {
+                "word": "to",
+                "start": 31.95,
+                "end": 32.11,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 32.11,
+                "end": 32.27,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 32.27,
+                "end": 32.510002,
+                "confidence": 0.9482422,
+                "speaker": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 32.510002,
+                "end": 32.83,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 32.83,
+                "end": 33.31,
+                "confidence": 0.9873047,
+                "speaker": 1,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 33.31,
+                "end": 33.79,
+                "confidence": 1,
+                "speaker": 1,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 33.79,
+                "end": 34.19,
+                "confidence": 0.92407227,
+                "speaker": 1,
+                "punctuated_word": "Friday."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 35.42
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.9699993,
+      "start": 30.35,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Wade to send the campaign breakdown before Friday. Perfect.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 30.91,
+                "end": 31.23,
+                "confidence": 0.9863281,
+                "speaker": 0,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 31.23,
+                "end": 31.39,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 31.39,
+                "end": 31.710001,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "wade",
+                "start": 31.710001,
+                "end": 31.95,
+                "confidence": 0.27075195,
+                "speaker": 0,
+                "punctuated_word": "Wade"
+              },
+              {
+                "word": "to",
+                "start": 31.95,
+                "end": 32.11,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 32.11,
+                "end": 32.27,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 32.27,
+                "end": 32.510002,
+                "confidence": 0.9614258,
+                "speaker": 0,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 32.510002,
+                "end": 32.83,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 32.83,
+                "end": 33.31,
+                "confidence": 0.9873047,
+                "speaker": 0,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 33.31,
+                "end": 33.79,
+                "confidence": 1,
+                "speaker": 0,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 33.79,
+                "end": 34.51,
+                "confidence": 0.9995117,
+                "speaker": 0,
+                "punctuated_word": "Friday."
+              },
+              {
+                "word": "perfect",
+                "start": 34.510002,
+                "end": 34.91,
+                "confidence": 0.99902344,
+                "speaker": 1,
+                "punctuated_word": "Perfect."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 0.19924927,
+      "start": 35.32,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Let",
+            "confidence": 0.68652344,
+            "words": [
+              {
+                "word": "let",
+                "start": 35.32,
+                "end": 35.56,
+                "confidence": 0.68652344,
+                "speaker": 1,
+                "punctuated_word": "Let"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 0,
+      "start": 35.51925,
+      "is_final": true,
+      "speech_final": true,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Metadata",
+      "transaction_key": "deprecated",
+      "request_id": "01a117cf-6432-7f02-a06a-28a8e3e1eb67",
+      "sha256": "74e319432abc135f2ea113ca8a8f559a94982c6a781accf53107f0faf7b74225",
+      "created": "2026-10-07T19:20:30.017Z",
+      "duration": 35.51925,
+      "channels": 1,
+      "models": [
+        "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      ],
+      "model_info": {
+        "40bd3654-e622-47c4-a111-63a61b23bfe8": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        }
+      }
+    }
+  ]
+}

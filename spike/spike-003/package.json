@@ -1,0 +1,16 @@
+{
+  "name": "tree-factory-spike-003",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "node test/smoke.mjs",
+    "conformance": "node test/conformance.mjs",
+    "dev": "wrangler dev --local --show-interactive-dev-session=false",
+    "check": "wrangler deploy --dry-run --outdir /tmp/spike003-dist"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "^1.0.4",
+    "@earendil-works/pi-ai": "^1.0.4",
+    "@earendil-works/pi-durable": "^1.0.4"
+  }
+}

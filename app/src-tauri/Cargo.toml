@@ -1,0 +1,22 @@
+[package]
+name = "tree-factory"
+version = "0.1.0"
+description = "AI 會議記錄 agent（iOS / Tauri 2）"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "tree_factory_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+# iOS 除錯建置：保留符號但降低最佳化時間（與 Tauri 官方模板一致）
+incremental = true

@@ -1,0 +1,157 @@
+TAP version 13
+# (node:30908) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: DoSqliteDatabase（DO SQLite 形狀）
+    # Subtest: reserves ID 1 for the immutable root conversation
+    ok 1 - reserves ID 1 for the immutable root conversation
+      ---
+      duration_ms: 1.3605
+      type: 'test'
+      ...
+    # Subtest: commits mixed table writes atomically and rolls all of them back on failure
+    ok 2 - commits mixed table writes atomically and rolls all of them back on failure
+      ---
+      duration_ms: 0.434875
+      type: 'test'
+      ...
+    # Subtest: detaches retained writes and every returned record
+    ok 3 - detaches retained writes and every returned record
+      ---
+      duration_ms: 0.333834
+      type: 'test'
+      ...
+    # Subtest: detaches prototype-like JSON keys without changing object prototypes
+    ok 4 - detaches prototype-like JSON keys without changing object prototypes
+      ---
+      duration_ms: 0.318042
+      type: 'test'
+      ...
+    # Subtest: indexes entries committed out of ID order
+    ok 5 - indexes entries committed out of ID order
+      ---
+      duration_ms: 0.360167
+      type: 'test'
+      ...
+    # Subtest: continues an entry cursor below its last item after a newer commit
+    ok 6 - continues an entry cursor below its last item after a newer commit
+      ---
+      duration_ms: 0.324666
+      type: 'test'
+      ...
+    # Subtest: paginates conversations by opaque cursor in ascending ID order
+    ok 7 - paginates conversations by opaque cursor in ascending ID order
+      ---
+      duration_ms: 0.301917
+      type: 'test'
+      ...
+    # Subtest: filters and pages conversations by durable owner edges
+    ok 8 - filters and pages conversations by durable owner edges
+      ---
+      duration_ms: 0.35825
+      type: 'test'
+      ...
+    # Subtest: scans deep fork history newest-first through every ancestor cap
+    ok 9 - scans deep fork history newest-first through every ancestor cap
+      ---
+      duration_ms: 0.395708
+      type: 'test'
+      ...
+    # Subtest: replaces complete task records and pages filtered task scans
+    ok 10 - replaces complete task records and pages filtered task scans
+      ---
+      duration_ms: 0.510667
+      type: 'test'
+      ...
+    # Subtest: stores owners and scans waiting and completing tasks by status
+    ok 11 - stores owners and scans waiting and completing tasks by status
+      ---
+      duration_ms: 0.302375
+      type: 'test'
+      ...
+    # Subtest: indexes request IDs per conversation and replaces complete submission records
+    ok 12 - indexes request IDs per conversation and replaces complete submission records
+      ---
+      duration_ms: 0.318834
+      type: 'test'
+      ...
+    # Subtest: stores passive write submissions without input-only lifecycle states
+    ok 13 - stores passive write submissions without input-only lifecycle states
+      ---
+      duration_ms: 0.312625
+      type: 'test'
+      ...
+    # Subtest: reconstructs rewindable documents and preserves half-open incarnations
+    ok 14 - reconstructs rewindable documents and preserves half-open incarnations
+      ---
+      duration_ms: 0.27725
+      type: 'test'
+      ...
+    # Subtest: streams long document tails across root replacement deltas
+    ok 15 - streams long document tails across root replacement deltas
+      ---
+      duration_ms: 0.283708
+      type: 'test'
+      ...
+    # Subtest: copies stored document bases independently and rejects ambiguous sources
+    ok 16 - copies stored document bases independently and rejects ambiguous sources
+      ---
+      duration_ms: 0.281917
+      type: 'test'
+      ...
+    # Subtest: uses bases for version transitions and rejects historical reads of current-only documents
+    ok 17 - uses bases for version transitions and rejects historical reads of current-only documents
+      ---
+      duration_ms: 0.277291
+      type: 'test'
+      ...
+    # Subtest: indexes logical addresses and exact-scope scans independently
+    ok 18 - indexes logical addresses and exact-scope scans independently
+      ---
+      duration_ms: 0.276042
+      type: 'test'
+      ...
+    # Subtest: keeps document lifecycle failures atomic and gives create-plus-retire an empty lifetime
+    ok 19 - keeps document lifecycle failures atomic and gives create-plus-retire an empty lifetime
+      ---
+      duration_ms: 0.282292
+      type: 'test'
+      ...
+    # Subtest: rolls back record tables and secondary indexes when a document command fails
+    ok 20 - rolls back record tables and secondary indexes when a document command fails
+      ---
+      duration_ms: 0.284458
+      type: 'test'
+      ...
+    # Subtest: keeps indexed string identities lossless
+    ok 21 - keeps indexed string identities lossless
+      ---
+      duration_ms: 0.280375
+      type: 'test'
+      ...
+    # Subtest: keeps one global record ID namespace and rejects exhausted ID minting
+    ok 22 - keeps one global record ID namespace and rejects exhausted ID minting
+      ---
+      duration_ms: 0.777417
+      type: 'test'
+      ...
+    # Subtest: rejects every operation after close
+    ok 23 - rejects every operation after close
+      ---
+      duration_ms: 0.358833
+      type: 'test'
+      ...
+    1..23
+ok 1 - DoSqliteDatabase（DO SQLite 形狀）
+  ---
+  duration_ms: 9.58875
+  type: 'suite'
+  ...
+1..1
+# tests 23
+# suites 1
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 57.279875

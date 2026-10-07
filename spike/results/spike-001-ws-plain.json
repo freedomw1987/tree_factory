@@ -1,0 +1,3018 @@
+{
+  "summary": {
+    "endpoint": "wss://api.cloudflare.com/client/v4/accounts/<acct>/ai/run/@cf/deepgram/nova-3",
+    "diarizeRequested": false,
+    "totalMessages": 39,
+    "resultsMessages": 32,
+    "finalMessages": 7,
+    "wordCount": 274,
+    "speakerValuesSeen": [],
+    "wordSample": [
+      {
+        "w": "Good",
+        "start": 0
+      },
+      {
+        "w": "morning",
+        "start": 0.24
+      },
+      {
+        "w": "everyone.",
+        "start": 0.48
+      },
+      {
+        "w": "Good",
+        "start": 0
+      },
+      {
+        "w": "morning",
+        "start": 0.24
+      }
+    ],
+    "paragraphs": [],
+    "transcript": "Good morning, everyone. Thanks for joining the budget review. Thanks. I want to start with the marketing overspend from last quarter. Right. Marketing was over budget by about 12%. Who owns that number? And can we get a breakdown by campaign? I will ask Wade to send the campaign breakdown before Friday. Perfect. Let me also add that we need a decision on the training budget.",
+    "nonResultsTypes": [
+      "SpeechStarted",
+      "Metadata"
+    ],
+    "errors": []
+  },
+  "messages": [
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 0.07
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning everyone.",
+            "confidence": 0.8232422,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.8232422,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.48,
+                "confidence": 0.9970703,
+                "punctuated_word": "morning"
+              },
+              {
+                "word": "everyone",
+                "start": 0.48,
+                "end": 0.88,
+                "confidence": 0.7375488,
+                "punctuated_word": "everyone."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.5,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning everyone.",
+            "confidence": 0.95336914,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.60253906,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.56,
+                "confidence": 0.99609375,
+                "punctuated_word": "morning"
+              },
+              {
+                "word": "everyone",
+                "start": 0.56,
+                "end": 0.96,
+                "confidence": 0.95336914,
+                "punctuated_word": "everyone."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.5,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning everyone. Thanks for joining the",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.9770508,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.56,
+                "confidence": 1,
+                "punctuated_word": "morning"
+              },
+              {
+                "word": "everyone",
+                "start": 0.56,
+                "end": 1.3599999,
+                "confidence": 0.9289551,
+                "punctuated_word": "everyone."
+              },
+              {
+                "word": "thanks",
+                "start": 1.36,
+                "end": 1.76,
+                "confidence": 1,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.76,
+                "end": 1.92,
+                "confidence": 1,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 1.92,
+                "end": 2.24,
+                "confidence": 1,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 2.24,
+                "end": 2.3999999,
+                "confidence": 0.9980469,
+                "punctuated_word": "the"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.5,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning, everyone. Thanks for joining the budget review.",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.99316406,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.79999995,
+                "confidence": 0.78759766,
+                "punctuated_word": "morning,"
+              },
+              {
+                "word": "everyone",
+                "start": 0.79999995,
+                "end": 1.3599999,
+                "confidence": 1,
+                "punctuated_word": "everyone."
+              },
+              {
+                "word": "thanks",
+                "start": 1.36,
+                "end": 1.76,
+                "confidence": 1,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.76,
+                "end": 2,
+                "confidence": 1,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 2,
+                "end": 2.32,
+                "confidence": 1,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 2.32,
+                "end": 2.48,
+                "confidence": 0.99902344,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "budget",
+                "start": 2.48,
+                "end": 2.8,
+                "confidence": 0.8496094,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "review",
+                "start": 2.8,
+                "end": 3.1999998,
+                "confidence": 0.9904785,
+                "punctuated_word": "review."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.5,
+      "start": 0,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning, everyone. Thanks for joining the budget review. Thanks. I",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.8925781,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.79999995,
+                "confidence": 0.95751953,
+                "punctuated_word": "morning,"
+              },
+              {
+                "word": "everyone",
+                "start": 0.79999995,
+                "end": 1.28,
+                "confidence": 1,
+                "punctuated_word": "everyone."
+              },
+              {
+                "word": "thanks",
+                "start": 1.36,
+                "end": 1.76,
+                "confidence": 1,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.76,
+                "end": 2,
+                "confidence": 1,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 2,
+                "end": 2.32,
+                "confidence": 1,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 2.32,
+                "end": 2.48,
+                "confidence": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "budget",
+                "start": 2.48,
+                "end": 2.8,
+                "confidence": 0.9790039,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "review",
+                "start": 2.8,
+                "end": 3.4399998,
+                "confidence": 0.9995117,
+                "punctuated_word": "review."
+              },
+              {
+                "word": "thanks",
+                "start": 3.4399998,
+                "end": 4.24,
+                "confidence": 1,
+                "punctuated_word": "Thanks."
+              },
+              {
+                "word": "i",
+                "start": 4.24,
+                "end": 4.4,
+                "confidence": 0.9941406,
+                "punctuated_word": "I"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 4.42
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.19,
+      "start": 0,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Good morning, everyone. Thanks for joining the budget review. Thanks.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "good",
+                "start": 0,
+                "end": 0.24,
+                "confidence": 0.83935547,
+                "punctuated_word": "Good"
+              },
+              {
+                "word": "morning",
+                "start": 0.24,
+                "end": 0.79999995,
+                "confidence": 0.9387207,
+                "punctuated_word": "morning,"
+              },
+              {
+                "word": "everyone",
+                "start": 0.79999995,
+                "end": 1.28,
+                "confidence": 1,
+                "punctuated_word": "everyone."
+              },
+              {
+                "word": "thanks",
+                "start": 1.36,
+                "end": 1.76,
+                "confidence": 1,
+                "punctuated_word": "Thanks"
+              },
+              {
+                "word": "for",
+                "start": 1.76,
+                "end": 2,
+                "confidence": 1,
+                "punctuated_word": "for"
+              },
+              {
+                "word": "joining",
+                "start": 2,
+                "end": 2.32,
+                "confidence": 1,
+                "punctuated_word": "joining"
+              },
+              {
+                "word": "the",
+                "start": 2.32,
+                "end": 2.48,
+                "confidence": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "budget",
+                "start": 2.48,
+                "end": 2.8,
+                "confidence": 0.97265625,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "review",
+                "start": 2.8,
+                "end": 3.5199997,
+                "confidence": 0.9995117,
+                "punctuated_word": "review."
+              },
+              {
+                "word": "thanks",
+                "start": 3.52,
+                "end": 3.9199998,
+                "confidence": 0.99316406,
+                "punctuated_word": "Thanks."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.0099998,
+      "start": 4.19,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 4.91,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 4.91,
+                "end": 5.15,
+                "confidence": 0.70410156,
+                "punctuated_word": "start"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.0099998,
+      "start": 4.19,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start with the marketing",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 5.07,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 5.07,
+                "end": 5.31,
+                "confidence": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 5.31,
+                "end": 5.4700003,
+                "confidence": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 5.4700003,
+                "end": 5.63,
+                "confidence": 0.9863281,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 5.63,
+                "end": 6.0299997,
+                "confidence": 0.9980469,
+                "punctuated_word": "marketing"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.0099998,
+      "start": 4.19,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start with the marketing overspend from last",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 5.07,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 5.07,
+                "end": 5.31,
+                "confidence": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 5.31,
+                "end": 5.4700003,
+                "confidence": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 5.4700003,
+                "end": 5.63,
+                "confidence": 0.9921875,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 5.63,
+                "end": 6.11,
+                "confidence": 1,
+                "punctuated_word": "marketing"
+              },
+              {
+                "word": "overspend",
+                "start": 6.11,
+                "end": 6.67,
+                "confidence": 0.9855957,
+                "punctuated_word": "overspend"
+              },
+              {
+                "word": "from",
+                "start": 6.67,
+                "end": 6.91,
+                "confidence": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 6.91,
+                "end": 7.0699997,
+                "confidence": 0.9970703,
+                "punctuated_word": "last"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.0099998,
+      "start": 4.19,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start with the marketing overspend from last quarter. Right.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 5.07,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 5.07,
+                "end": 5.31,
+                "confidence": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 5.31,
+                "end": 5.4700003,
+                "confidence": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 5.4700003,
+                "end": 5.63,
+                "confidence": 0.9902344,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 5.63,
+                "end": 6.11,
+                "confidence": 1,
+                "punctuated_word": "marketing"
+              },
+              {
+                "word": "overspend",
+                "start": 6.11,
+                "end": 6.67,
+                "confidence": 0.986084,
+                "punctuated_word": "overspend"
+              },
+              {
+                "word": "from",
+                "start": 6.67,
+                "end": 6.91,
+                "confidence": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 6.91,
+                "end": 7.31,
+                "confidence": 1,
+                "punctuated_word": "last"
+              },
+              {
+                "word": "quarter",
+                "start": 7.31,
+                "end": 7.87,
+                "confidence": 0.9946289,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 7.87,
+                "end": 8.11,
+                "confidence": 0.9941406,
+                "punctuated_word": "Right."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.4100003,
+      "start": 4.19,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start with the marketing overspend from last quarter. Right.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 4.99,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 4.99,
+                "end": 5.31,
+                "confidence": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 5.31,
+                "end": 5.4700003,
+                "confidence": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 5.4700003,
+                "end": 5.63,
+                "confidence": 0.99121094,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 5.63,
+                "end": 6.11,
+                "confidence": 1,
+                "punctuated_word": "marketing"
+              },
+              {
+                "word": "overspend",
+                "start": 6.11,
+                "end": 6.67,
+                "confidence": 0.98583984,
+                "punctuated_word": "overspend"
+              },
+              {
+                "word": "from",
+                "start": 6.67,
+                "end": 6.99,
+                "confidence": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 6.99,
+                "end": 7.31,
+                "confidence": 1,
+                "punctuated_word": "last"
+              },
+              {
+                "word": "quarter",
+                "start": 7.31,
+                "end": 7.95,
+                "confidence": 0.99902344,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 7.95,
+                "end": 8.27,
+                "confidence": 1,
+                "punctuated_word": "Right."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 7.32
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.02,
+      "start": 4.19,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I want to start with the marketing overspend from last",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 4.35,
+                "end": 4.59,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "want",
+                "start": 4.59,
+                "end": 4.83,
+                "confidence": 1,
+                "punctuated_word": "want"
+              },
+              {
+                "word": "to",
+                "start": 4.83,
+                "end": 5.07,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "start",
+                "start": 5.07,
+                "end": 5.31,
+                "confidence": 1,
+                "punctuated_word": "start"
+              },
+              {
+                "word": "with",
+                "start": 5.31,
+                "end": 5.4700003,
+                "confidence": 1,
+                "punctuated_word": "with"
+              },
+              {
+                "word": "the",
+                "start": 5.4700003,
+                "end": 5.63,
+                "confidence": 0.9921875,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "marketing",
+                "start": 5.63,
+                "end": 6.11,
+                "confidence": 1,
+                "punctuated_word": "marketing"
+              },
+              {
+                "word": "overspend",
+                "start": 6.11,
+                "end": 6.67,
+                "confidence": 0.98657227,
+                "punctuated_word": "overspend"
+              },
+              {
+                "word": "from",
+                "start": 6.67,
+                "end": 6.91,
+                "confidence": 1,
+                "punctuated_word": "from"
+              },
+              {
+                "word": "last",
+                "start": 6.91,
+                "end": 7.0699997,
+                "confidence": 0.99902344,
+                "punctuated_word": "last"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.9899998,
+      "start": 7.21,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "quarter. Right. Marketing was",
+            "confidence": 0.9995117,
+            "words": [
+              {
+                "word": "quarter",
+                "start": 7.29,
+                "end": 7.9300003,
+                "confidence": 0.9995117,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 8.01,
+                "end": 8.57,
+                "confidence": 0.9995117,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 8.57,
+                "end": 8.97,
+                "confidence": 0.99902344,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 8.97,
+                "end": 9.13,
+                "confidence": 0.99902344,
+                "punctuated_word": "was"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.9899998,
+      "start": 7.21,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "quarter. Right. Marketing was over budget by a",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "quarter",
+                "start": 7.29,
+                "end": 7.9300003,
+                "confidence": 0.9995117,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 8.01,
+                "end": 8.57,
+                "confidence": 1,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 8.57,
+                "end": 8.97,
+                "confidence": 0.99902344,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 8.97,
+                "end": 9.29,
+                "confidence": 1,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 9.29,
+                "end": 9.53,
+                "confidence": 1,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 9.53,
+                "end": 9.77,
+                "confidence": 0.96972656,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 9.77,
+                "end": 10.01,
+                "confidence": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "a",
+                "start": 10.01,
+                "end": 10.17,
+                "confidence": 0.7319336,
+                "punctuated_word": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.9899998,
+      "start": 7.21,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "quarter. Right. Marketing was over budget by about 12%.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "quarter",
+                "start": 7.29,
+                "end": 7.9300003,
+                "confidence": 0.9995117,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 8.01,
+                "end": 8.57,
+                "confidence": 0.9995117,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 8.57,
+                "end": 8.97,
+                "confidence": 1,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 8.97,
+                "end": 9.29,
+                "confidence": 1,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 9.29,
+                "end": 9.53,
+                "confidence": 1,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 9.53,
+                "end": 9.85,
+                "confidence": 0.9667969,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 9.85,
+                "end": 10.17,
+                "confidence": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "about",
+                "start": 10.17,
+                "end": 10.41,
+                "confidence": 1,
+                "punctuated_word": "about"
+              },
+              {
+                "word": "12%",
+                "start": 10.41,
+                "end": 10.97,
+                "confidence": 0.9484863,
+                "punctuated_word": "12%."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 11.53
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.1899996,
+      "start": 7.21,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "quarter. Right. Marketing was over budget by about 12%.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "quarter",
+                "start": 7.29,
+                "end": 7.9300003,
+                "confidence": 0.9995117,
+                "punctuated_word": "quarter."
+              },
+              {
+                "word": "right",
+                "start": 8.01,
+                "end": 8.57,
+                "confidence": 0.9995117,
+                "punctuated_word": "Right."
+              },
+              {
+                "word": "marketing",
+                "start": 8.57,
+                "end": 8.97,
+                "confidence": 1,
+                "punctuated_word": "Marketing"
+              },
+              {
+                "word": "was",
+                "start": 8.97,
+                "end": 9.29,
+                "confidence": 1,
+                "punctuated_word": "was"
+              },
+              {
+                "word": "over",
+                "start": 9.29,
+                "end": 9.53,
+                "confidence": 1,
+                "punctuated_word": "over"
+              },
+              {
+                "word": "budget",
+                "start": 9.53,
+                "end": 9.85,
+                "confidence": 0.97265625,
+                "punctuated_word": "budget"
+              },
+              {
+                "word": "by",
+                "start": 9.85,
+                "end": 10.17,
+                "confidence": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "about",
+                "start": 10.17,
+                "end": 10.41,
+                "confidence": 1,
+                "punctuated_word": "about"
+              },
+              {
+                "word": "12%",
+                "start": 10.41,
+                "end": 11.05,
+                "confidence": 0.9649658,
+                "punctuated_word": "12%."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1,
+      "start": 11.4,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 11.4,
+                "end": 11.719999,
+                "confidence": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 11.719999,
+                "end": 11.96,
+                "confidence": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 11.96,
+                "end": 12.12,
+                "confidence": 1,
+                "punctuated_word": "that"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2,
+      "start": 11.4,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number? And can we",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 11.4,
+                "end": 11.719999,
+                "confidence": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 11.719999,
+                "end": 11.96,
+                "confidence": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 11.96,
+                "end": 12.2,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 12.2,
+                "end": 12.759999,
+                "confidence": 0.782959,
+                "punctuated_word": "number?"
+              },
+              {
+                "word": "and",
+                "start": 12.839999,
+                "end": 12.92,
+                "confidence": 1,
+                "punctuated_word": "And"
+              },
+              {
+                "word": "can",
+                "start": 12.92,
+                "end": 13.16,
+                "confidence": 1,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 13.16,
+                "end": 13.24,
+                "confidence": 1,
+                "punctuated_word": "we"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3,
+      "start": 11.4,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number? And can we get a breakdown by",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 11.4,
+                "end": 11.719999,
+                "confidence": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 11.719999,
+                "end": 11.96,
+                "confidence": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 11.96,
+                "end": 12.2,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 12.2,
+                "end": 12.759999,
+                "confidence": 0.86157227,
+                "punctuated_word": "number?"
+              },
+              {
+                "word": "and",
+                "start": 12.839999,
+                "end": 13,
+                "confidence": 0.99902344,
+                "punctuated_word": "And"
+              },
+              {
+                "word": "can",
+                "start": 13,
+                "end": 13.24,
+                "confidence": 1,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 13.24,
+                "end": 13.4,
+                "confidence": 1,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 13.4,
+                "end": 13.559999,
+                "confidence": 1,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 13.559999,
+                "end": 13.719999,
+                "confidence": 1,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "breakdown",
+                "start": 13.719999,
+                "end": 14.12,
+                "confidence": 0.9760742,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "by",
+                "start": 14.12,
+                "end": 14.36,
+                "confidence": 0.9951172,
+                "punctuated_word": "by"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4,
+      "start": 11.4,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number? And can we get a breakdown by campaign?",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 11.4,
+                "end": 11.719999,
+                "confidence": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 11.719999,
+                "end": 11.96,
+                "confidence": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 11.96,
+                "end": 12.2,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 12.2,
+                "end": 12.759999,
+                "confidence": 0.77685547,
+                "punctuated_word": "number?"
+              },
+              {
+                "word": "and",
+                "start": 12.839999,
+                "end": 13,
+                "confidence": 0.99902344,
+                "punctuated_word": "And"
+              },
+              {
+                "word": "can",
+                "start": 13,
+                "end": 13.24,
+                "confidence": 1,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 13.24,
+                "end": 13.4,
+                "confidence": 1,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 13.4,
+                "end": 13.559999,
+                "confidence": 1,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 13.559999,
+                "end": 13.719999,
+                "confidence": 0.99902344,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "breakdown",
+                "start": 13.719999,
+                "end": 14.12,
+                "confidence": 0.9707031,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "by",
+                "start": 14.12,
+                "end": 14.44,
+                "confidence": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "campaign",
+                "start": 14.44,
+                "end": 14.92,
+                "confidence": 0.9970703,
+                "punctuated_word": "campaign?"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 15.43
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.8600006,
+      "start": 11.4,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Who owns that number? And can we get a breakdown by campaign?",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "who",
+                "start": 11.4,
+                "end": 11.719999,
+                "confidence": 1,
+                "punctuated_word": "Who"
+              },
+              {
+                "word": "owns",
+                "start": 11.719999,
+                "end": 11.96,
+                "confidence": 1,
+                "punctuated_word": "owns"
+              },
+              {
+                "word": "that",
+                "start": 11.96,
+                "end": 12.2,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "number",
+                "start": 12.2,
+                "end": 12.759999,
+                "confidence": 0.8195801,
+                "punctuated_word": "number?"
+              },
+              {
+                "word": "and",
+                "start": 12.839999,
+                "end": 13,
+                "confidence": 0.99902344,
+                "punctuated_word": "And"
+              },
+              {
+                "word": "can",
+                "start": 13,
+                "end": 13.24,
+                "confidence": 1,
+                "punctuated_word": "can"
+              },
+              {
+                "word": "we",
+                "start": 13.24,
+                "end": 13.4,
+                "confidence": 1,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "get",
+                "start": 13.4,
+                "end": 13.559999,
+                "confidence": 1,
+                "punctuated_word": "get"
+              },
+              {
+                "word": "a",
+                "start": 13.559999,
+                "end": 13.719999,
+                "confidence": 0.99902344,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "breakdown",
+                "start": 13.719999,
+                "end": 14.12,
+                "confidence": 0.96972656,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "by",
+                "start": 14.12,
+                "end": 14.44,
+                "confidence": 1,
+                "punctuated_word": "by"
+              },
+              {
+                "word": "campaign",
+                "start": 14.44,
+                "end": 14.92,
+                "confidence": 0.9951172,
+                "punctuated_word": "campaign?"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.1399994,
+      "start": 15.26,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.26,
+                "end": 15.58,
+                "confidence": 0.99902344,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 15.9800005,
+                "end": 16.14,
+                "confidence": 0.23620605,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 16.14,
+                "end": 16.3,
+                "confidence": 0.7675781,
+                "punctuated_word": "to"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.1399994,
+      "start": 15.26,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to send the campaign break",
+            "confidence": 0.9980469,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.26,
+                "end": 15.58,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 15.9800005,
+                "end": 16.22,
+                "confidence": 0.26367188,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 16.22,
+                "end": 16.380001,
+                "confidence": 0.87597656,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 16.380001,
+                "end": 16.54,
+                "confidence": 0.9980469,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 16.54,
+                "end": 16.78,
+                "confidence": 0.8457031,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 16.78,
+                "end": 17.1,
+                "confidence": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "break",
+                "start": 17.1,
+                "end": 17.34,
+                "confidence": 0.4128418,
+                "punctuated_word": "break"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.1399994,
+      "start": 15.26,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Wei to send the campaign breakdown before Friday.",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.34,
+                "end": 15.58,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "wei",
+                "start": 15.9800005,
+                "end": 16.22,
+                "confidence": 0.6376953,
+                "punctuated_word": "Wei"
+              },
+              {
+                "word": "to",
+                "start": 16.22,
+                "end": 16.380001,
+                "confidence": 0.99902344,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 16.380001,
+                "end": 16.62,
+                "confidence": 0.99902344,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 16.62,
+                "end": 16.78,
+                "confidence": 0.94140625,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 16.78,
+                "end": 17.18,
+                "confidence": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 17.18,
+                "end": 17.58,
+                "confidence": 0.99316406,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 17.58,
+                "end": 18.06,
+                "confidence": 0.99902344,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 18.06,
+                "end": 18.3,
+                "confidence": 0.7312012,
+                "punctuated_word": "Friday."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.6399994,
+      "start": 15.26,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Way to send the campaign breakdown before Friday. Per",
+            "confidence": 0.99902344,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.34,
+                "end": 15.58,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "way",
+                "start": 15.9800005,
+                "end": 16.22,
+                "confidence": 0.25024414,
+                "punctuated_word": "Way"
+              },
+              {
+                "word": "to",
+                "start": 16.22,
+                "end": 16.380001,
+                "confidence": 0.8408203,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 16.380001,
+                "end": 16.62,
+                "confidence": 0.99902344,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 16.62,
+                "end": 16.78,
+                "confidence": 0.9472656,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 16.78,
+                "end": 17.18,
+                "confidence": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 17.18,
+                "end": 17.58,
+                "confidence": 0.9941406,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 17.58,
+                "end": 18.14,
+                "confidence": 0.99902344,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 18.14,
+                "end": 18.7,
+                "confidence": 0.99194336,
+                "punctuated_word": "Friday."
+              },
+              {
+                "word": "per",
+                "start": 18.7,
+                "end": 18.86,
+                "confidence": 0.53125,
+                "punctuated_word": "Per"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.74,
+      "start": 15.26,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Wade to send the campaign breakdown before Friday. Perfect. Let",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.34,
+                "end": 15.58,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "wade",
+                "start": 15.9800005,
+                "end": 16.22,
+                "confidence": 0.3527832,
+                "punctuated_word": "Wade"
+              },
+              {
+                "word": "to",
+                "start": 16.22,
+                "end": 16.380001,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 16.380001,
+                "end": 16.62,
+                "confidence": 0.9980469,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 16.62,
+                "end": 16.78,
+                "confidence": 0.94921875,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 16.78,
+                "end": 17.18,
+                "confidence": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 17.18,
+                "end": 17.58,
+                "confidence": 0.99121094,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 17.58,
+                "end": 18.14,
+                "confidence": 0.99902344,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 18.14,
+                "end": 18.779999,
+                "confidence": 1,
+                "punctuated_word": "Friday."
+              },
+              {
+                "word": "perfect",
+                "start": 18.86,
+                "end": 19.58,
+                "confidence": 1,
+                "punctuated_word": "Perfect."
+              },
+              {
+                "word": "let",
+                "start": 19.66,
+                "end": 19.82,
+                "confidence": 1,
+                "punctuated_word": "Let"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "SpeechStarted",
+      "channel": [
+        0,
+        1
+      ],
+      "timestamp": 19.72
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 4.25,
+      "start": 15.26,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "I will ask Wade to send the campaign breakdown before Friday. Perfect.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "i",
+                "start": 15.34,
+                "end": 15.58,
+                "confidence": 1,
+                "punctuated_word": "I"
+              },
+              {
+                "word": "will",
+                "start": 15.58,
+                "end": 15.74,
+                "confidence": 1,
+                "punctuated_word": "will"
+              },
+              {
+                "word": "ask",
+                "start": 15.74,
+                "end": 15.9800005,
+                "confidence": 1,
+                "punctuated_word": "ask"
+              },
+              {
+                "word": "wade",
+                "start": 15.9800005,
+                "end": 16.22,
+                "confidence": 0.26123047,
+                "punctuated_word": "Wade"
+              },
+              {
+                "word": "to",
+                "start": 16.22,
+                "end": 16.380001,
+                "confidence": 1,
+                "punctuated_word": "to"
+              },
+              {
+                "word": "send",
+                "start": 16.380001,
+                "end": 16.62,
+                "confidence": 0.99902344,
+                "punctuated_word": "send"
+              },
+              {
+                "word": "the",
+                "start": 16.62,
+                "end": 16.78,
+                "confidence": 0.94921875,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "campaign",
+                "start": 16.78,
+                "end": 17.18,
+                "confidence": 1,
+                "punctuated_word": "campaign"
+              },
+              {
+                "word": "breakdown",
+                "start": 17.18,
+                "end": 17.58,
+                "confidence": 0.99316406,
+                "punctuated_word": "breakdown"
+              },
+              {
+                "word": "before",
+                "start": 17.58,
+                "end": 18.14,
+                "confidence": 0.99902344,
+                "punctuated_word": "before"
+              },
+              {
+                "word": "friday",
+                "start": 18.14,
+                "end": 18.779999,
+                "confidence": 1,
+                "punctuated_word": "Friday."
+              },
+              {
+                "word": "perfect",
+                "start": 18.86,
+                "end": 19.18,
+                "confidence": 0.9995117,
+                "punctuated_word": "Perfect."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 1.0900002,
+      "start": 19.51,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Let me also add",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "let",
+                "start": 19.59,
+                "end": 19.91,
+                "confidence": 1,
+                "punctuated_word": "Let"
+              },
+              {
+                "word": "me",
+                "start": 19.91,
+                "end": 20.15,
+                "confidence": 1,
+                "punctuated_word": "me"
+              },
+              {
+                "word": "also",
+                "start": 20.15,
+                "end": 20.39,
+                "confidence": 0.99902344,
+                "punctuated_word": "also"
+              },
+              {
+                "word": "add",
+                "start": 20.39,
+                "end": 20.55,
+                "confidence": 0.78027344,
+                "punctuated_word": "add"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 2.1900005,
+      "start": 19.51,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Let me also add that we need a decision",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "let",
+                "start": 19.59,
+                "end": 19.99,
+                "confidence": 1,
+                "punctuated_word": "Let"
+              },
+              {
+                "word": "me",
+                "start": 19.99,
+                "end": 20.15,
+                "confidence": 1,
+                "punctuated_word": "me"
+              },
+              {
+                "word": "also",
+                "start": 20.15,
+                "end": 20.47,
+                "confidence": 1,
+                "punctuated_word": "also"
+              },
+              {
+                "word": "add",
+                "start": 20.47,
+                "end": 20.710001,
+                "confidence": 1,
+                "punctuated_word": "add"
+              },
+              {
+                "word": "that",
+                "start": 20.710001,
+                "end": 20.87,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "we",
+                "start": 20.87,
+                "end": 21.03,
+                "confidence": 0.99609375,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "need",
+                "start": 21.03,
+                "end": 21.19,
+                "confidence": 1,
+                "punctuated_word": "need"
+              },
+              {
+                "word": "a",
+                "start": 21.19,
+                "end": 21.35,
+                "confidence": 0.9921875,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "decision",
+                "start": 21.35,
+                "end": 21.59,
+                "confidence": 0.9760742,
+                "punctuated_word": "decision"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.1900005,
+      "start": 19.51,
+      "is_final": false,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Let me also add that we need a decision on the training budget.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "let",
+                "start": 19.67,
+                "end": 19.99,
+                "confidence": 1,
+                "punctuated_word": "Let"
+              },
+              {
+                "word": "me",
+                "start": 19.99,
+                "end": 20.15,
+                "confidence": 1,
+                "punctuated_word": "me"
+              },
+              {
+                "word": "also",
+                "start": 20.15,
+                "end": 20.47,
+                "confidence": 1,
+                "punctuated_word": "also"
+              },
+              {
+                "word": "add",
+                "start": 20.47,
+                "end": 20.710001,
+                "confidence": 1,
+                "punctuated_word": "add"
+              },
+              {
+                "word": "that",
+                "start": 20.710001,
+                "end": 20.87,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "we",
+                "start": 20.87,
+                "end": 21.03,
+                "confidence": 0.9970703,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "need",
+                "start": 21.03,
+                "end": 21.19,
+                "confidence": 1,
+                "punctuated_word": "need"
+              },
+              {
+                "word": "a",
+                "start": 21.19,
+                "end": 21.43,
+                "confidence": 0.99902344,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "decision",
+                "start": 21.43,
+                "end": 21.75,
+                "confidence": 1,
+                "punctuated_word": "decision"
+              },
+              {
+                "word": "on",
+                "start": 21.75,
+                "end": 21.91,
+                "confidence": 1,
+                "punctuated_word": "on"
+              },
+              {
+                "word": "the",
+                "start": 21.91,
+                "end": 22.07,
+                "confidence": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "training",
+                "start": 22.07,
+                "end": 22.39,
+                "confidence": 1,
+                "punctuated_word": "training"
+              },
+              {
+                "word": "budget",
+                "start": 22.39,
+                "end": 22.630001,
+                "confidence": 0.79833984,
+                "punctuated_word": "budget."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 3.5871868,
+      "start": 19.51,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "Let me also add that we need a decision on the training budget.",
+            "confidence": 1,
+            "words": [
+              {
+                "word": "let",
+                "start": 19.67,
+                "end": 19.99,
+                "confidence": 1,
+                "punctuated_word": "Let"
+              },
+              {
+                "word": "me",
+                "start": 19.99,
+                "end": 20.15,
+                "confidence": 1,
+                "punctuated_word": "me"
+              },
+              {
+                "word": "also",
+                "start": 20.15,
+                "end": 20.47,
+                "confidence": 1,
+                "punctuated_word": "also"
+              },
+              {
+                "word": "add",
+                "start": 20.47,
+                "end": 20.710001,
+                "confidence": 1,
+                "punctuated_word": "add"
+              },
+              {
+                "word": "that",
+                "start": 20.710001,
+                "end": 20.87,
+                "confidence": 1,
+                "punctuated_word": "that"
+              },
+              {
+                "word": "we",
+                "start": 20.87,
+                "end": 21.03,
+                "confidence": 0.9970703,
+                "punctuated_word": "we"
+              },
+              {
+                "word": "need",
+                "start": 21.03,
+                "end": 21.27,
+                "confidence": 1,
+                "punctuated_word": "need"
+              },
+              {
+                "word": "a",
+                "start": 21.27,
+                "end": 21.43,
+                "confidence": 0.99902344,
+                "punctuated_word": "a"
+              },
+              {
+                "word": "decision",
+                "start": 21.43,
+                "end": 21.75,
+                "confidence": 1,
+                "punctuated_word": "decision"
+              },
+              {
+                "word": "on",
+                "start": 21.75,
+                "end": 21.91,
+                "confidence": 1,
+                "punctuated_word": "on"
+              },
+              {
+                "word": "the",
+                "start": 21.91,
+                "end": 22.07,
+                "confidence": 1,
+                "punctuated_word": "the"
+              },
+              {
+                "word": "training",
+                "start": 22.07,
+                "end": 22.39,
+                "confidence": 1,
+                "punctuated_word": "training"
+              },
+              {
+                "word": "budget",
+                "start": 22.39,
+                "end": 22.71,
+                "confidence": 0.9592285,
+                "punctuated_word": "budget."
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Results",
+      "channel_index": [
+        0,
+        1
+      ],
+      "duration": 0,
+      "start": 23.097187,
+      "is_final": true,
+      "speech_final": false,
+      "channel": {
+        "alternatives": [
+          {
+            "transcript": "",
+            "confidence": 0,
+            "words": []
+          }
+        ]
+      },
+      "metadata": {
+        "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+        "model_info": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        },
+        "model_uuid": "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      },
+      "from_finalize": false
+    },
+    {
+      "type": "Metadata",
+      "transaction_key": "deprecated",
+      "request_id": "01a117ce-58e5-7bf2-a5d9-bb26b5421d42",
+      "sha256": "5ebd0762edc8b40d9e02de29263d5c59c926f05eee49ae757a67fd7228265a52",
+      "created": "2026-10-07T19:19:21.585Z",
+      "duration": 23.097187,
+      "channels": 1,
+      "models": [
+        "40bd3654-e622-47c4-a111-63a61b23bfe8"
+      ],
+      "model_info": {
+        "40bd3654-e622-47c4-a111-63a61b23bfe8": {
+          "name": "general-nova-3",
+          "version": "2025-04-17.21547",
+          "arch": "nova-3"
+        }
+      }
+    }
+  ]
+}

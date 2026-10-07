@@ -1,0 +1,10 @@
+name = "tree-factory-spike"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+# SPIKE-001：只做 local dev 實驗，不部署（部署需用戶同意，成本考量）
+# 本地 dev 要能呼叫 Workers AI，必須把這個 binding 標成 remote（免費額度內成本極小）
+[ai]
+binding = "AI"
+remote = true

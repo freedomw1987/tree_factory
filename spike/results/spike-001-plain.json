@@ -1,0 +1,49 @@
+{
+  "mode": "plain",
+  "diarize": false,
+  "base": "ws://127.0.0.1:8787",
+  "fixture": "/Users/apple/Sites/localhost/tree_factory/spike/fixtures/two-speakers-16k.wav",
+  "elapsedMs": 5300,
+  "summary": {
+    "totalMessages": 1,
+    "resultsMessages": 0,
+    "finalMessages": 0,
+    "wordCount": 0,
+    "wordSample": [],
+    "speakerValuesSeen": [],
+    "transcript": "",
+    "messageTypes": [],
+    "errors": [
+      {
+        "__spike_error": "Binding AI needs to be run remotely",
+        "input": {
+          "encoding": "linear16",
+          "sample_rate": "16000",
+          "language": "en",
+          "interim_results": "true",
+          "vad_events": "true",
+          "endpointing": "300",
+          "utterance_end_ms": "1000",
+          "smart_format": "true",
+          "punctuate": "true"
+        }
+      }
+    ]
+  },
+  "messages": [
+    {
+      "__spike_error": "Binding AI needs to be run remotely",
+      "input": {
+        "encoding": "linear16",
+        "sample_rate": "16000",
+        "language": "en",
+        "interim_results": "true",
+        "vad_events": "true",
+        "endpointing": "300",
+        "utterance_end_ms": "1000",
+        "smart_format": "true",
+        "punctuate": "true"
+      }
+    }
+  ]
+}

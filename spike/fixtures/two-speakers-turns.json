@@ -1,0 +1,49 @@
+{
+  "note": "乾淨版 fixture 的逐句真值（用 say 合成，兩語音交替）",
+  "fixture": "two-speakers-16k.wav",
+  "total_s": 23.1,
+  "turns": [
+    {
+      "i": 0,
+      "speaker_truth": 0,
+      "name": "Samantha",
+      "start": 0.0,
+      "end": 3.452
+    },
+    {
+      "i": 1,
+      "speaker_truth": 1,
+      "name": "Daniel",
+      "start": 3.452,
+      "end": 7.961
+    },
+    {
+      "i": 2,
+      "speaker_truth": 0,
+      "name": "Samantha",
+      "start": 7.961,
+      "end": 11.486
+    },
+    {
+      "i": 3,
+      "speaker_truth": 1,
+      "name": "Daniel",
+      "start": 11.486,
+      "end": 15.387
+    },
+    {
+      "i": 4,
+      "speaker_truth": 0,
+      "name": "Samantha",
+      "start": 15.387,
+      "end": 18.819
+    },
+    {
+      "i": 5,
+      "speaker_truth": 1,
+      "name": "Daniel",
+      "start": 18.819,
+      "end": 23.097
+    }
+  ]
+}

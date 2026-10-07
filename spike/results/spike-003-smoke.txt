@@ -1,0 +1,11 @@
+✓ SqliteStorage.open 成功（schema migration 跑完）
+  表數=9，其中 STRICT=9
+  sqlite_version=3.51.3
+✓ Harness.open + root() 成功，conversationId=1
+✓ 一次完整 turn 完成：status=done type=input
+✓ harness.close() 完成（storage 亦隨之關閉）
+✓ 重開後：conversation 相同=true，entries=2 → 2
+
+SPIKE-003 smoke：全部通過 ✅
+(node:30909) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

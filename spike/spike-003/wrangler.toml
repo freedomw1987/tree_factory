@@ -1,0 +1,14 @@
+# SPIKE-003：只在本機 workerd（wrangler dev --local / deploy --dry-run）驗證，不部署到生產。
+name = "tree-factory-spike-003"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+# 刻意不加 nodejs_compat：先驗證「乾淨 workerd」能不能載入這三個套件
+# （若失敗再加，並在 SPIKE-003 文件記錄到底哪個套件要 Node 相容層）
+
+[[durable_objects.bindings]]
+name = "HARNESS"
+class_name = "HarnessDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HarnessDO"]
