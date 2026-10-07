@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M04 編（概念層）— 互動原型（tree_factory）</title>
+<style>
+:root{--bg:#0B0F14;--s:#131A22;--s2:#1B242E;--bd:#28323D;--tx:#E8EEF5;--dim:#94A3B3;
+--rec:#FF4D4D;--ac:#4DA3FF;--ok:#35C68A;--warn:#F5A623;--err:#FF6B6B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080B;color:var(--tx);font:14px -apple-system,"SF Pro Text","PingFang TC",system-ui,sans-serif;
+display:flex;gap:20px;padding:20px;justify-content:center;align-items:flex-start;min-height:100vh}
+.mono{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+aside{width:250px;flex:0 0 250px}
+.rme{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.rme h1{font-size:14px;margin-bottom:6px}
+.rme p{font-size:12px;color:var(--dim);line-height:1.6}
+.rme b{color:var(--ac)}
+.panel{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.panel h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px}
+.panel h2:first-child{margin-top:0}
+.panel button{display:block;width:100%;text-align:left;background:var(--s2);color:var(--tx);border:1px solid var(--bd);
+border-radius:8px;padding:6px 9px;margin-bottom:4px;font-size:12px;cursor:pointer;font-family:inherit}
+.panel button:hover{border-color:var(--ac)}
+.panel button.on{background:#123;border-color:var(--ac);color:var(--ac)}
+.phone{width:390px;flex:0 0 390px;height:760px;background:var(--bg);border:1px solid var(--bd);border-radius:36px;
+overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px #000a}
+.sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+font-size:12px;color:var(--dim)}
+#app{display:flex;flex-direction:column;flex:1;min-height:0}
+.tbar{flex:0 0 52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--bd)}
+.tbar h3{font-size:16px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbar button{background:none;border:0;color:var(--ac);font-size:13px;cursor:pointer;font-family:inherit}
+.body{flex:1;overflow-y:auto;padding:14px 16px 20px}
+.foot{flex:0 0 auto;padding:12px 16px 20px;border-top:1px solid var(--bd);background:var(--bg)}
+.bn{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:12.5px;
+line-height:1.5;margin-bottom:12px}
+.bn.warn{background:#3a2c0e;color:#F5D9A3;border:1px solid #6b5217}
+.bn.err{background:#3a1616;color:#FFC9C9;border:1px solid #7a2b2b}
+.bn.info{background:#0f2438;color:#BBDDFF;border:1px solid #1d4368}
+.bn.ok{background:#123026;color:#B7F0D6;border:1px solid #1e5c43}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.box h4{font-size:14px;margin-bottom:8px}
+.box p{font-size:13px;line-height:1.65}
+.sk{background:linear-gradient(90deg,#1b242e,#28323d,#1b242e);background-size:200% 100%;animation:sh 1.2s infinite;
+border-radius:6px;height:14px;margin-bottom:10px}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.cta{width:100%;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;
+background:var(--ac);color:#04121f;font-family:inherit}
+.cta:disabled{opacity:.45;cursor:not-allowed}
+.cta.ghost{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+.cta.sm{padding:9px;font-size:13px}
+.row{display:flex;gap:8px;margin-bottom:8px}.row .cta{flex:1}
+.empty{text-align:center;padding:36px 18px}
+.empty .ic{font-size:40px;opacity:.5;margin-bottom:12px}
+.empty h4{font-size:16px;margin-bottom:6px}
+.empty p{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:16px}
+.cc{border:1px solid var(--bd);border-radius:12px;padding:12px 13px;margin-bottom:8px;background:var(--s);cursor:pointer}
+.cc .t{font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center}
+.cc .n{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.55}
+.cc .n b{color:var(--ac);font-weight:600}
+.cc.on{border-color:var(--ac)}
+.grp{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 7px}
+.tag{display:inline-block;font-size:11px;padding:3px 9px;border-radius:999px;background:var(--s2);
+border:1px solid var(--bd);color:var(--tx);margin:0 6px 6px 0;cursor:pointer}
+.tag.on{background:#123;border-color:var(--ac);color:var(--ac)}
+.src{margin:2px 0 8px;padding:9px 11px;border-left:2px solid var(--ac);background:#0f1620;border-radius:0 8px 8px 0;
+font-size:12.5px;line-height:1.6;color:var(--dim)}
+.src b{color:var(--tx)}
+.src.bad{border-left-color:var(--warn)}
+.eb{display:inline-block;margin-top:6px;font-size:11px;color:#F5D9A3;background:#3a2c0e;border-radius:6px;padding:2px 7px}
+.fld{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;color:var(--tx);
+padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+.fld:focus{border-color:var(--ac)}
+.sheet{position:absolute;inset:0;background:#000a;display:flex;align-items:flex-end;z-index:20}
+.sheet .p{background:var(--s);border-radius:22px 22px 0 0;padding:18px 16px 22px;width:100%;border-top:1px solid var(--bd)}
+.sheet h4{font-size:16px;margin-bottom:4px}
+.sheet .sub{font-size:12.5px;color:var(--dim);margin-bottom:14px;line-height:1.5}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1B242E;border:1px solid var(--ok);color:var(--tx);
+border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:8px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
+
+.si{width:18px;height:18px;flex:0 0 auto;display:inline-block;vertical-align:-3px}
+.bn .si,.toast .si{margin-top:1px}
+.tbar h3 .si{vertical-align:-2px;margin-right:4px}
+.empty .ic .si{width:38px;height:38px}
+.box h4 .si{vertical-align:-2px;margin-right:2px}
+.src .si,.cc .t .si{margin-right:5px}
+</style>
+</head>
+<body>
+
+<aside>
+  <section class="prototype-readme rme">
+    <h1>M04「編」（概念層）互動原型</h1>
+    <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
+    <b>主流程</b>：概念列表 → 打開一張傳說卡 → 追到來源 → 合併同義詞 → 用標籤篩選。<br>
+    <b>重點試</b>：①每張概念卡都列出來源（不能有「沒有來源的概念」）
+    ②把「預算超支」和「行銷超支」合併，看來源全部轉移過去、沒有任何孤兒
+    ③故意合併自己：擋下來
+    ④搜尋打 <span class="mono">&lt;script&gt;</span> 或 % 這種字元，看它安全處理、不會壞
+    ⑤刪掉一個標籤，看會議記錄完全不受影響。</p>
+  </section>
+  <div class="panel" id="panel"></div>
+</aside>
+
+<div class="phone">
+  <div class="sbar mono"><span>9:41</span><span>tree_factory</span><span>􀙇 􀙈 100%</span></div>
+  <div id="app"></div>
+</div>
+
+<script>
+const esc=s=>String(s).replace(/</g,"&lt;").replace(/>/g,"&gt;");
+// ---- 圖示：一律 inline SVG（禁用 emoji 當 icon）｜24 viewBox、stroke 1.75、currentColor ----
+const IP={
+ chat:'<path d="M20.5 11.6a8.1 8.1 0 0 1-8.6 8 9.2 9.2 0 0 1-3.6-.8L4.2 20.4l1.5-4a8 8 0 0 1-2-4.8 8.3 8.3 0 0 1 8.6-8 8.3 8.3 0 0 1 8.2 8z"/>',
+ mic:'<path d="M12 3.2a3 3 0 0 1 3 3v5.6a3 3 0 0 1-6 0V6.2a3 3 0 0 1 3-3z"/><path d="M5.5 11.4a6.5 6.5 0 0 0 13 0"/><path d="M12 17.9v2.9M9 20.8h6"/>',
+ send:'<path d="M12 19.5V5"/><path d="M6.2 10.8 12 5l5.8 5.8"/>',
+ down:'<path d="M6.2 13.2 12 19l5.8-5.8"/><path d="M12 19V5"/>',
+ mic_off:'<path d="M12 3.2a3 3 0 0 1 3 3v3.2"/><path d="M9.2 6.6v5.2a2.8 2.8 0 0 0 4.3 2.4"/><path d="M5.5 11.4a6.5 6.5 0 0 0 9.7 5.6M18.5 11.4a6.6 6.6 0 0 1-.4 2.3"/><path d="M12 17.9v2.9M9 20.8h6"/><path d="M4.5 3.5l15 15"/>',
+ history:'<path d="M3.5 12a8.5 8.5 0 1 0 2.9-6.4"/><path d="M3.2 4.2v4.6h4.6"/><path d="M12 7.8V12l3 1.9"/>',
+ folder:'<path d="M3.5 7.2A2.2 2.2 0 0 1 5.7 5h3.6l2 2.2h7a2.2 2.2 0 0 1 2.2 2.2v7.4a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V7.2z"/>',
+ search:'<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8 20.4 20.4"/>',
+ pen:'<path d="M4.2 19.8h3.9L20 7.9l-3.9-3.9L4.2 15.9v3.9z"/><path d="M14.1 6.1l3.8 3.8"/>',
+ bolt:'<path d="M13.3 3.2 5.6 13.4h4.7l-1.1 7.4 8-10.3h-4.7l.8-7.3z"/>',
+ warn:'<path d="M12 3.8 21 20H3l9-16.2z"/><path d="M12 9.6v4.2M12 16.9h.01"/>',
+ check:'<path d="M4.5 12.6l4.8 4.8L19.5 7.2"/>',
+ info:'<circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.6M12 7.6h.01"/>',
+ pin:'<path d="M9.2 4.2h5.6l-1 6.4 3.9 3H6.3l3.9-3-1-6.4z"/><path d="M12 13.6v6.2"/>',
+ location:'<path d="M12 20.8s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="9.6" r="2.5"/>',
+ book:'<path d="M4.2 5.6A2.4 2.4 0 0 1 6.6 3.2H19.3v14.4H6.6a2.4 2.4 0 0 0-2.4 2.4V5.6z"/><path d="M4.2 20a2.4 2.4 0 0 1 2.4-2.4h12.7V20H6.6A2.4 2.4 0 0 1 4.2 20z"/>',
+ brain:'<circle cx="6.2" cy="7.2" r="2.2"/><circle cx="17.8" cy="7.2" r="2.2"/><circle cx="12" cy="16.8" r="2.2"/><path d="M8 8.6 10.8 15M16 8.6 13.2 15M8.4 7.2h7.2"/>',
+ inbox:'<path d="M3.5 12.4 6 5.2h12l2.5 7.2v6a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-6z"/><path d="M3.5 12.4h4.7l.9 2.8h5.8l.9-2.8h4.7"/>',
+ note:'<path d="M5.2 3.2h8.6l5 5v12.6H5.2V3.2z"/><path d="M13.6 3.2v5.2h5.2"/><path d="M8.6 13h6.8M8.6 16.4h4.6"/>',
+ target:'<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1"/>',
+ calendar:'<rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/><path d="M3.6 10h16.8M8.4 3.4v3.4M15.6 3.4v3.4"/>',
+ undo:'<path d="M4 9.4h9.4a6.3 6.3 0 0 1 0 12.6H8.6"/><path d="M8 5.4 4 9.4l4 4"/>',
+ tag:'<path d="M3.6 12.6V4.2h8.4l9 9-8.4 8.4-9-9z"/><path d="M7.8 8.4h.01"/>',
+ ban:'<circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2 17.8 17.8"/>',
+ headphones:'<path d="M4.4 14.2v-2a7.6 7.6 0 0 1 15.2 0v2"/><rect x="2.6" y="13" width="4.4" height="7.4" rx="2"/><rect x="17" y="13" width="4.4" height="7.4" rx="2"/>',
+ speaker:'<path d="M4.2 9.2v5.6h3.6l4.6 3.6V5.6L7.8 9.2H4.2z"/><path d="M16.4 9.7a4.2 4.2 0 0 1 0 4.6"/><path d="M18.9 7.2a7.6 7.6 0 0 1 0 9.6"/>',
+ clock:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>',
+ wave:'<path d="M3 12h2M7 8v8M11 5.5v13M15 8.5v7M19 11h2"/>'
+,refresh:'<path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.9 4.4v4.4h-4.4"/>',stop:'<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.2"/>',hourglass:'<path d="M7 3.6h10M7 20.4h10"/><path d="M8.4 3.6c0 3.4 3.6 4.6 3.6 8.4s-3.6 5-3.6 8.4"/><path d="M15.6 3.6c0 3.4-3.6 4.6-3.6 8.4s3.6 5 3.6 8.4"/>',timer:'<circle cx="12" cy="13" r="7.2"/><path d="M12 9.4V13l2.4 1.6"/><path d="M9.4 3.6h5.2"/>'
+};
+const ic=(n,x)=>`<svg class="si${x?" "+x:""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IP[n]||""}</svg>`;
+
+const LONGNAME="行銷預算超支與研發結餘挪移額度協調事項（含社群合作案分潤比例討論與後續追蹤機制）";
+const C=[
+  {id:"budget",name:"預算超支",def:"會議中提到的預算超出原編列金額，需補明細或調整來源支應。",
+   alias:["行銷超支","超支"],tags:["預算","行銷"],
+   src:[{m:"Q4 預算檢討",w:"今天 10:30",s:"林小美",t:"00:19",x:"行銷的部分超支大概 12%。"},
+        {m:"Q4 預算檢討",w:"今天 10:30",s:"陳大文",t:"01:02",x:"明細請小美週五之前給我。"},
+        {m:"產品週會",w:"10/5 14:00",s:"林小美",t:"12:03",x:"教育訓練那筆也快超支了。"}]},
+  {id:"poc",name:"POC",def:"客戶在正式導入前的概念驗證，通常有明確時程與驗收條件。",
+   alias:["概念驗證"],tags:["客戶"],
+   src:[{m:"客戶訪談 — 明泰",w:"10/3 09:20",s:"客戶（王經理）",t:"06:11",x:"Q1 先做 POC，通過才談正式導入。"}]},
+  {id:"train",name:"教育訓練預算",def:"用於客戶或內部同仁教育訓練的年度預算項目。",
+   alias:["培訓預算"],tags:["預算"],src:[{m:"產品週會",w:"10/5 14:00",s:"林小美",t:"18:40",x:"教育訓練預算先抓 8 萬。"}]}
+];
+const V={view:"list",st:"happy",open:null,toast:null,q:"",sel:[],tags:["預算","客戶","行銷"],
+  mergeFrom:null,mergeTo:null,mergeGo:false,delTag:null};
+
+function tbar(t,back,right){
+  return `<div class="tbar">${back?`<button onclick="go2('${back[0]}')">${back[1]}</button>`:""}<h3>${t}</h3>${right||""}</div>`;
+}
+
+// ---------- 1. 概念列表 ----------
+function vList(){
+  const b=`<div class="tbar"><h3>${ic('brain')} 概念</h3><button onclick="V.view='search';render()">搜尋</button></div>
+    <div class="body"><div class="tag on">全部</div>
+    ${V.tags.map(t=>`<div class="tag" onclick="V.view='tag';V.st='happy';V.sel=[t];render()">${t}</div>`).join("")}`;
+  if(V.st==="loading") return b+`<div class="bn info"><span>${ic('refresh')}</span><div><b>正在抽取概念…</b><br>
+      這是加值層，失敗不影響會議記錄本身。</div></div>
+    <div class="sk" style="height:60px"></div><div class="sk" style="height:60px"></div><div class="sk" style="height:60px"></div></div>`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('brain')}</div><h4>還沒有概念</h4>
+    <p>概念是從會議記錄裡抽出來的。<br>你目前只有 1 場會議，樣本還太少。<br>
+      <b>不影響你問問題</b> —— 問答靠的是逐字稿本身。</p>
+    <button class="cta ghost" onclick="toast('（原型）會議結束後自動抽取')">了解抽取時機</button></div></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>概念抽取失敗</b><br>
+      會議記錄與逐字稿都完整，只有這層加值資料沒產生。</div></div>
+    <div class="bn ok"><span>${ic('check')}</span><div>影響範圍：只有「概念」分頁。問答、摘要、待辦、匯出全部正常。</div></div>
+    <button class="cta" onclick="toast('重新抽取中…')">重新抽取</button>
+    <div class="note">CONCEPT_FAILED：可重跑，不進「產生記錄」的關鍵路徑。</div></div>`;
+  if(V.st==="edge"){ return b+`<div class="bn warn"><span>${ic('warn')}</span><div>
+      <b>共 200 個概念</b> —— 這是抽太多了。<br>先用標籤與搜尋收斂，之後可以整批清理低頻概念。</div></div>
+    ${[LONGNAME,"預算超支","POC"].map(n=>`<div class="cc"><div class="t">${esc(n)}</div>
+      <div class="n">來源 2 場 · 3 句</div></div>`).join("")}
+    <div class="cc"><div class="t">⋯其餘 197 個</div><div class="n">列表用虛擬捲動，只渲染可視範圍</div></div></div>`; }
+  return b+`<div class="grp">依標籤</div>
+    ${C.map(c=>`<div class="cc" onclick="open(c.id)">
+      <div class="t">${c.name}</div>
+      <div class="n">${esc(c.def)}<br>來源 <b>${c.src.length} 句</b> · ${new Set(c.src.map(s=>s.m)).size} 場會議
+        · 別名 ${c.alias.join("、")}</div></div>`).join("")}
+    <div class="note">概念一定有來源 —— 抽取時「0 來源」的概念直接丟棄，不留。</div></div>`;
+}
+function open(id){ V.open=id; V.view="card"; V.st="happy"; render(); }
+
+// ---------- 2. 概念卡 ----------
+function vCard(){
+  const c=C.find(x=>x.id===(V.open||"budget"))||C[0];
+  const b=`${tbar("概念卡",["list","‹ 概念"])}<div class="body">
+    <div class="box"><h4>${esc(c.name)}</h4><p>${esc(c.def)}</p>
+      <div class="note">別名：${c.alias.join("、")} · 標籤：${c.tags.join("、")}</div></div>
+    <div class="grp">來源（${c.src.length}）</div>`;
+  if(V.st==="loading") return b+`<div class="sk"></div><div class="sk" style="width:85%"></div><div class="sk" style="width:70%"></div></div>`;
+  if(V.st==="empty") return b+`<div class="bn ok"><span>${ic('check')}</span><div>這個概念的所有來源都還在。</div></div>
+    <div class="src"><b>Q4 預算檢討</b> · 今天 10:30 · 林小美 · 00:19<br>「行銷的部分超支大概 12%。」</div>
+    <div class="note">正常狀態下就是這樣：一句一句列出來源，沒有異常提示。</div></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>有 1 句來源已經不存在了</b><br>
+      那場會議被刪除，所以對應的來源指不到東西。</div></div>
+    <div class="src"><b>Q4 預算檢討</b> · 今天 10:30 · 林小美 · 00:19<br>「行銷的部分超支大概 12%。」</div>
+    <div class="src bad"><b>已刪除的會議</b> · 來源不存在<br>「（找不到這一句）」</div>
+    <div class="row"><button class="cta sm ghost" onclick="toast('（原型）將移除此筆失效來源')">移除這筆失效來源</button></div>
+    <div class="note">不靜默清掉，也不假裝還在 —— 明說哪一句不見了。</div></div>`;
+  if(V.st==="edge") return b+`<div class="bn info"><span>${ic('book')}</span><div><b>50 句來源</b>：分頁載入，先顯示最近 10 句。</div></div>
+    ${c.src.concat(c.src,c.src).slice(0,6).map((s,i)=>`<div class="src">
+      <b>${s.m}</b> · ${s.w} · ${s.s} · ${s.t}<br>「${esc(s.x)}」${i===0?`<div class="eb">${ic('pen')} 此句有人工修正</div>`:""}</div>`).join("")}
+    <button class="cta sm ghost" onclick="toast('（原型）載入更多…')">載入更多來源</button></div>`;
+  return b+c.src.map(s=>`<div class="src"><b>${s.m}</b> · ${s.w} · ${s.s} · ${s.t}<br>「${esc(s.x)}」</div>`).join("")+
+    `<div class="note">點來源可以跳到當時那一句（跟問答共用同一套回溯）。</div>
+    <div class="row" style="margin-top:12px"><button class="cta" onclick="V.view='merge';V.mergeFrom='${c.id}';V.st='happy';render()">
+      合併到其他概念</button></div></div>`;
+}
+
+// ---------- 3. 概念合併 ----------
+function vMerge(){
+  const from=C.find(x=>x.id===(V.mergeFrom||"budget"));
+  const to=C.find(x=>x.id===(V.mergeTo||"poc"));
+  const b=`${tbar("合併概念",["card","‹ 概念卡"])}<div class="body">
+    <div class="box"><h4>合併「${from.name}」→「${to.name}」</h4>
+      <p>兩邊的<b>全部來源</b>會轉移到「${to.name}」，「${from.name}」變成別名。</p></div>
+    <div class="grp">合併後</div>
+    <div class="src"><b>${to.name}</b> · 來源 ${from.src.length+to.src.length} 句（原本 ${to.src.length} + ${from.src.length}）
+      · 別名含「${from.name}」</div>`;
+  if(V.st==="loading") return b+`<div class="bn info"><span>${ic('refresh')}</span><div>正在合併…（同一個交易內完成，中斷就整批回滾）</div></div>
+    <div class="sk"></div><div class="sk" style="width:80%"></div></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>合併失敗，已整批復原</b><br>
+      兩個概念都還在原樣，來源沒有遺失。</div></div>
+    <div class="src"><b>${from.name}</b> · 來源 ${from.src.length} 句（未變）</div>
+    <div class="src"><b>${to.name}</b> · 來源 ${to.src.length} 句（未變）</div>
+    <button class="cta" onclick="toast('（原型）重試合併…')">重試</button>
+    <div class="note">合併是「全有或全無」：合併到一半失敗最容易生出孤兒來源。</div></div>`;
+  if(V.st==="edge") return b+`<div class="bn warn"><span>${ic('warn')}</span><div><b>不能合併到自己</b><br>
+      「${from.name}」不能合併到「${from.name}」。</div></div>
+    <div class="bn ok"><span>${ic('check')}</span><div><b>孤兒檢查：0 筆</b><br>
+      合併前後都會斷言「沒有任何來源指不到概念」，不通過就不算完成。</div></div>
+    <div class="note">邊界同時測兩件事：拒絕自我合併、以及 0 孤兒的硬斷言。</div></div>`;
+  return b+`<div class="grp">合併後的名稱</div>
+    <div class="cc on"><div class="t">${to.name}</div>
+      <div class="n">「${from.name}」會保留為別名 —— 之後問答問到「${from.name}」仍找得到</div></div>
+    <div class="bn warn"><span>${ic('warn')}</span><div>合併<b>無法復原</b>（不存舊版）。</div></div>
+    </div><div class="foot"><div class="row">
+      <button class="cta ghost" onclick="go2('card')">取消</button>
+      <button class="cta" onclick="doMerge()">合併</button></div>
+      <div class="note">取消＝完全不動作。</div></div>`;
+}
+function doMerge(){ V.st="loading"; render(); setTimeout(()=>{ V.st="happy"; toast("已合併，來源全部轉移（0 孤兒）"); V.view="card"; render(); },700); }
+
+// ---------- 4. 概念搜尋 ----------
+function vSearch(){
+  const b=`${tbar("搜尋概念",["list","‹ 概念"])}<div class="body">
+    <input class="fld" id="sbox" placeholder="搜尋概念、別名或來源句子" value="${esc(V.q).replace(/"/g,"&quot;")}"
+      oninput="V.q=this.value;render()">`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('search')}</div><h4>找不到「行銷投放」相關的概念</h4>
+    <p>試試別名或會議裡用過的字。<br>搜尋範圍是概念、別名、以及來源句子。</p>
+    <button class="cta ghost" onclick="V.q='預算';render()">改用「預算」搜尋</button></div></div>`;
+  if(V.st==="edge"){ V.q="<script>alert(1)<\/script> % _ '\\\" & emoji 🎤"; return b+
+    `<div class="bn ok"><span>${ic('check')}</span><div><b>特殊字元安全處理</b><br>
+      你的輸入被當成純文字，不會被當成指令，也不會弄壞搜尋。</div></div>
+    <div class="cc"><div class="t">沒有符合的概念</div>
+      <div class="n">輸入：<span class="mono">${esc(V.q)}</span>（100 字元上限內）</div></div>
+    <div class="note">邊界：SQL 注入樣式、萬用字元、引號、emoji、超長輸入都必須安全回應。</div></div>`; }
+  if(V.q) return b+C.filter(c=>(c.name+c.alias.join()+c.def).includes(V.q))
+    .map(c=>`<div class="cc" onclick="open('${c.id}')"><div class="t">${c.name}</div>
+      <div class="n">${esc(c.def)}<br>來源 ${c.src.length} 句</div></div>`).join("")+`</div>`;
+  return b+`<div class="grp">最近搜尋</div>
+    ${["預算","POC","教育訓練"].map(k=>`<div class="cc" onclick="V.q='${k}';render()">
+      <div class="t">${k}</div><div class="n">3 個結果</div></div>`).join("")}</div>`;
+}
+
+// ---------- 5. 標籤篩選 ----------
+function vTag(){
+  const b=`${tbar("標籤篩選",["list","‹ 概念"])}<div class="body">
+    ${V.tags.map(t=>`<div class="tag ${V.sel.includes(t)?"on":""}"
+      onclick="V.sel=V.sel.includes('${t}')?V.sel.filter(x=>x!=='${t}'):V.sel.concat('${t}');render()">${t}</div>`).join("")}`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('tag')}</div><h4>還沒有任何標籤</h4>
+    <p>標籤會隨概念一起產生。<br>你也可以只留概念、不要標籤 —— 標籤只是收斂用的。</p>
+    <button class="cta ghost" onclick="toast('（原型）已建立標籤「預算」')">建立標籤</button></div></div>`;
+  if(V.st==="edge") return b+`<div class="grp">選了 3 個標籤</div>
+    <div class="cc"><div class="t">預算超支</div><div class="n">預算、行銷</div></div>
+    <div class="cc"><div class="t">教育訓練預算</div><div class="n">預算、教育訓練</div></div>
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>篩選範圍只限概念分頁</b>：刪標籤不會動到任何會議或逐字稿。</div></div>
+    <div class="row"><button class="cta ghost" onclick="V.delTag='預算';render()">刪除標籤「預算」</button></div>
+    <div class="note">F21：標籤範圍一律由伺服器回傳的結果渲染，不靠裝置端猜。</div></div>`;
+  const hits=C.filter(c=>V.sel.some(t=>c.tags.includes(t)));
+  return b+(V.sel.length?`<div class="grp">符合 ${hits.length} 個概念</div>`:`<div class="grp">選一個標籤開始</div>`)+
+    hits.map(c=>`<div class="cc" onclick="open('${c.id}')"><div class="t">${c.name}</div>
+      <div class="n">${c.tags.join("、")} · 來源 ${c.src.length} 句</div></div>`).join("")+
+    `<div class="note">標籤只是概念的收斂工具，刪掉標籤不會刪掉會議記錄。</div></div>`;
+}
+
+function go2(v){ V.view=v; V.st="happy"; V.delTag=null; render(); }
+function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},2200); }
+function sel(v,s){
+  V.view=v; V.st=s; V.q=""; V.sel=[]; V.mergeFrom="budget"; V.mergeTo="poc"; V.delTag=null; V.open=null;
+  if(v==="search"&&s!=="empty") V.q=(s==="edge")?null:"預算";
+  if(v==="tag"&&s==="happy") V.sel=["預算"];
+  if(v==="tag"&&s==="edge") V.sel=["預算","客戶","行銷"];
+  if(v==="card") V.open="budget";
+  render();
+}
+
+const VIEWS={list:vList,card:vCard,merge:vMerge,search:vSearch,tag:vTag};
+const TITLES={list:"概念列表",card:"概念卡（來源）",merge:"概念合併",search:"概念搜尋",tag:"標籤篩選"};
+const STATES={
+  list:[["happy","依會議 / 標籤分組"],["loading","抽取中"],["empty","還沒有概念"],["error","抽取失敗（不影響記錄）"],
+    ["edge","200 個概念 / 超長名稱"]],
+  card:[["happy","定義 + 來源清單"],["loading","來源載入中"],["empty","來源全部正常"],["error","來源已不存在"],
+    ["edge","一概念 50 句來源"]],
+  merge:[["happy","合併後來源轉移"],["loading","合併中（整批交易）"],["error","合併失敗整批復原"],
+    ["edge","合併自己 / 0 孤兒斷言"]],
+  search:[["happy","搜尋結果"],["empty","找不到結果"],["edge","特殊字元 / SQL 注入樣式"]],
+  tag:[["happy","多標籤篩選"],["empty","沒有標籤"],["edge","刪標籤不動會議"]]
+};
+function sheet(){
+  if(!V.delTag) return "";
+  return `<div class="sheet" onclick="V.delTag=null;render()"><div class="p" onclick="event.stopPropagation()">
+    <h4>刪除標籤「${V.delTag}」？</h4>
+    <div class="sub">只是不再用這個標籤分類。<b>會議記錄、逐字稿、概念都不會被刪除。</b></div>
+    <div class="row"><button class="cta ghost" onclick="V.delTag=null;render()">取消</button>
+      <button class="cta" onclick="V.delTag=null;V.tags=V.tags.filter(t=>t!=='預算');V.sel=[];
+        toast('已刪除標籤（會議與概念不受影響）');render()">刪除標籤</button></div></div></div>`;
+}
+function panel(){
+  document.getElementById("panel").innerHTML=Object.keys(VIEWS).map(v=>
+    `<h2>${esc(TITLES[v])}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="sel('${v}','${s}')">${esc(l)}</button>`).join("")).join("");
+}
+function render(){
+  const a=document.activeElement,id=a&&a.id,pos=a&&a.selectionStart;
+  document.getElementById("app").innerHTML=VIEWS[V.view]()+sheet();
+  if(V.toast) document.getElementById("app").insertAdjacentHTML("beforeend",
+    `<div class="toast"><span>${ic('check')}</span><span>${V.toast}</span></div>`);
+  if(id){const el=document.getElementById(id); if(el){el.focus(); if(pos!=null&&el.setSelectionRange)el.setSelectionRange(pos,pos);}}
+  panel();
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);
+  if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();}});
+const H0=location.hash.slice(1); if(VIEWS[H0]) V.view=H0;   // 首次載入的深層連結（例：05-concept.html#merge）
+render();
+</script>
+</body>
+</html>

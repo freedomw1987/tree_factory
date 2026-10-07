@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M03 問 — 互動原型（tree_factory）</title>
+<style>
+:root{--bg:#0B0F14;--s:#131A22;--s2:#1B242E;--bd:#28323D;--tx:#E8EEF5;--dim:#94A3B3;
+--rec:#FF4D4D;--ac:#4DA3FF;--ok:#35C68A;--warn:#F5A623;--err:#FF6B6B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080B;color:var(--tx);font:14px -apple-system,"SF Pro Text","PingFang TC",system-ui,sans-serif;
+display:flex;gap:20px;padding:20px;justify-content:center;align-items:flex-start;min-height:100vh}
+.mono{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+aside{width:250px;flex:0 0 250px}
+.rme{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.rme h1{font-size:14px;margin-bottom:6px}
+.rme p{font-size:12px;color:var(--dim);line-height:1.6}
+.rme b{color:var(--ac)}
+.panel{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.panel h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px}
+.panel h2:first-child{margin-top:0}
+.panel button{display:block;width:100%;text-align:left;background:var(--s2);color:var(--tx);border:1px solid var(--bd);
+border-radius:8px;padding:6px 9px;margin-bottom:4px;font-size:12px;cursor:pointer;font-family:inherit}
+.panel button:hover{border-color:var(--ac)}
+.panel button.on{background:#123;border-color:var(--ac);color:var(--ac)}
+.phone{width:390px;flex:0 0 390px;height:760px;background:var(--bg);border:1px solid var(--bd);border-radius:36px;
+overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px #000a}
+.sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+font-size:12px;color:var(--dim)}
+#app{display:flex;flex-direction:column;flex:1;min-height:0}
+.tbar{flex:0 0 52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--bd)}
+.tbar h3{font-size:16px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbar button{background:none;border:0;color:var(--ac);font-size:13px;cursor:pointer;font-family:inherit}
+.body{flex:1;overflow-y:auto;padding:14px 16px 20px}
+.foot{flex:0 0 auto;padding:10px 14px 18px;border-top:1px solid var(--bd);background:var(--bg)}
+.bn{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:12.5px;
+line-height:1.5;margin-bottom:12px}
+.bn.warn{background:#3a2c0e;color:#F5D9A3;border:1px solid #6b5217}
+.bn.err{background:#3a1616;color:#FFC9C9;border:1px solid #7a2b2b}
+.bn.info{background:#0f2438;color:#BBDDFF;border:1px solid #1d4368}
+.bn.ok{background:#123026;color:#B7F0D6;border:1px solid #1e5c43}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.box h4{font-size:14px;margin-bottom:8px}
+.box p{font-size:13px;line-height:1.65}
+ul.lst{list-style:none;font-size:13px;line-height:1.7}
+ul.lst li{padding-left:16px;position:relative;margin-bottom:5px}
+ul.lst li:before{content:"・";position:absolute;left:0;color:var(--ac)}
+.line{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #1a222b;align-items:flex-start}
+.line .g{flex:0 0 62px}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--s2);color:var(--ac);
+border:1px solid var(--bd);white-space:nowrap}
+.chip.n{color:var(--dim)}
+.line .c{flex:1;font-size:15px;line-height:1.6;word-break:break-word}
+.line .tm{font-size:11px;color:var(--dim);padding-top:4px}
+.line.hl{background:#12253a;border-radius:8px;padding:9px 8px;border-bottom-color:transparent}
+.sk{background:linear-gradient(90deg,#1b242e,#28323d,#1b242e);background-size:200% 100%;animation:sh 1.2s infinite;
+border-radius:6px;height:14px;margin-bottom:10px}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.cta{width:100%;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;
+background:var(--ac);color:#04121f;font-family:inherit}
+.cta:disabled{opacity:.45;cursor:not-allowed}
+.cta.ghost{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+.row{display:flex;gap:8px}.row .cta{flex:1}
+.empty{text-align:center;padding:36px 18px}
+.empty .ic{font-size:40px;opacity:.5;margin-bottom:12px}
+.empty h4{font-size:16px;margin-bottom:6px}
+.empty p{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:16px}
+.bub{max-width:84%;padding:11px 13px;border-radius:14px;font-size:14px;line-height:1.6;margin-bottom:10px;
+word-break:break-word}
+.bub.u{background:var(--ac);color:#04121f;margin-left:auto;border-bottom-right-radius:4px}
+.bub.a{background:var(--s2);border:1px solid var(--bd);border-bottom-left-radius:4px}
+.bub.a.nf{border-color:#6b5217;background:#241d0d}
+.think{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12.5px;padding:6px 0 10px}
+.think i{width:6px;height:6px;border-radius:50%;background:var(--dim);animation:th 1.2s infinite}
+.think i:nth-child(2){animation-delay:.2s}.think i:nth-child(3){animation-delay:.4s}
+@keyframes th{0%,100%{opacity:.3}50%{opacity:1}}
+.src{margin:2px 0 12px;padding:9px 11px;border-left:2px solid var(--ac);background:#0f1620;border-radius:0 8px 8px 0;
+font-size:12.5px;line-height:1.6;color:var(--dim);cursor:pointer}
+.src b{color:var(--tx)}
+.src .eb{display:inline-block;margin-top:6px;font-size:11px;color:#F5D9A3;background:#3a2c0e;border-radius:6px;padding:2px 7px}
+.src.bad{border-left-color:var(--warn)}
+.sheet{position:absolute;inset:0;background:#000a;display:flex;align-items:flex-end;z-index:20}
+.sheet .p{background:var(--s);border-radius:22px 22px 0 0;padding:18px 16px 22px;width:100%;border-top:1px solid var(--bd)}
+.sheet h4{font-size:16px;margin-bottom:4px}
+.sheet .sub{font-size:12.5px;color:var(--dim);margin-bottom:14px;line-height:1.5}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1B242E;border:1px solid var(--ok);color:var(--tx);
+border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:8px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
+.fld{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;color:var(--tx);
+padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+.fld:focus{border-color:var(--ac)}
+.cinput{display:flex;gap:8px;align-items:flex-end}
+.cinput .fld{flex:1;max-height:88px}
+.icobtn{flex:0 0 44px;width:44px;height:44px;border-radius:50%;border:1px solid var(--bd);background:var(--s2);
+color:var(--tx);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.icobtn.on{border-color:var(--ac);color:var(--ac)}
+.icobtn.hold{background:var(--ac);color:#04121f;border-color:var(--ac)}
+.icobtn:disabled{opacity:.4;cursor:not-allowed}
+.cnt{font-size:11px;color:var(--dim);text-align:right;margin-top:5px}
+.srow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.srow .g{flex:1;font-size:12.5px;color:var(--dim)}
+.hist{border:1px solid var(--bd);border-radius:12px;padding:11px 13px;margin-bottom:8px;background:var(--s);cursor:pointer}
+.hist .t{font-size:13.5px;line-height:1.5}
+.hist .m{font-size:11px;color:var(--dim);margin-top:5px}
+.hist.on{border-color:var(--ac)}
+.err-t{font-size:12px;color:var(--err);margin-top:6px}
+.micwave{font:14px ui-monospace,Menlo,monospace;color:var(--ac);letter-spacing:1px;
+background:#0f2438;border:1px solid #1d4368;border-radius:12px;padding:12px;margin-bottom:10px}
+
+.si{width:18px;height:18px;flex:0 0 auto;display:inline-block;vertical-align:-3px}
+.bn .si,.toast .si{margin-top:1px}
+.tbar h3 .si{vertical-align:-2px;margin-right:4px}
+.empty .ic .si{width:38px;height:38px}
+.box h4 .si{vertical-align:-2px;margin-right:2px}
+.src .si,.cc .t .si{margin-right:5px}
+</style>
+</head>
+<body>
+
+<aside>
+  <section class="prototype-readme rme">
+    <h1>M03「問」互動原型</h1>
+    <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
+    <b>主流程</b>：對話（首頁）→ 附來源 → 點來源回溯逐字稿 → 跨會議彙整。<br>
+    <b>重點試</b>：①問一題看「正在查記錄…」再逐字長出 ②每條結論下面的來源列
+    ③故意問「明天天氣」看它明說超出範圍 ④問一個沒提過的事，看它說查無而不是編答案
+    ⑤範圍鎖成「本場」時問跨場問題，看它明說並給一鍵切換 ⑥按住 mic 說話，看結果只是「填進輸入框」沒有自動送出。</p>
+  </section>
+  <div class="panel" id="panel"></div>
+</aside>
+
+<div class="phone">
+  <div class="sbar mono"><span>9:41</span><span>tree_factory</span><span>􀙇 􀙈 100%</span></div>
+  <div id="app"></div>
+</div>
+
+<script>
+const esc=s=>String(s).replace(/</g,"&lt;").replace(/>/g,"&gt;");
+// ---- 圖示：一律 inline SVG（禁用 emoji 當 icon）｜24 viewBox、stroke 1.75、currentColor ----
+const IP={
+ chat:'<path d="M20.5 11.6a8.1 8.1 0 0 1-8.6 8 9.2 9.2 0 0 1-3.6-.8L4.2 20.4l1.5-4a8 8 0 0 1-2-4.8 8.3 8.3 0 0 1 8.6-8 8.3 8.3 0 0 1 8.2 8z"/>',
+ mic:'<path d="M12 3.2a3 3 0 0 1 3 3v5.6a3 3 0 0 1-6 0V6.2a3 3 0 0 1 3-3z"/><path d="M5.5 11.4a6.5 6.5 0 0 0 13 0"/><path d="M12 17.9v2.9M9 20.8h6"/>',
+ send:'<path d="M12 19.5V5"/><path d="M6.2 10.8 12 5l5.8 5.8"/>',
+ down:'<path d="M6.2 13.2 12 19l5.8-5.8"/><path d="M12 19V5"/>',
+ mic_off:'<path d="M12 3.2a3 3 0 0 1 3 3v3.2"/><path d="M9.2 6.6v5.2a2.8 2.8 0 0 0 4.3 2.4"/><path d="M5.5 11.4a6.5 6.5 0 0 0 9.7 5.6M18.5 11.4a6.6 6.6 0 0 1-.4 2.3"/><path d="M12 17.9v2.9M9 20.8h6"/><path d="M4.5 3.5l15 15"/>',
+ history:'<path d="M3.5 12a8.5 8.5 0 1 0 2.9-6.4"/><path d="M3.2 4.2v4.6h4.6"/><path d="M12 7.8V12l3 1.9"/>',
+ folder:'<path d="M3.5 7.2A2.2 2.2 0 0 1 5.7 5h3.6l2 2.2h7a2.2 2.2 0 0 1 2.2 2.2v7.4a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V7.2z"/>',
+ search:'<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8 20.4 20.4"/>',
+ pen:'<path d="M4.2 19.8h3.9L20 7.9l-3.9-3.9L4.2 15.9v3.9z"/><path d="M14.1 6.1l3.8 3.8"/>',
+ bolt:'<path d="M13.3 3.2 5.6 13.4h4.7l-1.1 7.4 8-10.3h-4.7l.8-7.3z"/>',
+ warn:'<path d="M12 3.8 21 20H3l9-16.2z"/><path d="M12 9.6v4.2M12 16.9h.01"/>',
+ check:'<path d="M4.5 12.6l4.8 4.8L19.5 7.2"/>',
+ info:'<circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.6M12 7.6h.01"/>',
+ pin:'<path d="M9.2 4.2h5.6l-1 6.4 3.9 3H6.3l3.9-3-1-6.4z"/><path d="M12 13.6v6.2"/>',
+ location:'<path d="M12 20.8s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="9.6" r="2.5"/>',
+ book:'<path d="M4.2 5.6A2.4 2.4 0 0 1 6.6 3.2H19.3v14.4H6.6a2.4 2.4 0 0 0-2.4 2.4V5.6z"/><path d="M4.2 20a2.4 2.4 0 0 1 2.4-2.4h12.7V20H6.6A2.4 2.4 0 0 1 4.2 20z"/>',
+ brain:'<circle cx="6.2" cy="7.2" r="2.2"/><circle cx="17.8" cy="7.2" r="2.2"/><circle cx="12" cy="16.8" r="2.2"/><path d="M8 8.6 10.8 15M16 8.6 13.2 15M8.4 7.2h7.2"/>',
+ inbox:'<path d="M3.5 12.4 6 5.2h12l2.5 7.2v6a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-6z"/><path d="M3.5 12.4h4.7l.9 2.8h5.8l.9-2.8h4.7"/>',
+ note:'<path d="M5.2 3.2h8.6l5 5v12.6H5.2V3.2z"/><path d="M13.6 3.2v5.2h5.2"/><path d="M8.6 13h6.8M8.6 16.4h4.6"/>',
+ target:'<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1"/>',
+ calendar:'<rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/><path d="M3.6 10h16.8M8.4 3.4v3.4M15.6 3.4v3.4"/>',
+ undo:'<path d="M4 9.4h9.4a6.3 6.3 0 0 1 0 12.6H8.6"/><path d="M8 5.4 4 9.4l4 4"/>',
+ tag:'<path d="M3.6 12.6V4.2h8.4l9 9-8.4 8.4-9-9z"/><path d="M7.8 8.4h.01"/>',
+ ban:'<circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2 17.8 17.8"/>',
+ headphones:'<path d="M4.4 14.2v-2a7.6 7.6 0 0 1 15.2 0v2"/><rect x="2.6" y="13" width="4.4" height="7.4" rx="2"/><rect x="17" y="13" width="4.4" height="7.4" rx="2"/>',
+ speaker:'<path d="M4.2 9.2v5.6h3.6l4.6 3.6V5.6L7.8 9.2H4.2z"/><path d="M16.4 9.7a4.2 4.2 0 0 1 0 4.6"/><path d="M18.9 7.2a7.6 7.6 0 0 1 0 9.6"/>',
+ clock:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>',
+ wave:'<path d="M3 12h2M7 8v8M11 5.5v13M15 8.5v7M19 11h2"/>'
+,refresh:'<path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.9 4.4v4.4h-4.4"/>',stop:'<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.2"/>',hourglass:'<path d="M7 3.6h10M7 20.4h10"/><path d="M8.4 3.6c0 3.4 3.6 4.6 3.6 8.4s-3.6 5-3.6 8.4"/><path d="M15.6 3.6c0 3.4-3.6 4.6-3.6 8.4s3.6 5 3.6 8.4"/>',timer:'<circle cx="12" cy="13" r="7.2"/><path d="M12 9.4V13l2.4 1.6"/><path d="M9.4 3.6h5.2"/>'
+};
+const ic=(n,x)=>`<svg class="si${x?" "+x:""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IP[n]||""}</svg>`;
+
+const M={
+  answers:{
+    q:"上季行銷超支是誰負責補明細？",
+    t:"林小美負責補行銷超支明細，期限是本週五（10/9）。陳大文負責協調研發結餘的挪移額度。",
+    src:[{m:"Q4 預算檢討",w:"今天 10:30",s:"陳大文",t:"01:02",x:"那這樣，明細請小美週五之前給我，我們下次再定。"},
+         {m:"Q4 預算檢討",w:"今天 10:30",s:"林小美",t:"00:19",x:"我這邊有整理一份表，行銷的部分超支大概 12%。"}]
+  },
+  multi:{q:"最近幾次會議裡，預算相關的決策有哪些？",
+    t:"跨 3 場會議共找到 3 條相關決策。",
+    items:[
+      {m:"Q4 預算檢討",w:"今天 10:30",s:"陳大文",t:"01:02",x:"本季行銷預算維持不追加，改以挪移研發結餘支應。"},
+      {m:"產品週會",w:"10/5 14:00",s:"林小美",t:"18:40",x:"新功能的教育訓練預算先抓 8 萬，從年度教育預算出。"},
+      {m:"客戶訪談 — 明泰",w:"10:3 09:20",s:"客戶（王經理）",t:"06:11",x:"明年導入的預算會落在第二季，Q1 先做 POC。"}]},
+  hist:[{t:"預算相關的決策有哪些？",m:"今天 10:42 · 4 則訊息 · 搜尋 3 場"},
+        {t:"明泰訪談提到什麼痛點？",m:"10/3 11:05 · 6 則訊息 · 搜尋 1 場"},
+        {t:"Q4 預算檢討（本場）",m:"今天 10:31 · 2 則訊息 · 搜尋 1 場"}],
+  tr:[{s:"陳大文",t:"01:02",x:"那這樣，明細請小美週五之前給我，我們下次再定。"},
+      {s:"林小美",t:"01:09",x:"好，那我週五下班前給。"}]
+};
+const V={view:"chat",st:"happy",toast:null,q:"",ans:null,typing:false,prog:"",scope:"all",
+  histOpen:false,mic:false,micTxt:"",deleteAsk:false,switching:false};
+
+function tbar(t,back,right){
+  return `<div class="tbar">${back?`<button onclick="go2('${back[0]}')">${back[1]}</button>`:""}
+    <h3>${t}</h3>${right||""}</div>`;
+}
+function inputRow(dis,placeholder,extra){
+  const q=V.q.trim(), over=q.length>1000, sendDis=dis||!q||over;
+  return `<div class="srow"><span class="g">${extra||"搜尋範圍："+(V.scope==="meeting"?"本場會議":"所有會議")}</span></div>
+    <div class="cinput">
+      <input class="fld" id="qbox" placeholder="${placeholder||"問問你的會議記錄…"}" value="${esc(V.q).replace(/"/g,"&quot;")}"
+        oninput="V.q=this.value;render()" ${dis?"disabled":""}>
+      <button class="icobtn ${V.mic?"hold":"on"}" id="micbtn" title="按住說話"
+        onclick="startMic()" ${dis?"disabled":""}>${ic('mic')}</button>
+      <button class="icobtn on" id="sendbtn" onclick="send()" ${sendDis?"disabled":""}>${ic('send')}</button>
+    </div>
+    ${V.q.length?`<div class="cnt">${V.q.length} / 1,000${over?"（過長，無法送出）":""}</div>`:""}`;
+}
+
+// ---------- 1. 對話（首頁）----------
+function vChat(){
+  let b=`<div class="tbar"><h3>${ic('chat')} 對話</h3>
+    <button onclick="V.histOpen=true;render()">對話歷史</button></div><div class="body">`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('chat')}</div><h4>還沒有任何會議記錄</h4>
+      <p>等你開完第一場會議，就能問我。<br><b>現在問任何事我都只會說不知道</b> —— 因為我真的沒有資料。</p>
+      <button class="cta" onclick="toast('（原型）已切到「會議」分頁')">開始第一場會議</button></div></div>`
+    +`<div class="foot">${inputRow(true,"先開一場會議才能提問")}</div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>目前連不上服務</b><br>
+      你的會議記錄都在，只是現在問不到。稍後再試即可。</div></div>
+    <button class="cta" onclick="toast('重新連線中…')">重試</button>
+    <div class="note">MODEL_UNAVAILABLE：可重試、不影響既有記錄。</div></div>`
+    +`<div class="foot">${inputRow(true,"服務暫時不可用")}</div>`;
+  if(V.st==="edge"){
+    const long="上一季的檢討裡我們也遇過類似狀況，當時的處理方式是先把行銷的線上投放暫停兩週，並把預算挪到內容製作。"+
+      "另外那個合作案的合約我記得附錄有寫到分潤比例，還有 🎉 emoji 跟 <script>alert(1)<\/script> 這種字元也要能安全顯示。";
+    return b+`<div class="bub u">${esc(long)}<div class="cnt" style="color:#04121f;opacity:.7">1,024 / 1,000 字元</div></div>
+      <div class="bn warn"><span>${ic('warn')}</span><div><b>超過 1,000 字元</b><br>請縮短問題。超長問題會讓檢索失準，也會大幅增加成本。</div></div>
+      <div class="bub a">會議記錄裡沒有提到相關內容。<div class="src" onclick="go2('src')">
+        <b>Q4 預算檢討</b> · 今天 10:30 · 陳大文 · 01:02<br>「那這樣，明細請小美週五之前給我，我們下次再定。」</div></div></div>`
+      +`<div class="foot">${inputRow(false)}<div class="cnt">1,024 / 1,000</div></div>`;
+  }
+  if(V.st==="loading") return b+`<div class="bub u">${esc(M.answers.q)}</div>
+      <div class="think"><i></i><i></i><i></i><span>正在查記錄…</span></div></div>`
+    +`<div class="foot">${inputRow(true)}</div>`;
+  // happy：串流完成 + 來源
+  b+=`<div class="bub u">${esc(M.answers.q)}</div>
+    <div class="bub a">林小美負責補<b>行銷超支明細</b>，期限是本週五（10/9）。陳大文負責協調研發結餘的挪移額度。</div>`;
+  b+=srcList(M.answers.src);
+  return b+`</div><div class="foot">${inputRow(false)}<div class="note">每條結論都附來源；點來源可跳到當時那一句。</div></div>`;
+}
+function srcList(list){
+  return list.map((s,i)=>`<div class="src" onclick="go2('src')">
+    <b>${s.m}</b> · ${s.w} · ${s.s} · ${s.t}<br>「${esc(s.x)}」</div>`).join("");
+}
+
+// ---------- 2. 附來源 ----------
+function vAns(){
+  let b=`${tbar("回答與來源",["chat","‹ 對話"])}<div class="body">
+    <div class="bub u">${esc(M.answers.q)}</div>`;
+  if(V.st==="loading") return b+`<div class="think"><i></i><i></i><i></i><span>正在查記錄…</span></div></div>`;
+  if(V.st==="empty") return b+`<div class="bub a">林小美負責補行銷超支明細，期限是本週五（10/9）。<br>
+      <span style="color:var(--dim)">陳大文負責協調研發結餘的挪移額度。</span></div>
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>其中 1 條結論找不到來源</b><br>
+      那一條已經改為「查無資料」，不當成答案輸出（寧可少說，不要說沒有依據的話）。</div></div>
+    ${srcList([M.answers.src[0]])}</div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>來源解析失敗</b><br>
+      這條結論引用的句子在資料庫裡找不到了，所以我不回答它。</div></div>
+    <div class="bub a nf">會議記錄裡沒有找到相關內容。</div>
+    <div class="note">SOURCE_UNRESOLVED：來源失效 → 該條不輸出；其他條不受影響（partial）。全數失效則整個回答改為查無。</div></div>`;
+  // happy / edge
+  const list=V.st==="edge"?[M.answers.src[0],M.answers.src[1]]:M.answers.src;
+  b+=`<div class="bub a">林小美負責補<b>行銷超支明細</b>，期限是本週五（10/9）。陳大文負責協調研發結餘的挪移額度。</div>`;
+  b+=list.map(s=>`<div class="src" onclick="go2('src')">
+      <b>${s.m}</b> · ${s.w} · ${s.s} · ${s.t}<br>「${esc(s.x)}」
+      ${V.st==="edge"&&s.s==="陳大文"?`<div class="eb">${ic('pen')} 此句有人工修正（原本是 STT 錯字）</div>`:""}</div>`).join("");
+  if(V.st==="edge") b+=`<div class="bn info"><span>${ic('info')}</span><div>同一句被兩條結論引用時，兩處都會標示；
+    這是在<b>來源處</b>提醒你，逐字稿畫面本身保持乾淨。</div></div>`;
+  return b+`</div>`;
+}
+
+// ---------- 3. 跨會議彙整 ----------
+function vMulti(){
+  const b=`${tbar("跨會議彙整",["chat","‹ 對話"])}<div class="body">
+    <div class="bub u">${esc(M.multi.q)}</div>`;
+  if(V.st==="loading") return b+`<div class="think"><i></i><i></i><i></i><span>正在檢索 3 場會議…</span></div></div>`;
+  if(V.st==="empty") return b+`<div class="bub a nf">這 3 場會議的記錄裡都沒有提到預算相關的決策。</div>
+    <div class="bn info"><span>${ic('search')}</span><div>搜尋範圍：所有會議（3 場）<br>要不要換個問法，例如「預算」改成「費用」？</div></div></div>`;
+  if(V.st==="error") return b+`<div class="bub a">找到 2 條相關決策（另有 1 場檢索失敗）。</div>
+    ${srcList(M.multi.items.slice(0,2))}
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>「客戶訪談 — 明泰」檢索失敗</b><br>
+      所以上面的結果<b>不包含那一場</b>。稍後可重試那一場。</div></div></div>`;
+  if(V.st==="edge") return b+`<div class="bub a">在<b>最近 20 場</b>會議中找到 3 條相關決策。</div>
+    ${srcList(M.multi.items)}
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>你總共有 34 場會議，這次只搜了最近 20 場</b><br>
+      這是速度與成本的取捨。要往前找更早的會議，可以擴大範圍。</div></div>
+    <div class="row"><button class="cta ghost" onclick="toast('（原型）擴大範圍並重新檢索…')">擴大範圍，搜尋全部 34 場</button></div></div>`;
+  return b+`<div class="bub a">跨 3 場會議共找到 3 條相關決策。</div>
+    ${srcList(M.multi.items)}
+    <div class="note">跨會議回答是「逐條附各自來源」，不是合成一段無法回溯的敘述。</div></div>`;
+}
+
+// ---------- 4. 查無資料 / 超出範圍 ----------
+function vNf(){
+  const b=`${tbar("查無資料 / 超出範圍",["chat","‹ 對話"])}<div class="body">`;
+  if(V.st==="edge") return b+`<div class="bub u">明天天氣如何？</div>
+    <div class="bub a nf">這不在會議記錄的範圍內，我沒有相關資料。<br>
+      <span style="color:var(--dim)">我只會用你的會議記錄回答問題。</span></div>
+    <div class="note">out_of_scope：超出範圍一律明說，不用紅色（紅色專屬系統錯誤）。</div></div>`;
+  return b+`<div class="bub u">明年第一季的招募計畫是什麼？</div>
+    <div class="bub a nf">會議記錄裡<b>沒有提到</b>這件事。<br>
+      <span style="color:var(--dim)">我搜尋了全部 3 場會議的逐字稿。</span></div>
+    <div class="bn info"><span>${ic('search')}</span><div><b>可能是相關的會議</b><br>依關鍵字比對，這幾場最接近：</div></div>
+    ${srcList([{m:"產品週會",w:"10/5 14:00",s:"—",t:"—",x:"第三季人力規劃：先補一位後端。"},
+      {m:"Q4 預算檢討",w:"今天 10:30",s:"—",t:"—",x:"人事相關預算未在本場討論。"}])}
+    <div class="note">查無資料是四種正常狀態之一（not_found），不是錯誤碼，也不用紅色。</div></div>`;
+}
+
+// ---------- 5. 中斷與重試 ----------
+function vRetry(){
+  const b=`${tbar("中斷與重試",["chat","‹ 對話"])}<div class="body">
+    <div class="bub u">${esc(M.answers.q)}</div>`;
+  if(V.st==="loading") return b+`<div class="bub a">林小美負責補行銷超支明細，期限是…</div>
+    <div class="think"><i></i><i></i><i></i><span>重試中（沿用同一個問題）</span></div>
+    <div class="note">重試期間再次送出會被擋下：同一個問題不得並行兩次。</div></div>`;
+  if(V.st==="edge") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>連續 3 次中斷</b><br>
+      可能是連線不穩。已產生的部分保留著，可以稍後再試。</div></div>
+    <div class="bub a">林小美負責補行銷超支明細，期限是<span style="color:var(--dim)">…（未完成）</span></div>
+    <button class="cta" onclick="toast('（原型）第 4 次重試…')">再試一次</button></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>生成中斷</b><br>
+      網路斷了。已產生的內容保留著，按重試會從同一個問題繼續。</div></div>
+    <div class="bub a">林小美負責補行銷超支明細，期限是<span style="color:var(--dim)">…（未完成）</span></div>
+    <button class="cta" onclick="retryAns()">重試</button>
+    <div class="note">重試沿用同一個問題 —— 不會在對話串裡多出第二個你的泡泡。</div></div>`;
+  return b+`<div class="bub a">林小美負責補行銷超支明細，期限是本週五（10/9）。陳大文負責協調研發結餘的挪移額度。</div>
+    ${srcList(M.answers.src)}
+    <div class="bn ok"><span>${ic('check')}</span><div>重試成功，接續原本的回答。</div></div></div>`;
+}
+
+// ---------- 6. 對話歷史 ----------
+function vHist(){
+  const b=`${tbar("對話歷史",["chat","‹ 對話"])}<div class="body">`;
+  if(V.st==="loading") return b+`<div class="sk" style="height:56px"></div><div class="sk" style="height:56px"></div>
+    <div class="sk" style="height:56px"></div></div>`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('folder')}</div><h4>只有這一個對話</h4>
+    <p>按「開新對話」會保留舊的，不會刪掉。</p>
+    <button class="cta" onclick="toast('（原型）已開新對話')">開新對話</button></div></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>歷史載入失敗</b><br>目前這個對話還在，不影響提問。</div></div>
+    <button class="cta" onclick="toast('（原型）重新載入…')">重試</button></div>`;
+  const list=V.st==="edge"?Array.from({length:12},(_,i)=>({
+      t:["預算相關的決策有哪些？","明泰訪談提到什麼痛點？","週會的 action item 有哪些？","上次誰反對這個方案？",
+        "教育訓練預算怎麼算的？","POC 的時程是誰定的？"][i%6],
+      m:`${i===0?"今天":`10/${12-i} 09:${10+i}`} · ${2+i} 則訊息 · 搜尋 ${1+i%3} 場`})):M.hist;
+  return b+list.map((h,i)=>`<div class="hist ${i===0?"on":""}" onclick="toast('（原型）切到：${h.t}')">
+      <div class="t">${i===0?ic('pin')+" ":""}${h.t}</div><div class="m mono">${h.m}</div></div>`).join("")+
+    (V.st==="edge"?`<div class="note">共 100 串對話 —— v1 用線性列表 + 時間（決策 D12）；
+      分組或自動命名等對話量真的多了再做。</div>`:``)+
+    `<div class="row" style="margin-top:12px"><button class="cta" onclick="toast('（原型）已開新對話')">開新對話</button>
+      <button class="cta ghost" onclick="V.deleteAsk=true;render()">刪除這串</button></div></div>`;
+}
+
+// ---------- 7. 範圍指示器 ----------
+function vScope(){
+  const locked=V.scope==="meeting";
+  const b=`${tbar("範圍指示器",["chat","‹ 對話"])}<div class="body">
+    <div class="bn info"><span>${ic('search')}</span><div>目前範圍：<b>${locked?"本場會議（Q4 預算檢討）":"所有會議（3 場）"}</b><br>
+      ${locked?"由「會議 → 問這場」進入時鎖定。":"首頁對話預設搜尋所有會議。"}</div></div>
+    <div class="srow"><span class="g">${locked?"搜尋範圍：本場會議":"搜尋範圍：所有會議"}</span>
+      <button class="cta ghost" style="width:auto;padding:8px 12px;font-size:12.5px"
+        onclick="V.scope='${locked?"all":"meeting"}';render()">改為${locked?"全部會議":"本場會議"}</button></div>`;
+  if(V.st==="edge") return b+`<div class="bub u">上個月其他場的預算討論呢？</div>
+    <div class="bub a nf">目前範圍<b>只搜尋「Q4 預算檢討」這一場</b>，所以我看不到其他場的內容。<br>
+      <span style="color:var(--dim)">要不要改為搜尋所有會議？對話串會保留。</span></div>
+    <div class="row"><button class="cta" onclick="V.scope='all';toast('已改為搜尋所有會議，對話串保留');render()">改為搜尋所有會議</button></div>
+    <div class="note">F21：範圍指示一律由單一來源渲染，不靠裝置端記憶 —— 免得顯示的範圍與實際搜尋的範圍不一致。</div></div>`;
+  return b+`<div class="bub u">這季的預算結論是什麼？</div>
+    <div class="bub a">本季行銷預算維持不追加，改以挪移研發結餘支應。</div>
+    ${srcList([M.answers.src[0]])}
+    <div class="note">切換範圍不開新對話：原對話串保留，只是之後的問題換範圍。</div></div>`;
+}
+
+// ---------- 8. 來源回溯 ----------
+function vSrc(){
+  const b=`${tbar("來源回溯",["ans","‹ 回答"])}`;
+  if(V.st==="loading") return b+`<div class="body"><div class="sk"></div><div class="sk" style="width:88%"></div>
+    <div class="sk" style="width:72%"></div><div class="note">正在跳到「Q4 預算檢討」的逐字稿…</div></div>`;
+  if(V.st==="error") return b+`<div class="body"><div class="bn err"><span>${ic('bolt')}</span><div><b>這場會議已經被刪除了</b><br>
+      所以找不到那一句。回答不會因此改變，但來源無法回溯。</div></div>
+    <button class="cta ghost" onclick="go2('ans')">回到回答</button></div>`;
+  if(V.st==="edge") return b+`<div class="body"><div class="bn info"><span>${ic('search')}</span><div>第 1,842 句（共 1,910 句）· 虛擬捲動，只渲染附近範圍</div></div>
+    <div class="line"><div class="g"><span class="chip">陳大文</span></div><div class="c">前面的部分先這樣。</div><div class="tm mono">1:52:10</div></div>
+    <div class="line hl"><div class="g"><span class="chip">陳大文</span></div>
+      <div class="c">那這樣，明細請小美週五之前給我，我們下次再定。</div><div class="tm mono">1:52:41</div></div>
+    <div class="line"><div class="g"><span class="chip n">林小美</span></div><div class="c">好，那我週五下班前給。</div><div class="tm mono">1:52:49</div></div>
+    <div class="note">回溯到第 1,842 句也要快：來源錨點是 <span class="mono">seq</span> 而非文字，
+      所以就算使用者改過這句話，錨點也不會斷。</div></div>`;
+  return b+`<div class="body">
+    <div class="bn info"><span>${ic('location')}</span><div>已跳到 <b>Q4 預算檢討</b> 的第 6 句並高亮</div></div>
+    <div class="line"><div class="g"><span class="chip">林小美</span></div><div class="c">主要是上個月的投放加碼，還有社群的合作案。</div><div class="tm mono">00:36</div></div>
+    <div class="line hl"><div class="g"><span class="chip">陳大文</span></div>
+      <div class="c">那這樣，明細請小美週五之前給我，我們下次再定。</div><div class="tm mono">01:02</div></div>
+    <div class="line"><div class="g"><span class="chip">林小美</span></div><div class="c">好，那我週五下班前給。</div><div class="tm mono">01:09</div></div>
+    <div class="row" style="margin-top:12px"><button class="cta ghost" onclick="go2('chat')">回到對話</button></div>
+    <div class="note">來源是「位置」不是「連結」：跳的是會議 ＋ 句子編號。</div></div>`;
+}
+
+// ---------- 9. 語音提問 ----------
+function vMic(){
+  const b=`${tbar("語音提問（D11）",["chat","‹ 對話"])}<div class="body">`;
+  if(V.st==="edge") return b+`<div class="bn warn"><span>${ic('warn')}</span><div><b>會議錄音進行中</b><br>
+      正在記錄「Q4 預算檢討」，對話的 mic 先不能用，避免搶麥克風、也避免錄到不該錄的。</div></div>
+    <div class="row"><button class="cta ghost" onclick="toast('（原型）跳到正在錄音的會議')">看會議</button></div>
+    </div><div class="foot">${inputRow(true,"會議錄音中，仍可打字提問")}</div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>麥克風權限被拒絕</b><br>
+      沒有麥克風就不能用說的，但<b>打字提問完全不受影響</b>。</div></div>
+    <button class="cta" onclick="toast('（原型）開啟系統設定')">到系統設定開啟</button>
+    </div><div class="foot">${inputRow(false)}</div>`;
+  if(V.st==="empty") return b+`<div class="bn warn"><span>${ic('mic')}</span><div><b>沒聽清楚，再說一次</b><br>
+      剛剛沒有辨識到內容。你原本打的字還在，沒有被清掉。</div></div>
+    </div><div class="foot">${inputRow(false)}</div>`;
+  if(V.st==="loading") return b+`<div class="bn info"><span>${ic('mic')}</span><div><b>收音中…</b>（放開 mic 結束）<br>
+      對話收音是短句、單人，不做會議那種分段上傳與本地回存。</div></div>
+    <div class="micwave">${"▁▃▅▇▅▃▁▃▅▇▅▃▁▃▅▇▅▃▁"}　辨識中…</div>
+    <div class="note">收音中不用紅色 —— 紅色專屬於「會議正在被記錄」（DESIGN §5 規則 7）。</div>
+    </div><div class="foot">${inputRow(true)}</div>`;
+  // happy：辨識結果先填入，尚未送出
+  V.q="上季行銷超支是誰負責補明細？";
+  return b+`<div class="bn ok"><span>${ic('check')}</span><div><b>辨識完成，先填進輸入框</b><br>
+      看一下有沒有錯字（人名、數字最容易錯），確認後再按送出。</div></div>
+    <div class="bub a">${ic('mic')} 我聽到的是：「上季行銷超支是誰負責補明細？」</div>
+    </div><div class="foot">${inputRow(false)}
+      <div class="note">任何情況都不會自動送出 —— 錯字直接送出等於拿錯誤問題去問，答案與回溯都會歪掉。</div></div>`;
+}
+
+// ---------- 互動 ----------
+function startMic(){          // 按 mic → 進「語音提問」畫面，收音 → 辨識 → 結果先填入（不送出）
+  V.view="mic"; V.st="loading"; render();
+  setTimeout(()=>{ V.st="happy"; render(); },700);
+}
+function send(){
+  const q=V.q.trim();
+  if(!q){ toast("問題不能是空白"); return; }          // AC：空白不得送出（CTA 已 disabled）
+  if(q.length>1000){ toast("問題超過 1,000 字元，請縮短"); return; }
+  V.view="chat"; V.st="loading"; render();
+  setTimeout(()=>{ V.st="happy"; render(); },900);
+}
+function retryAns(){ V.view="retry"; V.st="loading"; render(); setTimeout(()=>{ V.st="happy"; render(); },900); }
+function go2(v){ V.view=v; V.st="happy"; V.deleteAsk=false; render(); }
+function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},2200); }
+
+const VIEWS={chat:vChat,ans:vAns,multi:vMulti,nf:vNf,retry:vRetry,hist:vHist,scope:vScope,src:vSrc,mic:vMic};
+const TITLES={chat:"對話（首頁）",ans:"對話 — 附來源",multi:"對話 — 跨會議彙整",nf:"對話 — 查無 / 超範圍",
+  retry:"對話 — 中斷與重試",hist:"對話歷史 sheet",scope:"範圍指示器",src:"來源回溯（逐字稿高亮）",
+  mic:"語音提問（D11）"};
+const STATES={
+  chat:[["happy","串流完成 + 附來源"],["loading","正在查記錄…"],["empty","還沒有任何會議記錄"],
+    ["error","服務不可用"],["edge","1,024 字元 / emoji / 特殊字元"]],
+  ans:[["happy","每條結論附來源"],["empty","某條結論找不到來源 → 降級"],["error","來源解析失敗"],
+    ["edge","來源句有人工修正 + 同一句兩處引用"]],
+  multi:[["happy","逐條附來源 + 標明場次"],["loading","檢索中"],["empty","沒有符合條件的會議"],
+    ["error","部分場次檢索失敗（明說漏哪場）"],["edge","超過檢索上限（只搜最近 20 場）"]],
+  nf:[["empty","查無 + 可能相關會議"],["edge","超出範圍（問天氣）"]],
+  retry:[["happy","重試成功接續"],["loading","重試中"],["error","生成中斷（保留未完成）"],["edge","連續失敗 3 次"]],
+  hist:[["happy","切換對話串"],["loading","載入中"],["empty","只有一個對話"],["error","載入失敗"],
+    ["edge","100 串對話 / 刪除確認"]],
+  scope:[["happy","本場 ⇄ 全部"],["edge","鎖本場卻問跨場問題"]],
+  src:[["happy","捲到並高亮"],["loading","跳頁載入中"],["error","該場已被刪除"],["edge","回溯到第 1,842 句"]],
+  mic:[["happy","辨識結果先填入（未送出）"],["loading","收音中 / 辨識中"],["empty","沒聽清楚，再說一次"],
+    ["error","麥克風權限被拒"],["edge","會議錄音中 mic 不可用"]]
+};
+function sheet(){
+  if(V.deleteAsk) return `<div class="sheet"><div class="p"><h4>刪除這串對話？</h4>
+    <div class="sub">只刪對話，會議記錄不會被影響。</div>
+    <div class="row"><button class="cta ghost" onclick="V.deleteAsk=false;render()">取消</button>
+      <button class="cta" onclick="V.deleteAsk=false;V.st='happy';toast('已刪除這串對話（會議記錄不受影響）');render()">刪除</button></div>
+    </div></div>`;
+  if(V.histOpen) return `<div class="sheet" onclick="V.histOpen=false;render()"><div class="p" onclick="event.stopPropagation()">
+    <h4>對話歷史</h4><div class="sub">v1 用線性列表 + 時間（決策 D12）</div>
+    ${M.hist.map(h=>`<div class="hist" onclick="V.histOpen=false;toast('已切到：${h.t}')"><div class="t">${h.t}</div>
+      <div class="m mono">${h.m}</div></div>`).join("")}
+    <button class="cta" onclick="V.histOpen=false;toast('已開新對話');render()">開新對話</button></div></div>`;
+  return "";
+}
+function panel(){
+  document.getElementById("panel").innerHTML=Object.keys(VIEWS).map(v=>
+    `<h2>${esc(TITLES[v])}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}"
+        onclick="V.view='${v}';V.st='${s}';V.q='';V.histOpen=false;V.deleteAsk=false;V.scope='${v==="scope"&&s==="edge"?"meeting":"all"}';render()">${esc(l)}</button>`
+    ).join("")).join("");
+}
+function render(){
+  const a=document.activeElement,id=a&&a.id,pos=a&&a.selectionStart;
+  document.getElementById("app").innerHTML=VIEWS[V.view]()+sheet();
+  if(V.toast) document.getElementById("app").insertAdjacentHTML("beforeend",
+    `<div class="toast"><span>${ic('check')}</span><span>${V.toast}</span></div>`);
+  if(id){const el=document.getElementById(id); if(el){el.focus(); if(pos!=null&&el.setSelectionRange)el.setSelectionRange(pos,pos);}}
+  panel();
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);
+  if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();}});
+const H0=location.hash.slice(1); if(VIEWS[H0]) V.view=H0;   // 首次載入的深層連結（例：03-ask.html#src）
+render();
+</script>
+</body>
+</html>

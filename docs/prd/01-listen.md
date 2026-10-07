@@ -136,6 +136,7 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-07 | v1.4 | 用戶指示：圖示一律 inline SVG，禁用 emoji 當 icon → 本檔 14 處圖示改寫（`bolt` / `warn` / `mic` / `ban` / `check` / `stop` / `refresh` / `hourglass`）；行數 346→388 | Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.0 | 初版：11 FR / 5 US / 依賴圖 / 追溯矩陣 | Agent（dav-designer Step 4）|
 | 2026-10-07 | v1.3 | 決策 D5：新增 FR-112（接近上限提醒）/ FR-113（達上限自動結束）；§8 補 7 條上限實測、3 條深層連結實測、3 條原型真 bug 修正紀錄；狀態 18→20 | Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.2 | 決策 D2 拍板：FR-109 補「上滑停止跟隨 + 回到最新 · N 句新」；§8 補 8 條跟隨實測與未涵蓋項（虛擬捲動節點回收）| Agent（dav-designer Step 5）|
@@ -148,12 +149,12 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | 項目 | 值 |
 | --- | --- |
 | 原型檔案 | `docs/prd/01-listen.html` |
-| 檔案行數 | 346（上限 500 ✓） |
+| 檔案行數 | 388（上限 500 ✓） |
 | 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
 | 覆蓋畫面 | 5 個（`home` / `start` / `meeting` / `perm` / `resume`），hash router |
 | 可切換狀態 | 20 組 |
-| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
-| 驗證結果 | 20/20 狀態渲染非空；8/8 跟隨機制 + 7/7 上限機制 + 3/3 深層連結斷言通過；JavaScript 錯誤 0 |
+| 驗證命令 | `node docs/prd/tools/verify-prototypes.js`（Playwright + `channel: chrome`，`file://` 載入） |
+| 驗證結果 | 20/20 狀態渲染非空；8/8 跟隨機制 + 7/7 上限機制 + 3/3 深層連結斷言通過；JavaScript 錯誤 0；**圖示全部 inline SVG**（禁用 emoji 當 icon，DESIGN §5 規則 8）|
 
 **自動跟隨實測（決策 D2）**：
 

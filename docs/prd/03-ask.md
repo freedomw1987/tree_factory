@@ -97,24 +97,24 @@ M04-US-404/405（概念卡的來源句格式與來源回溯共用同一套來源
 
 | FR | User Story | 對應畫面 | 原型檔案 | 狀態 |
 | --- | --- | --- | --- | --- |
-| FR-301 對話框為首頁 | M03-US-301 | 對話（首頁）→ `03-ask.html §chat` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-302 串流回答 | M03-US-301 | 對話 — 思考中 / 串流中 → `03-ask.html §chat（loading / streaming）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-303 無資料誠實 | M03-US-301 | 對話 — 空狀態 → `03-ask.html §chat（empty）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-304 回答附來源 | M03-US-302 | 對話 — 附來源 → `03-ask.html §chat（sources）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-305 來源可回溯 | M03-US-302 | 來源回溯（逐字稿高亮）→ `03-ask.html §src` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-306 解析失敗降級 | M03-US-302 | 對話 — 來源降級 → `03-ask.html §chat（edge：來源取不到）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-307 跨會議彙整 | M03-US-303 | 對話 — 跨會議彙整 → `03-ask.html §multi` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-308 範圍誠實 | M03-US-303 | 跨會議彙整 — 部分場次未納入 / 超上限 → `03-ask.html §multi（partial / limit）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-309 對話歷史保存 | M03-US-304 | 對話歷史 sheet → `03-ask.html §hist` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-310 查無資料明說 | M03-US-305 | 對話 — 查無 → `03-ask.html §chat（not-found）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-311 超範圍拒答 | M03-US-305 | 對話 — 超出範圍 → `03-ask.html §chat（out-of-scope）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-312 零編造 | M03-US-305 | （無 UI；以 20 題負向題組驗證）（無對應原型）| — | ⬜ 不適用（無 UI）|
-| FR-313 中斷與重試 | M03-US-306 | 對話 — 中斷 → `03-ask.html §chat（interrupted）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-314 單一進行中請求 | M03-US-306 | （無 UI，行為層；重試期間 CTA disabled）| — | ⬜ 不適用（無 UI）|
-| FR-315 範圍鎖定 | M03-US-307 | 範圍指示器（本場）→ `03-ask.html §scope` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-316 範圍可見與可切換 | M03-US-307 | 範圍指示器 → 一鍵切換全部 → `03-ask.html §scope（切換）` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-317 共用引擎 | INT-M02-M03-01 | 來源卡（兩個呼叫端共用同一渲染）→ `03-ask.html §src` + `02-record.html §fup` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-318 語音輸入 | M03-US-308 | 對話 — 語音提問 → `03-ask.html §mic` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
+| FR-301 對話框為首頁 | M03-US-301 | 對話（首頁）→ `03-ask.html §chat` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-302 串流回答 | M03-US-301 | 對話 — 思考中 / 串流中 → `03-ask.html §chat（loading / streaming）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-303 無資料誠實 | M03-US-301 | 對話 — 空狀態 → `03-ask.html §chat（empty）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-304 回答附來源 | M03-US-302 | 對話 — 附來源 → `03-ask.html §chat（sources）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-305 來源可回溯 | M03-US-302 | 來源回溯（逐字稿高亮）→ `03-ask.html §src` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-306 解析失敗降級 | M03-US-302 | 對話 — 來源降級 → `03-ask.html §chat（edge：來源取不到）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-307 跨會議彙整 | M03-US-303 | 對話 — 跨會議彙整 → `03-ask.html §multi` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-308 範圍誠實 | M03-US-303 | 跨會議彙整 — 部分場次未納入 / 超上限 → `03-ask.html §multi（partial / limit）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-309 對話歷史保存 | M03-US-304 | 對話歷史 sheet → `03-ask.html §hist` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-310 查無資料明說 | M03-US-305 | 對話 — 查無 → `03-ask.html §chat（not-found）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-311 超範圍拒答 | M03-US-305 | 對話 — 超出範圍 → `03-ask.html §chat（out-of-scope）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-312 零編造 | M03-US-305 | （無 UI；以 20 題負向題組驗證）（無對應原型）| — | — 不適用（無 UI）|
+| FR-313 中斷與重試 | M03-US-306 | 對話 — 中斷 → `03-ask.html §chat（interrupted）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-314 單一進行中請求 | M03-US-306 | （無 UI，行為層；重試期間 CTA disabled）| — | — 不適用（無 UI）|
+| FR-315 範圍鎖定 | M03-US-307 | 範圍指示器（本場）→ `03-ask.html §scope` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-316 範圍可見與可切換 | M03-US-307 | 範圍指示器 → 一鍵切換全部 → `03-ask.html §scope（切換）` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-317 共用引擎 | INT-M02-M03-01 | 來源卡（兩個呼叫端共用同一渲染）→ `03-ask.html §src` + `02-record.html §fup` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-318 語音輸入 | M03-US-308 | 對話 — 語音提問 → `03-ask.html §mic` | `docs/prd/03-ask.html` | ✅ 已驗證 |
 
 **幽靈檢查**：
 - 每個 FR 都有對應 US ✓（18 FR / 8 US + 1 INT）
@@ -152,6 +152,7 @@ M04-US-404/405（概念卡的來源句格式與來源回溯共用同一套來源
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-07 | v1.2 | Step 5 收尾：原型 `03-ask.html` 完成並驗證（9 畫面 / 36 狀態 / JS 錯誤 0）；追溯矩陣狀態欄回填；**圖示一律 inline SVG，禁用 emoji 當 icon**（DESIGN §5 規則 8）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.1 | Step 4.5 簽核：D11 拍板「對話框支援語音輸入」→ 新增 FR-318 / M03-US-308（辨識結果先填後送）；Non-goals 移除「語音輸入」並改列「語音回答（TTS）不做」；溯源矩陣加 `§mic` | Agent（dav-designer Step 5 前）|
 | 2026-10-07 | v1.0 | 初版：17 FR / 7 US + INT / 依賴圖（含 SPIKE-005 為架構級未知數）/ 追溯矩陣 / Non-goals | Agent（dav-designer Step 4，第二輪）|
 
@@ -161,9 +162,17 @@ M04-US-404/405（概念卡的來源句格式與來源回溯共用同一套來源
 
 | 項目 | 值 |
 | --- | --- |
-| 原型檔案 | `docs/prd/03-ask.html`（規劃中）|
-| 覆蓋畫面 | `chat` / `src` / `multi` / `hist` / `scope` / `mic`（+ 狀態變體）|
-| 畫面數 | 6（`chat` / `src` / `multi` / `hist` / `scope` / `mic`）|
-| 狀態覆蓋 | 對應 `DESIGN.md` §3.1 的 **9 列（M03 段）**，全部 DoD-Full；實際可切換狀態組數待 Step 5 回填 |
-| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
-| 驗證結果 | ⬜ 待 Step 5 回填 |
+| 原型檔案 | `docs/prd/03-ask.html`（496 行，單檔內嵌 CSS + JS、無 build tool）|
+| 覆蓋畫面 | **9 個 hash view，1 view 對 `DESIGN.md` §3.1 的 1 列（M03 段）**：`chat` / `ans` / `multi` / `nf` / `retry` / `hist` / `scope` / `src` / `mic` |
+| 畫面數 | 9 |
+| 狀態覆蓋 | **36 組**（chat 5 / ans 4 / multi 5 / nf 2 / retry 4 / hist 5 / scope 2 / src 4 / mic 5），全部 DoD-Full |
+| 驗證命令 | `node docs/prd/tools/verify-prototypes.js`（Playwright + `channel: chrome`，`file://` 載入，逐一切換全部狀態並斷言）|
+| 驗證結果 | ✅ 36 / 36 狀態可切換；JS 錯誤 **0**；icon 幾何異常 **0**；深層連結 `#chat`~`#mic` 全數生效 |
+
+**已知限制（帶進 §2.3，不阻擋 Step 5）**：
+
+| 項目 | 現況 | 建議處理時機 |
+| --- | --- | --- |
+| 檔案行數逼近上限 | 496 / 500 行（原型規範上限 500）| 階段 C（標籤篩選擴充 `§scope`）時把 `scope` / `mic` 抽成 `06-*.html`；屆時同步更新本表 |
+| 對話歷史無主題分組 | 決策 D12：v1 線性列表 + 時間 | 階段 B 上線後依實際筆數再評估（M03-US-304）|
+| 串流中的「停下」行為 | 原型只示範中斷後重試，未示範主動停止生成 | 階段 B 實作時決定（v1 允許 `interrupted` 即可）|

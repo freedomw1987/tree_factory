@@ -95,6 +95,13 @@ border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:
 .think i:nth-child(2){animation-delay:.2s}.think i:nth-child(3){animation-delay:.4s}
 @keyframes th{0%,100%{opacity:.3}50%{opacity:1}}
 .note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
+
+.si{width:18px;height:18px;flex:0 0 auto;display:inline-block;vertical-align:-3px}
+.bn .si,.toast .si{margin-top:1px}
+.tbar h3 .si{vertical-align:-2px;margin-right:4px}
+.empty .ic .si{width:38px;height:38px}
+.box h4 .si{vertical-align:-2px;margin-right:2px}
+.src .si,.cc .t .si{margin-right:5px}
 </style>
 </head>
 <body>
@@ -141,22 +148,59 @@ const M = {
 let NAMES=["","",""];   // 會後統一命名：預設全未命名，會議中只用編號
 const V={view:"summary",st:"happy",open:null,toast:null,exporting:false,ans:null,q:"",prog:0};
 const esc=s=>s.replace(/</g,"&lt;");
+// ---- 圖示：一律 inline SVG（禁用 emoji 當 icon）｜24 viewBox、stroke 1.75、currentColor ----
+const IP={
+ chat:'<path d="M20.5 11.6a8.1 8.1 0 0 1-8.6 8 9.2 9.2 0 0 1-3.6-.8L4.2 20.4l1.5-4a8 8 0 0 1-2-4.8 8.3 8.3 0 0 1 8.6-8 8.3 8.3 0 0 1 8.2 8z"/>',
+ mic:'<path d="M12 3.2a3 3 0 0 1 3 3v5.6a3 3 0 0 1-6 0V6.2a3 3 0 0 1 3-3z"/><path d="M5.5 11.4a6.5 6.5 0 0 0 13 0"/><path d="M12 17.9v2.9M9 20.8h6"/>',
+ send:'<path d="M12 19.5V5"/><path d="M6.2 10.8 12 5l5.8 5.8"/>',
+ down:'<path d="M6.2 13.2 12 19l5.8-5.8"/><path d="M12 19V5"/>',
+ mic_off:'<path d="M12 3.2a3 3 0 0 1 3 3v3.2"/><path d="M9.2 6.6v5.2a2.8 2.8 0 0 0 4.3 2.4"/><path d="M5.5 11.4a6.5 6.5 0 0 0 9.7 5.6M18.5 11.4a6.6 6.6 0 0 1-.4 2.3"/><path d="M12 17.9v2.9M9 20.8h6"/><path d="M4.5 3.5l15 15"/>',
+ history:'<path d="M3.5 12a8.5 8.5 0 1 0 2.9-6.4"/><path d="M3.2 4.2v4.6h4.6"/><path d="M12 7.8V12l3 1.9"/>',
+ folder:'<path d="M3.5 7.2A2.2 2.2 0 0 1 5.7 5h3.6l2 2.2h7a2.2 2.2 0 0 1 2.2 2.2v7.4a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V7.2z"/>',
+ search:'<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8 20.4 20.4"/>',
+ pen:'<path d="M4.2 19.8h3.9L20 7.9l-3.9-3.9L4.2 15.9v3.9z"/><path d="M14.1 6.1l3.8 3.8"/>',
+ bolt:'<path d="M13.3 3.2 5.6 13.4h4.7l-1.1 7.4 8-10.3h-4.7l.8-7.3z"/>',
+ warn:'<path d="M12 3.8 21 20H3l9-16.2z"/><path d="M12 9.6v4.2M12 16.9h.01"/>',
+ check:'<path d="M4.5 12.6l4.8 4.8L19.5 7.2"/>',
+ info:'<circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.6M12 7.6h.01"/>',
+ pin:'<path d="M9.2 4.2h5.6l-1 6.4 3.9 3H6.3l3.9-3-1-6.4z"/><path d="M12 13.6v6.2"/>',
+ location:'<path d="M12 20.8s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="9.6" r="2.5"/>',
+ book:'<path d="M4.2 5.6A2.4 2.4 0 0 1 6.6 3.2H19.3v14.4H6.6a2.4 2.4 0 0 0-2.4 2.4V5.6z"/><path d="M4.2 20a2.4 2.4 0 0 1 2.4-2.4h12.7V20H6.6A2.4 2.4 0 0 1 4.2 20z"/>',
+ brain:'<circle cx="6.2" cy="7.2" r="2.2"/><circle cx="17.8" cy="7.2" r="2.2"/><circle cx="12" cy="16.8" r="2.2"/><path d="M8 8.6 10.8 15M16 8.6 13.2 15M8.4 7.2h7.2"/>',
+ inbox:'<path d="M3.5 12.4 6 5.2h12l2.5 7.2v6a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-6z"/><path d="M3.5 12.4h4.7l.9 2.8h5.8l.9-2.8h4.7"/>',
+ note:'<path d="M5.2 3.2h8.6l5 5v12.6H5.2V3.2z"/><path d="M13.6 3.2v5.2h5.2"/><path d="M8.6 13h6.8M8.6 16.4h4.6"/>',
+ target:'<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1"/>',
+ calendar:'<rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/><path d="M3.6 10h16.8M8.4 3.4v3.4M15.6 3.4v3.4"/>',
+ undo:'<path d="M4 9.4h9.4a6.3 6.3 0 0 1 0 12.6H8.6"/><path d="M8 5.4 4 9.4l4 4"/>',
+ tag:'<path d="M3.6 12.6V4.2h8.4l9 9-8.4 8.4-9-9z"/><path d="M7.8 8.4h.01"/>',
+ ban:'<circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2 17.8 17.8"/>',
+ headphones:'<path d="M4.4 14.2v-2a7.6 7.6 0 0 1 15.2 0v2"/><rect x="2.6" y="13" width="4.4" height="7.4" rx="2"/><rect x="17" y="13" width="4.4" height="7.4" rx="2"/>',
+ speaker:'<path d="M4.2 9.2v5.6h3.6l4.6 3.6V5.6L7.8 9.2H4.2z"/><path d="M16.4 9.7a4.2 4.2 0 0 1 0 4.6"/><path d="M18.9 7.2a7.6 7.6 0 0 1 0 9.6"/>',
+ clock:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>',
+ refresh:'<path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.9 4.4v4.4h-4.4"/>',
+ stop:'<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.2"/>',
+ hourglass:'<path d="M7 3.6h10M7 20.4h10"/><path d="M8.4 3.6c0 3.4 3.6 4.6 3.6 8.4s-3.6 5-3.6 8.4"/><path d="M15.6 3.6c0 3.4-3.6 4.6-3.6 8.4s3.6 5 3.6 8.4"/>',
+ timer:'<circle cx="12" cy="13" r="7.2"/><path d="M12 9.4V13l2.4 1.6"/><path d="M9.4 3.6h5.2"/>',
+ wave:'<path d="M3 12h2M7 8v8M11 5.5v13M15 8.5v7M19 11h2"/>'
+};
+const ic=(n,x)=>`<svg class="si${x?" "+x:""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IP[n]||""}</svg>`;
+
 const spkName=i=>NAMES[i]||("發言者 "+(i+1));
 
 // ---- 產生中 ----
 function vGen(){
   if(V.st==="error") return `<div class="tbar"><h3>記錄產生失敗</h3></div><div class="body">
-    <div class="empty"><div class="ic">⚡</div><h4>摘要產生失敗</h4>
+    <div class="empty"><div class="ic">${ic('bolt')}</div><h4>摘要產生失敗</h4>
       <p>逐字稿已經完整存好了，<b>不會因為摘要失敗而遺失</b>。<br>可以只重試摘要與待辦。</p>
       <button class="cta" onclick="retry()">只重試摘要與待辦</button></div>
     <div class="note">可重試錯誤（NOTES_FAILED）：不阻斷、不留白，逐字稿仍可讀。</div></div>`;
   const slow=V.st==="edge";
   return `<div class="tbar"><h3>Q4 預算檢討</h3></div><div class="body">
-    <div class="box"><h4>⟳ 正在整理這場會議</h4>
+    <div class="box"><h4>${ic('refresh')} 正在整理這場會議</h4>
       <p>逐字稿已存好（118 句 · 3 人 · 12 分 04 秒）</p>
       <p class="dim">${slow?"這場到 2 小時上限，逐字稿很多，需要多一點時間…":"正在抽取決策、爭點與待辦…"}</p>
       <div class="bar"><i style="width:${V.prog}%"></i></div></div>
-    ${slow?`<div class="bn info"><span>⏱</span><div><b>預計還要 38 秒</b><br>會議越長，整理越久；此時可以先去做別的事，關掉 app 也不會中斷。</div></div>`:""}
+    ${slow?`<div class="bn info"><span>${ic('timer')}</span><div><b>預計還要 38 秒</b><br>會議越長，整理越久；此時可以先去做別的事，關掉 app 也不會中斷。</div></div>`:""}
     <div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:65%"></div></div>`;
 }
 // ---- 摘要 ----
@@ -165,17 +209,17 @@ function vSummary(){
     <button onclick="go('export')">匯出</button></div><div class="body">`;
   if(V.st==="loading") return h+`<div class="sk" style="width:50%"></div><div class="sk"></div><div class="sk" style="width:85%"></div>
     <div class="sk" style="width:40%;margin-top:20px"></div><div class="sk"></div></div>`;
-  if(V.st==="empty") return h+`<div class="empty"><div class="ic">📝</div><h4>這場沒有明顯的決策或爭點</h4>
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">${ic('note')}</div><h4>這場沒有明顯的決策或爭點</h4>
     <p>逐字稿已完整保存（118 句）。<br>如果這是討論性質的會議，可能本來就沒有結論。</p>
     <button class="cta ghost" onclick="toast('已切到「逐字稿」分頁')">改看逐字稿</button></div>`;
-  if(V.st==="error") return h+`<div class="bn err"><span>⚡</span><div><b>摘要還沒產生成功</b><br>
+  if(V.st==="error") return h+`<div class="bn err"><span>${ic('bolt')}</span><div><b>摘要還沒產生成功</b><br>
     逐字稿完整保留（118 句 · 3 人）。可以只重試摘要與待辦，不用重跑整場。</div></div>
     <button class="cta" onclick="retry()">重試摘要與待辦</button>
     <div class="note">可重試錯誤（NOTES_FAILED）：不告中断、不删資料，逐字稿永遠可讀。</div></div>`;
   const n=V.st==="edge"?{decisions:[M.edge.x],disputes:M.note.disputes,conclusions:M.note.conclusions}:M.note;
-  return h+`<div class="box"><h4>✅ 決策</h4><ul class="lst">${n.decisions.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
-    <div class="box"><h4>⚡ 爭點</h4><ul class="lst">${n.disputes.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
-    <div class="box"><h4>🎯 結論</h4><ul class="lst">${n.conclusions.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
+  return h+`<div class="box"><h4>${ic('check')} 決策</h4><ul class="lst">${n.decisions.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
+    <div class="box"><h4>${ic('bolt')} 爭點</h4><ul class="lst">${n.disputes.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
+    <div class="box"><h4>${ic('target')} 結論</h4><ul class="lst">${n.conclusions.map(d=>`<li>${esc(d)}</li>`).join("")}</ul></div>
     <div class="note">所有結論都可回溯：切到「待辦」分頁點任一條，會展開對應的逐字稿原句。</div></div>`;
 }
 // ---- 逐字稿 ----
@@ -184,14 +228,14 @@ function vTr(){
     <button onclick="go('export')">匯出</button></div><div class="body">`;
   if(V.st==="loading") return h+`<div class="sk"></div><div class="sk" style="width:90%"></div><div class="sk" style="width:75%"></div>
     <div class="sk" style="width:88%"></div><div class="sk" style="width:60%"></div></div>`;
-  if(V.st==="empty") return h+`<div class="empty"><div class="ic">🎙️</div><h4>這場會議沒有逐字稿</h4>
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">${ic('mic')}</div><h4>這場會議沒有逐字稿</h4>
     <p>可能是錄音一開始就失敗，或會議長度為零。</p>
     <button class="cta ghost" onclick="go2('summary')">回到摘要</button></div>`;
   const L=M.note.transcript;
   const un=NAMES.filter(x=>!x).length;
-  let head=V.st==="edge"?`<div class="bn info"><span>📚</span><div>共 1,184 句 · 只渲染可視範圍與最近 30 句（虛擬捲動）</div></div>`:"";
+  let head=V.st==="edge"?`<div class="bn info"><span>${ic('book')}</span><div>共 1,184 句 · 只渲染可視範圍與最近 30 句（虛擬捲動）</div></div>`:"";
   if(V.st!=="empty"&&un) head+=`<div class="bn info" style="cursor:pointer" onclick="go2('spk')">
-    <span>🏷️</span><div><b>有 ${un} 位發言者還沒命名</b><br>會議中先不打擾、只用編號；點這裡一次改完，逐字稿與待辦都會跟著更新。</div></div>`;
+    <span>${ic('tag')}</span><div><b>有 ${un} 位發言者還沒命名</b><br>會議中先不打擾、只用編號；點這裡一次改完，逐字稿與待辦都會跟著更新。</div></div>`;
   return h+head+L.map(l=>`<div class="line"><div class="g"><span class="chip ${NAMES[l.s]?"":"n"}">${spkName(l.s)}</span></div>
     <div><div class="c">${esc(l.x)}</div></div><div class="tm mono">${l.t}</div></div>`).join("")+
     `<div class="note">內部 <span class="mono">speaker_id</span> 從 0 起算，顯示一律 +1 —— 不會出現「發言者 0」，也不會是空白。</div></div>`;
@@ -201,10 +245,10 @@ function vAct(){
   const h=`<div class="tbar"><button onclick="go2('gen')">‹ 返回</button><h3>Q4 預算檢討</h3>
     <button onclick="go('export')">匯出</button></div><div class="body">`;
   if(V.st==="loading") return h+`<div class="sk" style="height:58px"></div><div class="sk" style="height:58px"></div><div class="sk" style="height:58px"></div></div>`;
-  if(V.st==="empty") return h+`<div class="empty"><div class="ic">📭</div><h4>這場沒有待辦</h4>
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">${ic('inbox')}</div><h4>這場沒有待辦</h4>
     <p>逐字稿裡沒有出現明確的承諾事項。<br>可以等下次會議再確認。</p>
     <button class="cta ghost" onclick="go2('summary')">回到摘要</button></div>`;
-  if(V.st==="error") return h+`<div class="bn err"><span>⚡</span><div><b>待辦抽取失敗</b><br>逐字稿仍在。可單獨重試抽取，不用重跑整場。</div></div>
+  if(V.st==="error") return h+`<div class="bn err"><span>${ic('bolt')}</span><div><b>待辦抽取失敗</b><br>逐字稿仍在。可單獨重試抽取，不用重跑整場。</div></div>
     <button class="cta" onclick="toast('重新抽取中…')">重試抽取待辦</button></div>`;
   return h+M.note.actions.map((a,i)=>`<div class="item"><div class="h" onclick="V.open=V.open===${i}?null:${i};render()">
       <span class="w">${spkName(a.sid)}</span><span class="x">${esc(a.what)}</span>
@@ -214,7 +258,7 @@ function vAct(){
       <button class="cta ghost" style="margin-top:8px;padding:8px;font-size:12px"
         onclick="go('tr');V.toast='已跳到第 ${a.src+1} 句'">跳到逐字稿這一句</button></div>`:""}
     </div>`).join("")+
-    `<div class="bn warn"><span>⚠️</span><div><b>「未提及期限」是刻意的</b><br>
+    `<div class="bn warn"><span>${ic('warn')}</span><div><b>「未提及期限」是刻意的</b><br>
       逐字稿沒說日期時，這裡留空，不會由 AI 猜一個日期填進來。</div></div></div>`;
 }
 // ---- 匯出 sheet ----
@@ -223,9 +267,9 @@ function vExp(){
   <div class="body"><div class="sk" style="width:50%"></div><div class="sk"></div><div class="sk" style="width:80%"></div></div>
   <div class="sheet"><div class="p"><h4>匯出會議記錄</h4>
     <div class="sub">會產出一個 Markdown 檔，含三層：逐字稿、摘要（決策／爭點／結論）、待辦。</div>
-    ${V.st==="error"?`<div class="bn err"><span>⚡</span><div><b>匯出失敗</b><br>手機儲存空間不足（需要約 240 KB）。請清出空間後重試。</div></div>`:""}
-    ${V.st==="edge"?`<div class="bn warn"><span>⚠️</span><div><b>找不到可分享的 app</b><br>檔案已存到「檔案」App，可之後手動分享。</div></div>`:""}
-    ${V.st==="loading"?`<div class="bn info"><span>⟳</span><div><b>正在產生檔案…</b><div class="bar"><i style="width:65%"></i></div></div></div>`:""}
+    ${V.st==="error"?`<div class="bn err"><span>${ic('bolt')}</span><div><b>匯出失敗</b><br>手機儲存空間不足（需要約 240 KB）。請清出空間後重試。</div></div>`:""}
+    ${V.st==="edge"?`<div class="bn warn"><span>${ic('warn')}</span><div><b>找不到可分享的 app</b><br>檔案已存到「檔案」App，可之後手動分享。</div></div>`:""}
+    ${V.st==="loading"?`<div class="bn info"><span>${ic('refresh')}</span><div><b>正在產生檔案…</b><div class="bar"><i style="width:65%"></i></div></div></div>`:""}
     <div class="row"><button class="cta" ${V.st==="loading"?"disabled":""}
       onclick="${V.st==="error"?"V.st='loading';render();setTimeout(()=>{V.st='happy';render()},400)":"V.st='loading';render();setTimeout(()=>{V.st='happy';toast('已產生 Q4預算檢討.md（24 KB）');render()},500)"}">
       ${V.st==="loading"?"產生中…":"匯出 Markdown"}</button></div>
@@ -236,25 +280,25 @@ function vExp(){
 }
 // ---- 會後追問 ----
 function vFup(){
-  const intro=(V.q||V.ans)?``:`<div class="bn info"><span>🎧</span><div><b>可以問這場會議的任何事</b><br>
+  const intro=(V.q||V.ans)?``:`<div class="bn info"><span>${ic('headphones')}</span><div><b>可以問這場會議的任何事</b><br>
     它只會用這份逐字稿回答；不知道的事會直接說查無，不會編。</div></div>`;
   let body=`<div class="tbar"><button onclick="go2('summary')">‹ 返回</button><h3>追問這場會議</h3></div>
   <div class="body" id="fh">${intro}`;
-  if(V.st==="empty") body+=`<div class="empty"><div class="ic">💬</div><h4>還沒問過任何問題</h4>
+  if(V.st==="empty") body+=`<div class="empty"><div class="ic">${ic('chat')}</div><h4>還沒問過任何問題</h4>
     <p>用講的直接問，它會唸答案給你聽。</p></div>`;
   if(V.q) body+=`<div class="bub u">${esc(V.q)}</div>`;
   if(V.st==="loading") body+=`<div class="think"><i></i><i></i><i></i><span>正在翻逐字稿…</span></div>`;
   if(V.ans) body+=`<div class="bub a">${esc(V.ans.t)}
-    ${V.ans.src?`<div class="t2">🔊 播放中 · 依第 ${V.ans.src} 句回答<br>${esc(V.ans.src_txt)}</div>`:
-      `<div class="t2">🔊 已停止播放</div>`}</div>`;
+    ${V.ans.src?`<div class="t2">${ic('speaker')} 播放中 · 依第 ${V.ans.src} 句回答<br>${esc(V.ans.src_txt)}</div>`:
+      `<div class="t2">${ic('speaker')} 已停止播放</div>`}</div>`;
   if(V.st==="error") body+=`<div class="bub a">這場會議的逐字稿裡<b>查不到</b>相關資訊。<br>
-    我沒有看到有人提到「明年第一季的招募計畫」。<div class="t2">🔊 播放中</div></div>`;
+    我沒有看到有人提到「明年第一季的招募計畫」。<div class="t2">${ic('speaker')} 播放中</div></div>`;
   if(V.st==="edge") body+=`<div class="bub u">${esc(V.q||"上個月有沒有講到這個？")}</div>
     <div class="bub a">這超出這場會議的範圍了。我只讀了「Q4 預算檢討」的逐字稿，
-    裡面沒有提到上個月的會議內容。<div class="t2">🔊 已停止播放（打斷）</div></div>`;
+    裡面沒有提到上個月的會議內容。<div class="t2">${ic('speaker')} 已停止播放（打斷）</div></div>`;
   body+=`</div><div class="foot">`;
   if(V.ans||V.st==="error") body+=`<button class="cta ghost" onclick="barge()">打斷我（barge-in）</button>`;
-  else body+=`<button class="cta" onclick="ask('剛剛誰負責預算明細？')">🎤 問：剛剛誰負責預算明細？</button>
+  else body+=`<button class="cta" onclick="ask('剛剛誰負責預算明細？')">${ic('mic')} 問：剛剛誰負責預算明細？</button>
     <div style="height:8px"></div>
     <button class="cta ghost" onclick="ask('明年第一季的招募計畫是什麼？')">問：明年第一季的招募計畫？</button>`;
   body+=`<div class="note">會議中 AI 全程靜音，TTS 只在這裡出現 —— 這是唯一會「講話」的地方。</div></div>`;
@@ -270,21 +314,21 @@ function barge(){ V.ans=V.ans?{t:V.ans.t,src:null}:null; V.st=V.st==="error"?"ha
 function vSpk(){
   const n=V.st==="edge"?20:3;
   const h=`<div class="tbar"><button onclick="go2('tr')">‹ 逐字稿</button><h3>發言者命名</h3></div><div class="body">`;
-  if(V.st==="empty") return h+`<div class="empty"><div class="ic">✅</div><h4>全部都命名好了</h4>
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">${ic('check')}</div><h4>全部都命名好了</h4>
     <p>這場會議的發言者都已有名字，逐字稿與待辦都會用名字顯示。</p>
     <button class="cta" onclick="go2('tr')">回到逐字稿</button></div></div>`;
   const un=NAMES.slice(0,n).filter(x=>!x).length;
-  return h+`<div class="bn info"><span>🏷️</span><div><b>有 ${un} 位還沒命名</b><br>
+  return h+`<div class="bn info"><span>${ic('tag')}</span><div><b>有 ${un} 位還沒命名</b><br>
     會議中只顯示編號（不打擾會議）；這裡一次改完，歷史句子一起套用。</div></div>
     ${Array.from({length:n},(_,i)=>`<div class="item">
       <div class="h" style="cursor:default"><span class="w">${i+1}</span>
         <span class="x">${NAMES[i]?esc(NAMES[i]):'<span style="color:var(--dim)">尚未命名</span>'}</span>
-        <span class="due ${NAMES[i]?"y":"n"}">${NAMES[i]?"✓ 已命名":"未命名"}</span></div>
+        <span class="due ${NAMES[i]?"y":"n"}">${NAMES[i]?ic('check')+" 已命名":"未命名"}</span></div>
       <input class="fld" style="margin-top:9px" id="sp${i}" placeholder="輸入名字，例如：阿明"
         value="${(NAMES[i]||"").replace(/"/g,"&quot;")}" oninput="NAMES[${i}]=this.value.slice(0,20);render()">
       <div class="cnt">${(NAMES[i]||"").length}/20</div></div>`).join("")}
-    ${V.st==="error"?`<div class="err-t">⚠️ 三個欄位都是空的。至少命名一位，或按「保持編號」離開。</div>`:""}
-    ${V.st==="edge"?`<div class="bn warn"><span>⚠️</span><div>20 位發言者：一次要改 20 個名字太累，可只改重要的幾位，其餘保持編號。</div></div>`:""}
+    ${V.st==="error"?`<div class="err-t">${ic('warn')} 三個欄位都是空的。至少命名一位，或按「保持編號」離開。</div>`:""}
+    ${V.st==="edge"?`<div class="bn warn"><span>${ic('warn')}</span><div>20 位發言者：一次要改 20 個名字太累，可只改重要的幾位，其餘保持編號。</div></div>`:""}
     </div><div class="foot"><button class="cta" onclick="applyNames(${n})">一次套用</button>
     <div style="height:8px"></div>
     <button class="cta ghost" onclick="go2('tr')">保持編號，之後再說</button>
@@ -319,12 +363,12 @@ const STATES={
 };
 function tabs(){
   const t=[["summary","摘要"],["tr","逐字稿"],["act","待辦"]];
-  return `<div class="tabs">`+t.map(([k,l])=>`<button class="${V.view===k?"on":""}" onclick="go2('${k}')">${l}</button>`).join("")+`</div>`;
+  return `<div class="tabs">`+t.map(([k,l])=>`<button class="${V.view===k?"on":""}" onclick="go2('${k}')">${esc(l)}</button>`).join("")+`</div>`;
 }
 function panel(){
   document.getElementById("panel").innerHTML=Object.keys(VIEWS).map(v=>
-    `<h2>${TITLES[v]}</h2>`+STATES[v].map(([s,l])=>
-      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';if('${v}'==='gen')tick();if('${v}'==='spk')NAMES='${s}'==='empty'?['陳大文','林小美','阿明']:['','',''];render()">${l}</button>`
+    `<h2>${esc(TITLES[v])}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';if('${v}'==='gen')tick();if('${v}'==='spk')NAMES='${s}'==='empty'?['陳大文','林小美','阿明']:['','',''];render()">${esc(l)}</button>`
     ).join("")).join("");
 }
 function render(){
@@ -333,7 +377,7 @@ function render(){
   document.getElementById("app").innerHTML = (["summary","tr","act"].includes(V.view))
     ? body.replace('<div class="body">', tabs()+'<div class="body">') : body;
   if(V.toast) document.getElementById("app").insertAdjacentHTML("beforeend",
-    `<div class="toast"><span>✅</span><span>${V.toast}</span></div>`);
+    `<div class="toast"><span>${ic('check')}</span><span>${V.toast}</span></div>`);
   if(id){const el=document.getElementById(id); if(el) el.focus();}
   panel();
 }

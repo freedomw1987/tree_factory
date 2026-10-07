@@ -100,25 +100,25 @@ M03-US-307 的標籤篩選擴充（階段 C 後）需要 M04-US-406。
 
 | FR | User Story | 對應畫面 | 原型檔案 | 狀態 |
 | --- | --- | --- | --- | --- |
-| FR-401 逐字稿就地編輯 | M04-US-401 | 逐字稿 inline 編輯 → `04-edit.html §tr-edit` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-402 只有 `text` 可改 | M04-US-401 | 逐字稿 inline 編輯（唯讀欄位）→ `04-edit.html §tr-edit` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-403 編輯驗證 | M04-US-401 | 逐字稿編輯 — 空白 / 超長 → `04-edit.html §tr-edit（error）` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-404 重新產生採編輯後文字 | M04-US-401 | 重新產生前的說明 → `04-edit.html §regen` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-405 編輯旗標 | M04-US-402 | （無 UI，逐字稿畫面刻意無痕）| — | ⬜ 不適用（無 UI）|
-| FR-406 引用提醒 | M04-US-402 | 對話來源卡上的「此句有人工修正」→ `03-ask.html §src` | `docs/prd/03-ask.html` | ⬜ 待 Step 5 |
-| FR-407 改回原樣仍標示 | M04-US-402 | （無 UI，行為層；文件明說）| — | ⬜ 不適用（無 UI）|
-| FR-408 推論層就地編輯 | M04-US-403 | 摘要 / 待辦 inline 編輯 → `04-edit.html §sum-edit / §act-edit` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-409 人工期限可辨識 | M04-US-403 | 待辦 — 期限（人工填）→ `04-edit.html §act-edit（due）` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-410 覆蓋前警告 | M04-US-403 | 覆蓋警告 sheet → `04-edit.html §regen（warn）` | `docs/prd/04-edit.html` | ⬜ 待 Step 5 |
-| FR-411 概念提取 | M04-US-404 | 概念列表（生成中 / 完成）→ `05-concept.html §list` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-412 概念可回溯 | M04-US-404 | 概念卡（來源句）→ `05-concept.html §card` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-413 概念可修正且沿用 | M04-US-404 | 概念卡 — 改名 / 合併 / 刪除 → `05-concept.html §card（edit）` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-414 概念層免責 | M04-US-404 | 概念列表頂部說明 → `05-concept.html §list（notice）` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-415 概念瀏覽與搜尋 | M04-US-405 | 概念搜尋（含無結果）→ `05-concept.html §search` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-416 合併完整性 | M04-US-405 | 合併預覽與確認 → `05-concept.html §merge` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-417 標籤與分組 | M04-US-406 | 標籤列 / 篩選 → `05-concept.html §tag` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-418 篩選條件常駐 | M04-US-406 | 篩選指示條 → `05-concept.html §tag（filtered）` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
-| FR-419 建議標籤需確認 | M04-US-406 | 建議標籤（虛線樣式 + 確認）→ `05-concept.html §tag（suggested）` | `docs/prd/05-concept.html` | ⬜ 待 Step 5 |
+| FR-401 逐字稿就地編輯 | M04-US-401 | 逐字稿 inline 編輯 → `04-edit.html §tr-edit` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-402 只有 `text` 可改 | M04-US-401 | 逐字稿 inline 編輯（唯讀欄位）→ `04-edit.html §tr-edit` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-403 編輯驗證 | M04-US-401 | 逐字稿編輯 — 空白 / 超長 → `04-edit.html §tr-edit（error）` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-404 重新產生採編輯後文字 | M04-US-401 | 重新產生前的說明 → `04-edit.html §regen` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-405 編輯旗標 | M04-US-402 | 逐字稿畫面刻意無痕；`04-edit.html §flag` 為**原型示範用**（把看不見的旗標畫出來給驗收者看）| `docs/prd/04-edit.html` | ✅ 已驗證（示範）|
+| FR-406 引用提醒 | M04-US-402 | 對話來源卡上的「此句有人工修正」→ `03-ask.html §src` | `docs/prd/03-ask.html` | ✅ 已驗證 |
+| FR-407 改回原樣仍標示 | M04-US-402 | （無 UI，行為層；文件明說）| — | — 不適用（無 UI）|
+| FR-408 推論層就地編輯 | M04-US-403 | 摘要 / 待辦 inline 編輯 → `04-edit.html §sum-edit / §act-edit` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-409 人工期限可辨識 | M04-US-403 | 待辦 — 期限（人工填）→ `04-edit.html §act-edit（due）` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-410 覆蓋前警告 | M04-US-403 | 覆蓋警告 sheet → `04-edit.html §regen（warn）` | `docs/prd/04-edit.html` | ✅ 已驗證 |
+| FR-411 概念提取 | M04-US-404 | 概念列表（生成中 / 完成）→ `05-concept.html §list` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-412 概念可回溯 | M04-US-404 | 概念卡（來源句）→ `05-concept.html §card` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-413 概念可修正且沿用 | M04-US-404 | 概念卡 — 改名 / 合併 / 刪除 → `05-concept.html §card（edit）` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-414 概念層免責 | M04-US-404 | 概念列表頂部說明 → `05-concept.html §list（notice）` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-415 概念瀏覽與搜尋 | M04-US-405 | 概念搜尋（含無結果）→ `05-concept.html §search` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-416 合併完整性 | M04-US-405 | 合併預覽與確認 → `05-concept.html §merge` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-417 標籤與分組 | M04-US-406 | 標籤列 / 篩選 → `05-concept.html §tag` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-418 篩選條件常駐 | M04-US-406 | 篩選指示條 → `05-concept.html §tag（filtered）` | `docs/prd/05-concept.html` | ✅ 已驗證 |
+| FR-419 建議標籤需確認 | M04-US-406 | 建議標籤（虛線樣式 + 確認）→ `05-concept.html §tag（suggested）` | `docs/prd/05-concept.html` | ✅ 已驗證 |
 
 **幽靈檢查**：
 - 每個 FR 都有對應 US ✓（19 FR / 6 US）
@@ -157,6 +157,7 @@ M03-US-307 的標籤篩選擴充（階段 C 後）需要 M04-US-406。
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-07 | v1.1 | Step 5 收尾：原型 `04-edit.html` + `05-concept.html` 完成並驗證（10 畫面 / 39 狀態 / JS 錯誤 0）；追溯矩陣狀態欄回填（FR-405 改列「原型示範用」）；圖示一律 inline SVG（禁用 emoji）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.0 | 初版：19 FR / 6 US / 依賴圖（含 M04-US-402 ↔ M03-US-302 雙向約束風險）/ 追溯矩陣 / Non-goals | Agent（dav-designer Step 4，第二輪）|
 
 ---
@@ -165,8 +166,9 @@ M03-US-307 的標籤篩選擴充（階段 C 後）需要 M04-US-406。
 
 | 項目 | 值 |
 | --- | --- |
-| 原型檔案 | `docs/prd/04-edit.html`（編輯層）、`docs/prd/05-concept.html`（概念層）（規劃中）|
-| 覆蓋畫面 | 04：`tr-edit` / `sum-edit` / `act-edit` / `regen`；05：`list` / `card` / `search` / `merge` / `tag` |
-| 狀態覆蓋 | 對應 `DESIGN.md` §3.1 的 **10 列（M04 段）**，全部 DoD-Full；實際可切換狀態組數待 Step 5 回填 |
-| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
-| 驗證結果 | ⬜ 待 Step 5 回填 |
+| 原型檔案 | `docs/prd/04-edit.html`（編輯層，406 行）、`docs/prd/05-concept.html`（概念層，354 行）|
+| 覆蓋畫面 | 04（5 view）：`tr` / `flag` / `sum` / `act` / `regen`；05（5 view）：`list` / `card` / `merge` / `search` / `tag` —— 合計 10 view，1 view 對 `DESIGN.md` §3.1 的 1 列（M04 段）|
+| 畫面數 | 10（拆 2 檔：`04-edit.html` 5 + `05-concept.html` 5）|
+| 狀態覆蓋 | **39 組** = 04 的 19 組（tr 4 / flag 3 / sum 5 / act 5 / regen 2）+ 05 的 20 組（list 5 / card 5 / merge 4 / search 3 / tag 3），全部 DoD-Full |
+| 驗證命令 | `node docs/prd/tools/verify-prototypes.js`（Playwright + `channel: chrome`，`file://` 載入，逐一切換全部狀態並斷言）|
+| 驗證結果 | ✅ 39 / 39 狀態可切換；JS 錯誤 **0**；icon 幾何異常 **0**；互動流程（點句→改→存→畫面更新 / 摘要就地編輯 / 刪標籤 sheet）全數通過 |

@@ -393,6 +393,7 @@ tree_factory（v2.0：4 Module / 3 階段）
 | `ChatInput` | 對話輸入列（打字框 + mic + 送出）| idle / typing / recording / transcribing / disabled（會議錄音中）/ error |
 | `MicButton` | 輸入列的 mic（按住說話）| idle / holding（收音中，**不用紅色**）/ transcribing / denied |
 | `TagPill` | 標籤篩選 | on / off |
+| `Icon` | 線性圖示（24 viewBox / `stroke="currentColor"` / stroke-width 1.75 / `fill="none"`）| 18pt 內文尺寸 / 38pt 空狀態 |
 
 **一致性規則**（Step 4.5 自審維度 1 的依據）：
 
@@ -406,6 +407,11 @@ tree_factory（v2.0：4 Module / 3 階段）
 7. **`MicButton` 收音中不用紅色**（v2.1）：對話框的 mic 按住時用 `--accent`，
    紅色保留給「**會議正在被記錄**」這個更嚴重的狀態（`RecIndicator`）。
    理由：兩個紅點同時存在時，使用者無法分辨「哪個在記錄我的會議」
+8. **圖示一律用 inline SVG，不得用 emoji 當圖示**（v2.2）：統一元件 `Icon`，顏色一律繼承父層
+   （`stroke="currentColor"`），不另外指定；尺寸 18pt、空狀態放大到 38pt。
+   理由：① emoji 外觀跨平台不一致（Apple / Google / Samsung 三套字型，同一份設計會長出三種樣子）；
+   ② emoji 無法繼承顏色——`--warn` 的黃字橫幅旁會冒出一個彩色 emoji，破壞「顏色即狀態」的語意；
+   ③ emoji 是彩色立體風，與本產品的線性深色風格衝突。
 
 ### 5.1 錯誤碼 → UI 對照（自審補強）
 
@@ -497,6 +503,7 @@ D8 的 `edited_at` 只能回答「有沒有被改過」，不能回答「原本�
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：設計原則 / tokens / 畫面樹 / 12 畫面的 5 狀態對照 / 互動流程 / 元件庫 | Agent（dav-designer Step 2）|
+| 2026-10-07 | v2.2 | 用戶指示：**圖示一律 inline SVG，禁用 emoji 當圖示** → §5 新增 `Icon` 元件 + 一致性規則 8；5 份原型全部改寫（共 100+ 處）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v2.1 | Step 4.5 簽核：D11 結案（對話框支援語音輸入，先填後送）→ 畫面樹加語音提問分支、§3.1 加 1 列、§4.4 加決定 8；D12 結案（對話歷史 v1 線性）；Step 4.5 自審 7 項修正（含 `FollowUpBubble` 併入 `ChatBubble` + `SourceCard`）| Agent（dav-designer Step 4.5）|
 | 2026-10-07 | v2.0 | 第二輪（M03 問 / M04 編）：新增 P7（沒有來源就不說）/ P8（AI 產物可修正，事實層留旗標、推論層不留）；§2.4 詞彙表補對話 / 概念 / 標籤；§3 畫面樹改為底部 3 分頁（決策 D10）並補 M03 / M04 全畫面；§3.0 改寫為「兩個階段的首頁不同」+ 給階段 A 的實作要求；§3.1 新增 19 列畫面 × 5 狀態；新增 §4.4 問答流程 / §4.5 編輯流程；§5 補 9 個元件與 3 條一致性規則；§5.1 補 `SOURCE_UNRESOLVED` / `CONCEPT_FAILED` 兩錯誤碼 + 定義「查無資料不是錯誤碼」的四種回答狀態；§7 補 D6~D10 結案與 D11~D13 | Agent（dav-designer Step 2，第二輪）|
 | 2026-10-07 | v1.3 | 決策 D5（用戶指定）：會議長度上限 2 小時 + 剩 5 分鐘提醒 + 到點自動結束且明說；§3.1 新增「已達長度上限」狀態、§4.1 新增決定 6 | Agent（dav-designer Step 5）|

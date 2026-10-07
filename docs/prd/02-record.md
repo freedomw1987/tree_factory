@@ -140,6 +140,7 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-07 | v1.5 | 用戶指示：圖示一律 inline SVG，禁用 emoji 當 icon → 本檔 41 處圖示改寫（`chat` / `mic` / `bolt` / `warn` / `check` / `target` / `book` / `tag` / `speaker` / `headphones` / `refresh` / `timer` 等）；行數 345→389 | Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.4 | 第二輪（M03 / M04）：FR-214 改為「呼叫 M03 引擎」（M02 不再含檢索邏輯）；FR-215 明訂查無由引擎判定；Non-goals 刪除「跨會議檢索不做」（已是 M03 核心）並改為「本 Module 不自建檢索」；登記 INT-M02-M03-01 於 `03-ask.md` §5.1 | Agent（dav-designer Step 4，第二輪）|
 | 2026-10-07 | v1.3 | M02-US-203 AC-4 由「1 小時 60 秒」改為「2 小時上限 120 秒（門檻待 SPIKE-004）」；修掉深層連結首次載入失效（`#gen`/`#tr` 會落錯畫面）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.2 | 原型修掉 `#app` 未設 flex 欄導致 `.body` 無法捲動、內容被 `overflow:hidden` 切掉（長逐字稿與 20 位發言者原本看不到）| Agent（dav-designer Step 5）|
@@ -153,12 +154,12 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 | 項目 | 值 |
 | --- | --- |
 | 原型檔案 | `docs/prd/02-record.html` |
-| 檔案行數 | 345（上限 500 ✓） |
+| 檔案行數 | 389（上限 500 ✓） |
 | 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
 | 覆蓋畫面 | 7 個（`gen` / `summary` / `tr` / `act` / `spk` / `export` / `fup`），中間 4 個屬「會議詳情」 |
 | 可切換狀態 | 30 組 |
-| 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
-| 驗證結果 | 30/30 狀態渲染非空；10/10 互動斷言通過；JavaScript 錯誤 0 |
+| 驗證命令 | `node docs/prd/tools/verify-prototypes.js`（Playwright + `channel: chrome`，`file://` 載入） |
+| 驗證結果 | 30/30 狀態渲染非空；10/10 互動斷言通過；JavaScript 錯誤 0；**圖示全部 inline SVG**（禁用 emoji 當 icon，DESIGN §5 規則 8）|
 
 關鍵互動（實測輸出）：
 

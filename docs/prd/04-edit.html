@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M04 編（編輯層）— 互動原型（tree_factory）</title>
+<style>
+:root{--bg:#0B0F14;--s:#131A22;--s2:#1B242E;--bd:#28323D;--tx:#E8EEF5;--dim:#94A3B3;
+--rec:#FF4D4D;--ac:#4DA3FF;--ok:#35C68A;--warn:#F5A623;--err:#FF6B6B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080B;color:var(--tx);font:14px -apple-system,"SF Pro Text","PingFang TC",system-ui,sans-serif;
+display:flex;gap:20px;padding:20px;justify-content:center;align-items:flex-start;min-height:100vh}
+.mono{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+aside{width:250px;flex:0 0 250px}
+.rme{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.rme h1{font-size:14px;margin-bottom:6px}
+.rme p{font-size:12px;color:var(--dim);line-height:1.6}
+.rme b{color:var(--ac)}
+.panel{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.panel h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px}
+.panel h2:first-child{margin-top:0}
+.panel button{display:block;width:100%;text-align:left;background:var(--s2);color:var(--tx);border:1px solid var(--bd);
+border-radius:8px;padding:6px 9px;margin-bottom:4px;font-size:12px;cursor:pointer;font-family:inherit}
+.panel button:hover{border-color:var(--ac)}
+.panel button.on{background:#123;border-color:var(--ac);color:var(--ac)}
+.phone{width:390px;flex:0 0 390px;height:760px;background:var(--bg);border:1px solid var(--bd);border-radius:36px;
+overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px #000a}
+.sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+font-size:12px;color:var(--dim)}
+#app{display:flex;flex-direction:column;flex:1;min-height:0}
+.tbar{flex:0 0 52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--bd)}
+.tbar h3{font-size:16px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbar button{background:none;border:0;color:var(--ac);font-size:13px;cursor:pointer;font-family:inherit}
+.body{flex:1;overflow-y:auto;padding:14px 16px 20px}
+.foot{flex:0 0 auto;padding:12px 16px 20px;border-top:1px solid var(--bd);background:var(--bg)}
+.bn{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:12.5px;
+line-height:1.5;margin-bottom:12px}
+.bn.warn{background:#3a2c0e;color:#F5D9A3;border:1px solid #6b5217}
+.bn.err{background:#3a1616;color:#FFC9C9;border:1px solid #7a2b2b}
+.bn.info{background:#0f2438;color:#BBDDFF;border:1px solid #1d4368}
+.bn.ok{background:#123026;color:#B7F0D6;border:1px solid #1e5c43}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.box h4{font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.box p{font-size:13px;line-height:1.65}
+ul.lst{list-style:none;font-size:13px;line-height:1.7}
+ul.lst li{padding-left:16px;position:relative;margin-bottom:5px}
+ul.lst li:before{content:"・";position:absolute;left:0;color:var(--ac)}
+.line{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #1a222b;align-items:flex-start}
+.line .g{flex:0 0 62px}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--s2);color:var(--ac);
+border:1px solid var(--bd);white-space:nowrap}
+.chip.n{color:var(--dim)}
+.line .c{flex:1;font-size:15px;line-height:1.6;word-break:break-word}
+.line .tm{font-size:11px;color:var(--dim);padding-top:4px;flex:0 0 auto}
+.line.editing{background:#0f1620;border-radius:10px;padding:10px}
+.sk{background:linear-gradient(90deg,#1b242e,#28323d,#1b242e);background-size:200% 100%;animation:sh 1.2s infinite;
+border-radius:6px;height:14px;margin-bottom:10px}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.cta{width:100%;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;
+background:var(--ac);color:#04121f;font-family:inherit}
+.cta:disabled{opacity:.45;cursor:not-allowed}
+.cta.ghost{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+.cta.sm{padding:8px;font-size:12.5px}
+.row{display:flex;gap:8px;margin-bottom:8px}.row .cta{flex:1}
+.empty{text-align:center;padding:36px 18px}
+.empty .ic{font-size:40px;opacity:.5;margin-bottom:12px}
+.empty h4{font-size:16px;margin-bottom:6px}
+.empty p{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:16px}
+.item{border:1px solid var(--bd);border-radius:12px;padding:11px 13px;margin-bottom:8px;background:var(--s)}
+.item .h{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.item .w{font-size:11px;color:var(--ac);background:var(--s2);border-radius:6px;padding:2px 7px;flex:0 0 auto}
+.item .x{flex:1;font-size:13.5px;line-height:1.5}
+.due{font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap;cursor:pointer}
+.due.y{background:#0f2438;color:#BBDDFF}.due.n{background:#2a2a2a;color:var(--dim)}
+.due.u{background:#3a2c0e;color:#F5D9A3;border:1px solid #6b5217}
+.sheet{position:absolute;inset:0;background:#000a;display:flex;align-items:flex-end;z-index:20}
+.sheet .p{background:var(--s);border-radius:22px 22px 0 0;padding:18px 16px 22px;width:100%;border-top:1px solid var(--bd)}
+.sheet h4{font-size:16px;margin-bottom:4px}
+.sheet .sub{font-size:12.5px;color:var(--dim);margin-bottom:14px;line-height:1.5}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1B242E;border:1px solid var(--ok);color:var(--tx);
+border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:8px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
+.fld{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;color:var(--tx);
+padding:10px 12px;font-size:14px;font-family:inherit;outline:none;line-height:1.5}
+.fld:focus{border-color:var(--ac)}
+.cnt{font-size:11px;color:var(--dim);text-align:right;margin-top:5px}
+.err-t{font-size:12px;color:var(--err);margin-top:6px}
+.eb{display:inline-block;margin-top:6px;font-size:11px;color:#F5D9A3;background:#3a2c0e;border-radius:6px;padding:2px 7px}
+.src{margin:2px 0 10px;padding:9px 11px;border-left:2px solid var(--ac);background:#0f1620;border-radius:0 8px 8px 0;
+font-size:12.5px;line-height:1.6;color:var(--dim)}
+.src b{color:var(--tx)}
+.src.bad{border-left-color:var(--warn)}
+
+.si{width:18px;height:18px;flex:0 0 auto;display:inline-block;vertical-align:-3px}
+.bn .si,.toast .si{margin-top:1px}
+.tbar h3 .si{vertical-align:-2px;margin-right:4px}
+.empty .ic .si{width:38px;height:38px}
+.box h4 .si{vertical-align:-2px;margin-right:2px}
+.src .si,.cc .t .si{margin-right:5px}
+</style>
+</head>
+<body>
+
+<aside>
+  <section class="prototype-readme rme">
+    <h1>M04「編」（編輯層）互動原型</h1>
+    <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
+    <b>主流程</b>：逐字稿點句 → 就地編輯 → 存檔（畫面立即更新，沒有任何「已編輯」徽章）。<br>
+    <b>重點試</b>：①改一個 STT 錯字，看逐字稿畫面有多乾淨（零負擔）
+    ②同一句被 agent 引用時，來源處才出現「此句有人工修正」
+    ③把待辦期限從「未提及」手動填成 10/15，看它標成人工填的
+    ④在摘要按「重新產生」，看它先警告會覆蓋你改過的字
+    ⑤故意清空或打超長，看它擋下來並保留你的輸入。</p>
+  </section>
+  <div class="panel" id="panel"></div>
+</aside>
+
+<div class="phone">
+  <div class="sbar mono"><span>9:41</span><span>tree_factory</span><span>􀙇 􀙈 100%</span></div>
+  <div id="app"></div>
+</div>
+
+<script>
+const esc=s=>String(s).replace(/</g,"&lt;").replace(/>/g,"&gt;");
+// ---- 圖示：一律 inline SVG（禁用 emoji 當 icon）｜24 viewBox、stroke 1.75、currentColor ----
+const IP={
+ chat:'<path d="M20.5 11.6a8.1 8.1 0 0 1-8.6 8 9.2 9.2 0 0 1-3.6-.8L4.2 20.4l1.5-4a8 8 0 0 1-2-4.8 8.3 8.3 0 0 1 8.6-8 8.3 8.3 0 0 1 8.2 8z"/>',
+ mic:'<path d="M12 3.2a3 3 0 0 1 3 3v5.6a3 3 0 0 1-6 0V6.2a3 3 0 0 1 3-3z"/><path d="M5.5 11.4a6.5 6.5 0 0 0 13 0"/><path d="M12 17.9v2.9M9 20.8h6"/>',
+ send:'<path d="M12 19.5V5"/><path d="M6.2 10.8 12 5l5.8 5.8"/>',
+ down:'<path d="M6.2 13.2 12 19l5.8-5.8"/><path d="M12 19V5"/>',
+ mic_off:'<path d="M12 3.2a3 3 0 0 1 3 3v3.2"/><path d="M9.2 6.6v5.2a2.8 2.8 0 0 0 4.3 2.4"/><path d="M5.5 11.4a6.5 6.5 0 0 0 9.7 5.6M18.5 11.4a6.6 6.6 0 0 1-.4 2.3"/><path d="M12 17.9v2.9M9 20.8h6"/><path d="M4.5 3.5l15 15"/>',
+ history:'<path d="M3.5 12a8.5 8.5 0 1 0 2.9-6.4"/><path d="M3.2 4.2v4.6h4.6"/><path d="M12 7.8V12l3 1.9"/>',
+ folder:'<path d="M3.5 7.2A2.2 2.2 0 0 1 5.7 5h3.6l2 2.2h7a2.2 2.2 0 0 1 2.2 2.2v7.4a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V7.2z"/>',
+ search:'<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8 20.4 20.4"/>',
+ pen:'<path d="M4.2 19.8h3.9L20 7.9l-3.9-3.9L4.2 15.9v3.9z"/><path d="M14.1 6.1l3.8 3.8"/>',
+ bolt:'<path d="M13.3 3.2 5.6 13.4h4.7l-1.1 7.4 8-10.3h-4.7l.8-7.3z"/>',
+ warn:'<path d="M12 3.8 21 20H3l9-16.2z"/><path d="M12 9.6v4.2M12 16.9h.01"/>',
+ check:'<path d="M4.5 12.6l4.8 4.8L19.5 7.2"/>',
+ info:'<circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.6M12 7.6h.01"/>',
+ pin:'<path d="M9.2 4.2h5.6l-1 6.4 3.9 3H6.3l3.9-3-1-6.4z"/><path d="M12 13.6v6.2"/>',
+ location:'<path d="M12 20.8s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="9.6" r="2.5"/>',
+ book:'<path d="M4.2 5.6A2.4 2.4 0 0 1 6.6 3.2H19.3v14.4H6.6a2.4 2.4 0 0 0-2.4 2.4V5.6z"/><path d="M4.2 20a2.4 2.4 0 0 1 2.4-2.4h12.7V20H6.6A2.4 2.4 0 0 1 4.2 20z"/>',
+ brain:'<circle cx="6.2" cy="7.2" r="2.2"/><circle cx="17.8" cy="7.2" r="2.2"/><circle cx="12" cy="16.8" r="2.2"/><path d="M8 8.6 10.8 15M16 8.6 13.2 15M8.4 7.2h7.2"/>',
+ inbox:'<path d="M3.5 12.4 6 5.2h12l2.5 7.2v6a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-6z"/><path d="M3.5 12.4h4.7l.9 2.8h5.8l.9-2.8h4.7"/>',
+ note:'<path d="M5.2 3.2h8.6l5 5v12.6H5.2V3.2z"/><path d="M13.6 3.2v5.2h5.2"/><path d="M8.6 13h6.8M8.6 16.4h4.6"/>',
+ target:'<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1"/>',
+ calendar:'<rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/><path d="M3.6 10h16.8M8.4 3.4v3.4M15.6 3.4v3.4"/>',
+ undo:'<path d="M4 9.4h9.4a6.3 6.3 0 0 1 0 12.6H8.6"/><path d="M8 5.4 4 9.4l4 4"/>',
+ tag:'<path d="M3.6 12.6V4.2h8.4l9 9-8.4 8.4-9-9z"/><path d="M7.8 8.4h.01"/>',
+ ban:'<circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2 17.8 17.8"/>',
+ headphones:'<path d="M4.4 14.2v-2a7.6 7.6 0 0 1 15.2 0v2"/><rect x="2.6" y="13" width="4.4" height="7.4" rx="2"/><rect x="17" y="13" width="4.4" height="7.4" rx="2"/>',
+ speaker:'<path d="M4.2 9.2v5.6h3.6l4.6 3.6V5.6L7.8 9.2H4.2z"/><path d="M16.4 9.7a4.2 4.2 0 0 1 0 4.6"/><path d="M18.9 7.2a7.6 7.6 0 0 1 0 9.6"/>',
+ clock:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>',
+ wave:'<path d="M3 12h2M7 8v8M11 5.5v13M15 8.5v7M19 11h2"/>'
+,refresh:'<path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.9 4.4v4.4h-4.4"/>',stop:'<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.2"/>',hourglass:'<path d="M7 3.6h10M7 20.4h10"/><path d="M8.4 3.6c0 3.4 3.6 4.6 3.6 8.4s-3.6 5-3.6 8.4"/><path d="M15.6 3.6c0 3.4-3.6 4.6-3.6 8.4s3.6 5 3.6 8.4"/>',timer:'<circle cx="12" cy="13" r="7.2"/><path d="M12 9.4V13l2.4 1.6"/><path d="M9.4 3.6h5.2"/>'
+};
+const ic=(n,x)=>`<svg class="si${x?" "+x:""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IP[n]||""}</svg>`;
+
+const NAMES=["陳大文","林小美","發言者 3"];
+const spkN=i=>NAMES[i]||("發言者 "+(i+1));
+const TR=[
+  {i:0,s:0,t:"00:12",x:"那我們先過一下這季的預算。"},
+  {i:1,s:1,t:"00:19",x:"我這邊有整理一份表，行銷的部分超支大概 12%。"},
+  {i:2,s:1,t:"00:36",x:"主要是上個月的投放加碼，還有社群的合作案。"},
+  {i:3,s:2,t:"00:44",x:"那個合作案我知道，是我提的。"},
+  {i:4,s:0,t:"01:02",x:"那這樣，明細請小美週五之前給我，我們下次再定。",ed:false}
+];
+const LONG="上一季的檢討裡我們也遇過類似狀況，當時的處理方式是先把行銷的線上投放暫停兩週，並把預算挪到內容製作，"+
+  "結果流量反而上升，所以這次建議重複同樣的做法。".repeat(6)+"（以上。）";
+const ACT=[
+  {w:"補一份行銷超支明細（含投放加碼與社群合作案分項）",due:"本週五",u:false,src:4},
+  {w:"協調研發結餘挪移額度",due:null,u:false,src:0},
+  {w:"提供社群合作案的合約影本",due:"10/15",u:true,src:3}
+];
+const V={view:"tr",st:"happy",eid:null,buf:"",toast:null,err:null,open:null,regen:false,dueEdit:null,dueBuf:"",
+  acts:ACT.map(a=>({...a})),sumEdit:false,sumBuf:"",
+  sum:{d:["本季行銷預算維持不追加，改以挪移研發結餘支應。"]},
+  sumEdge:{d:[LONG]}};
+
+function tbar(t,back){return `<div class="tbar"><button onclick="go2('tr')">${back}</button><h3>${t}</h3></div>`;}
+
+// ---------- 1. 逐字稿編輯（inline）----------
+function vTr(){
+  const b=`${tbar("Q4 預算檢討","‹ 會議")}<div class="body">
+    <div class="bn info"><span>${ic('pen')}</span><div>點任何一句話就能改。只有<b>內容</b>可以改：
+      發言者與時間戳不動（改名走「發言者命名」流程）。</div></div>`;
+  if(V.st==="loading") return `${tbar("Q4 預算檢討","‹ 會議")}<div class="body">
+    <div class="bn info"><span>${ic('refresh')}</span><div><b>儲存中…</b>畫面先套用你的修改，存檔完成才會有提示。</div></div>
+    ${TR.map(l=>V.eid===l.i?`<div class="line editing"><div class="g"><span class="chip">${spkN(l.s)}</span></div>
+      <div class="c">${esc(V.buf)||"（空白）"}</div></div>`:row(l)).join("")}</div>`;
+  if(V.st==="error") return b+(V.err?`<div class="bn err"><span>${ic('bolt')}</span><div><b>沒存成功</b><br>
+      ${V.err}。<b>你打的字還留著</b>，按重試即可，不用重打。</div></div>`:"")+
+    TR.map(l=>V.eid===l.i?`<div class="line editing"><div class="g"><span class="chip">${spkN(l.s)}</span></div>
+      <div><textarea class="fld" id="editbox" rows="3"
+        oninput="V.buf=this.value">${esc(V.buf)}</textarea>
+      <div class="cnt">${V.buf.length} / 2,000</div>
+      <div class="row"><button class="cta sm" onclick="save()">重試儲存</button>
+        <button class="cta sm ghost" onclick="cancel()">放棄修改（保留原句）</button></div></div></div>`:row(l)).join("")+
+    `<div class="note">儲存失敗時<b>不復原</b>成原句：靜默復原等於把使用者的勞動丟掉，而且他不會知道發生什麼事。</div></div>`;
+  if(V.st==="edge") return b+TR.map(l=>V.eid===l.i?`<div class="line editing"><div class="g"><span class="chip">${spkN(l.s)}</span></div>
+      <div><textarea class="fld" id="editbox" rows="4" oninput="V.buf=this.value">${esc(V.buf)}</textarea>
+      <div class="cnt">${V.buf.length} / 2,000</div>
+      ${V.err?`<div class="err-t">${ic('warn')} ${V.err}</div>`:""}
+      <div class="row" style="margin-top:8px"><button class="cta sm" onclick="save()" ${bad()?"disabled":""}>儲存</button>
+        <button class="cta sm ghost" onclick="cancel()">取消</button></div></div></div>`:row(l)).join("")+
+    `<div class="note">邊界：清空（只有空白）與超過 2,000 字元都按不下儲存，並即時說明原因。</div></div>`;
+  return b+TR.map(l=>row(l)).join("")+
+    `<div class="note">存檔成功後畫面立即更新 —— 沒有「已編輯」徽章，逐字稿維持乾淨（決策 D8）。</div></div>`;
+}
+function bad(){ return !V.buf.trim() || V.buf.length>2000; }
+function badMsg(){ return !V.buf.trim() ? "這句只有空白，無法儲存（不會把整句刪掉）" : "超過 2,000 字元，無法儲存"; }
+function row(l){
+  if(V.eid===l.i) return `<div class="line editing"><div class="g"><span class="chip">${spkN(l.s)}</span></div>
+    <div><input class="fld" id="editbox" value="${esc(V.buf).replace(/"/g,"&quot;")}" oninput="V.buf=this.value">
+    <div class="cnt">${V.buf.length} / 2,000</div>
+    ${V.err?`<div class="err-t">${ic('warn')} ${V.err}</div>`:""}
+    <div class="row" style="margin-top:8px"><button class="cta sm" onclick="save()" ${bad()?"disabled":""}>儲存</button>
+      <button class="cta sm ghost" onclick="cancel()">取消</button></div></div></div>`;
+  return `<div class="line"><div class="g"><span class="chip">${spkN(l.s)}</span></div>
+    <div class="c" style="cursor:pointer" onclick="edit(${l.i})">${esc(l.x)}</div>
+    <div class="tm mono">${l.t}</div></div>`;
+}
+function edit(i){ V.eid=i; V.buf=TR[i].x; V.err=null; V.st=V.st==="edge"?"edge":"happy"; render(); }
+function cancel(){ V.eid=null; V.buf=""; V.err=null; V.st="happy"; render(); }
+function save(){
+  if(bad()){ V.st=V.st==="edge"?"edge":"edge"; V.err=badMsg(); render(); return; }
+  const fail=false;                        // 從失敗狀態按重試 → 這次會成功（示範「輸入還在 → 重試 → 接上」）
+  V.err=null; V.st="loading"; render();
+  setTimeout(()=>{
+    if(fail){ V.st="error"; V.err="連線中斷（STORAGE_WRITE_FAILED）"; render(); return; }
+    TR[V.eid].x=V.buf; TR[V.eid].ed=true;      // 就地寫回：逐字稿畫面立即更新（不顯示徽章）
+    V.st="happy"; V.eid=null; toast("已儲存，畫面立即更新（這句之後會被標示為有人工修正）"); render();
+  },650);
+}
+
+// ---------- 2. 編輯旗標 ----------
+function vFlag(){
+  const b=`${tbar("回答與來源（旗標只在這出現）","‹ 對話")}<div class="body">`;
+  if(V.st==="empty") return b+`<div class="bn ok"><span>${ic('check')}</span><div><b>這句沒被改過</b><br>
+      所以來源處不會有任何標示 —— 這就是「零負擔」的意思。</div></div>
+    <div class="src"><b>Q4 預算檢討</b> · 今天 10:30 · 陳大文 · 01:02<br>
+      「那這樣，明細請小美週五之前給我，我們下次再定。」</div>
+    <div class="note">編輯旗標只在 agent 引用到被改過的句子時出現（決策 D8）。</div></div>`;
+  if(V.st==="edge") return b+`<div class="bn warn"><span>${ic('pen')}</span><div><b>這句曾經被改過，但已被改回原樣</b><br>
+      系統只知道「有沒有被改過」，不知道原本長什麼樣（不存舊版）。<br>
+      所以標示仍然保留 —— 這不是 bug，是刻意的取捨。</div></div>
+    <div class="src"><b>Q4 預算檢討</b> · 今天 10:30 · 林小美 · 00:19<br>
+      「我這邊有整理一份表，行銷的部分超支大概 12%。」
+      <div class="eb">${ic('pen')} 此句有人工修正</div></div>
+    <div class="note"><span class="mono">edited_at</span> 只能回答「有沒有被改」，不能回答「原本是什麼」（DESIGN §7 D7 提醒）。</div></div>`;
+  return b+`<div class="bub a" style="background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:11px 13px;
+      font-size:14px;line-height:1.6;max-width:84%;margin-bottom:10px">
+      林小美負責補<b>行銷超支明細</b>，期限是本週五（10/9）。</div>
+    <div class="src"><b>Q4 預算檢討</b> · 今天 10:30 · 陳大文 · 01:02<br>
+      「那這樣，明細請小美週五之前給我，我們下次再定。」
+      <div class="eb">${ic('pen')} 此句有人工修正</div></div>
+    <div class="bn info"><span>${ic('info')}</span><div>只有<b>來源處</b>標示；逐字稿畫面完全乾淨。
+      這樣你在會議記錄裡看不到雜訊，但引用時仍知道那句話被人動過。</div></div></div>`;
+}
+
+// ---------- 3. 摘要編輯 ----------
+function vSum(){
+  const b=`<div class="tbar"><button onclick="go2('tr')">‹ 會議</button><h3>摘要</h3>
+    <button onclick="askRegen()">重新產生</button></div><div class="body">`;
+  if(V.st==="loading") return `${tbar("摘要","‹ 會議")}<div class="body">
+    <div class="bn info"><span>${ic('refresh')}</span><div>儲存中…</div></div>
+    <div class="box"><h4>${ic('check')} 決策</h4><p>本季行銷預算維持不追加，改以挪移研發結餘支應。</p></div></div>`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('note')}</div><h4>這場沒有明顯的決策或爭點</h4>
+    <p>逐字稿完整保存（5 句）。討論性會議可能本來就沒有結論。<br>
+      你還是可以在這裡手動補上你認為的結論。</p>
+    <button class="cta ghost" onclick="toast('（原型）已新增一條決策')">手動新增決策</button></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>沒存成功</b><br>
+      連線中斷。<b>你改的內容還在畫面上</b>，按重試即可。</div></div>
+    <div class="box"><h4>${ic('check')} 決策</h4><p>本季行銷預算維持不追加，改以挪移研發<b>結餘與預備金</b>支應。</p></div>
+    <button class="cta" onclick="toast('已重新儲存')">重試</button></div>`;
+  if(V.st==="edge") return b+`<div class="box"><h4>${ic('check')} 決策</h4>
+      <textarea class="fld" rows="3">${esc(LONG)}</textarea>
+      <div class="cnt" style="color:var(--err)">612 / 600 字元（過長，無法儲存）</div></div>
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>清空全部欄位時</b><br>
+      允許清空，但會提醒你「這會讓摘要變成空的」—— 不會偷偷幫你填回去。</div></div>
+    <button class="cta ghost" onclick="toast('（原型）已清空，並顯示提醒')">模擬清空全部</button></div>`;
+  return b+`<div class="box"><h4>${ic('check')} 決策</h4>${V.sumEdit?
+      `<textarea class="fld" rows="3" id="sumbox" oninput="V.sumBuf=this.value">${esc(V.sumBuf)}</textarea>
+       <div class="cnt">${V.sumBuf.length} / 600</div>
+       <div class="row" style="margin-top:8px"><button class="cta sm" onclick="saveSum()">儲存</button>
+         <button class="cta sm ghost" onclick="V.sumEdit=false;render()">取消</button></div>`
+      :`<p>${esc(V.sum.d[0])}</p>
+        <button class="cta sm ghost" style="margin-top:9px" onclick="V.sumEdit=true;V.sumBuf=V.sum.d[0];render()">編輯</button>`}</div>
+    <div class="box"><h4>${ic('bolt')} 爭點</h4><p>行銷超支 12% 該由誰吸收：林小美認為應共同分攤，陳大文傾向行銷自行吸收。</p></div>
+    <div class="box"><h4>${ic('target')} 結論</h4><p>請林小美本週五前補一份超支明細，下次會議定案。</p></div>
+    <div class="note">推論層（AI 的歸納）可以直接改，<b>不留旗標</b> —— 這是 AI 的整理，不是誰說過的話。</div></div>`;
+}
+
+// ---------- 4. 待辦編輯 ----------
+function vAct(){
+  const b=`<div class="tbar"><button onclick="go2('tr')">‹ 會議</button><h3>待辦</h3></div><div class="body">`;
+  if(V.st==="loading") return `${tbar("待辦","‹ 會議")}<div class="body"><div class="bn info"><span>${ic('refresh')}</span><div>儲存中…</div></div>
+    ${V.acts.map(a=>item(a)).join("")}</div>`;
+  if(V.st==="empty") return b+`<div class="empty"><div class="ic">${ic('inbox')}</div><h4>這場沒有待辦</h4>
+    <p>逐字稿裡沒有出現明確的承諾事項。<br>也可以手動新增一條。</p>
+    <button class="cta ghost" onclick="toast('（原型）已新增待辦')">手動新增待辦</button></div>`;
+  if(V.st==="error") return b+`<div class="bn err"><span>${ic('bolt')}</span><div><b>沒存成功</b><br>
+      你填的期限還在，按重試即可。</div></div>${V.acts.map(a=>item(a)).join("")}
+    <button class="cta" onclick="toast('已重新儲存')">重試</button></div>`;
+  if(V.st==="edge") return b+`<div class="bn info"><span>${ic('calendar')}</span><div><b>期限留空 = 「未提及」</b><br>
+      把人工填的期限清掉，就會回到「未提及期限」，<b>不會</b>被模型猜一個日期填進去。</div></div>
+    ${V.acts.map(a=>item(a)).join("")}
+    <div class="note">逐字稿沒說日期時留 <span class="mono">null</span>；模型不得自行補推測日期。</div></div>`;
+  return b+`${V.acts.map(a=>item(a)).join("")}
+    <div class="bn warn"><span>${ic('warn')}</span><div><b>「未提及期限」是刻意的</b><br>
+      逐字稿沒說日期時，這裡留空，不會由 AI 猜一個日期填進來。</div></div>
+    <div class="note"><span class="mono">due_source</span>：模型填的 vs 你填的，是兩種不同的東西
+      —— 人工填的會標上「你填的」，但這不是「此句有人工修正」那種旗標（那是事實層的事）。</div></div>`;
+}
+function item(a){
+  if(V.dueEdit===a.w) return `<div class="item"><div class="h" style="cursor:default">
+      <span class="w">${a.src!=null?spkN(TR[a.src].s):"人工"}</span><span class="x">${esc(a.w)}</span>
+      <span class="due ${a.u?"u":"n"}">${a.due||"未提及期限"}</span></div>
+    <input class="fld" style="margin-top:9px" id="duebox" placeholder="例如 10/15（留空＝未提及）"
+      value="${esc(V.dueBuf).replace(/"/g,"&quot;")}" oninput="V.dueBuf=this.value">
+    <div class="row" style="margin-top:8px"><button class="cta sm" onclick="setDue('${esc(a.w)}')">儲存</button>
+      <button class="cta sm ghost" onclick="V.dueEdit=null;render()">取消</button></div></div>`;
+  return `<div class="item"><div class="h" onclick="V.open=V.open==='${esc(a.w)}'?null:'${esc(a.w)}';render()">
+      <span class="w">${a.src!=null?spkN(TR[a.src].s):"人工"}</span><span class="x">${esc(a.w)}</span>
+      <span class="due ${a.u?"u":"y"}" onclick="event.stopPropagation();V.dueEdit='${esc(a.w)}';V.dueBuf='${esc(a.due||"")}';render()">
+        ${a.due?(a.u?"你填的 · ":"期限 ")+a.due:"未提及期限 "+ic('pen')}</span></div>
+    ${V.open===a.w&&a.src!=null?`<div class="src">「${esc(TR[a.src].x)}」<br>
+      <b>${spkN(TR[a.src].s)}</b> · ${TR[a.src].t}</div>`:""}</div>`;
+}
+function setDue(w){ V.acts=V.acts.map(a=>a.w===w?{...a,due:V.dueBuf.trim()||null,u:!!V.dueBuf.trim()}:a);
+  V.dueEdit=null; toast(V.dueBuf.trim()?"已存成人工填的期限（模型期限不會被覆蓋）":"已改回「未提及期限」"); render(); }
+
+// ---------- 5. 覆蓋警告 ----------
+function vRegen(){
+  const b=`${tbar("重新產生記錄","‹ 摘要")}<div class="body">
+    <div class="bn info"><span>${ic('refresh')}</span><div>重新產生會用<b>編輯後</b>的逐字稿當輸入
+      —— 你修過的錯字會被採用。</div></div>
+    <div class="box"><h4>這是你改過的地方</h4><ul class="lst">
+      <li>決策：「本季行銷預算維持不追加，改以挪移研發<b>結餘與預備金</b>支應。」（你加的）</li>
+      <li>待辦期限：「協調研發結餘額度」→ 你填了 10/15</li></ul></div>`;
+  if(V.st==="edge") return b+`<div class="bn ok"><span>${ic('undo')}</span><div><b>你取消了</b> —— 什麼都沒有變。</div></div>
+    <div class="box"><h4>目前摘要（原樣）</h4><p>本季行銷預算維持不追加，改以挪移研發<b>結餘與預備金</b>支應。</p></div>
+    <div class="note">取消是完全不動作：不覆蓋、也不留下半套結果。</div></div>`;
+  return b+`</div><div class="foot">
+    <button class="cta" onclick="V.regen=true;render()">重新產生摘要與待辦</button>
+    <div class="note">按下去會先出現覆蓋警告 —— 因為你有 2 處人工編輯會被蓋掉。</div></div>`;
+}
+
+function saveSum(){ if(!V.sumBuf.trim()){ V.st="edge"; toast("內容不能是空白"); render(); return; }
+  V.sum.d=[V.sumBuf]; V.sumEdit=false; V.st="happy"; toast("已儲存，畫面立即更新"); render(); }
+function askRegen(){ V.view="regen"; V.st="happy"; render(); }
+function go2(v){ V.view=v; V.st="happy"; V.err=null; V.eid=null; render(); }
+function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},2200); }
+
+const VIEWS={tr:vTr,flag:vFlag,sum:vSum,act:vAct,regen:vRegen};
+const TITLES={tr:"逐字稿編輯（inline）",flag:"編輯旗標（僅 agent 引用處）",sum:"摘要編輯",act:"待辦編輯（人工填期限）",
+  regen:"覆蓋警告（重新產生）"};
+const STATES={
+  tr:[["happy","儲存後立即更新"],["loading","儲存中"],["error","儲存失敗（保留輸入 + 重試）"],
+    ["edge","空白 / 2,000 字 / 只有空白"]],
+  flag:[["happy","引用處標示「此句有人工修正」"],["empty","沒被編輯過（不顯示）"],["edge","改回原樣仍標示"]],
+  sum:[["happy","編輯並保存"],["loading","儲存中"],["empty","無決策 / 無爭點"],["error","保存失敗"],
+    ["edge","超長 / 清空全部"]],
+  act:[["happy","人工填期限"],["loading","儲存中"],["empty","這場沒有待辦"],["error","保存失敗"],
+    ["edge","期限留空（維持 null）"]],
+  regen:[["happy","確認後覆蓋"],["edge","取消則完全不動作"]]
+};
+function sheet(){
+  if(!V.regen) return "";
+  return `<div class="sheet" onclick="V.regen=false;render()"><div class="p" onclick="event.stopPropagation()">
+    <h4>重新產生會覆蓋你的人工編輯</h4>
+    <div class="sub">你改過 <b>決策 1 處</b>、<b>待辦期限 1 處</b>。重新產生會用新的內容蓋掉它們，而且<b>不會保留舊版</b>。</div>
+    <div class="row"><button class="cta" onclick="V.regen=false;V.st='edge';toast('已取消，什麼都沒有變');render()">取消</button>
+      <button class="cta ghost" onclick="V.regen=false;toast('已重新產生（3 條決策 · 2 條待辦）');render()">確定覆蓋</button></div>
+    </div></div>`;
+}
+function sel(v,s){
+  V.view=v; V.st=s; V.eid=null; V.err=null; V.regen=false; V.dueEdit=null; V.open=null;
+  if(v==="tr"){                                     // 逐字稿編輯：三種狀態都停在「編輯中」那一句
+    V.eid=1; V.buf=TR[1].x;
+    if(s==="edge"){ V.buf="   "; V.err=badMsg(); }
+    if(s==="error"){ V.err="連線中斷（STORAGE_WRITE_FAILED）"; }
+  }
+  render();
+}
+function panel(){
+  document.getElementById("panel").innerHTML=Object.keys(VIEWS).map(v=>
+    `<h2>${esc(TITLES[v])}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="sel('${v}','${s}')">${esc(l)}</button>`
+    ).join("")).join("");
+}
+function render(){
+  const a=document.activeElement,id=a&&a.id,pos=a&&a.selectionStart;
+  document.getElementById("app").innerHTML=VIEWS[V.view]()+sheet();
+  if(V.toast) document.getElementById("app").insertAdjacentHTML("beforeend",
+    `<div class="toast"><span>${ic('check')}</span><span>${V.toast}</span></div>`);
+  if(id){const el=document.getElementById(id); if(el){el.focus(); if(pos!=null&&el.setSelectionRange)el.setSelectionRange(pos,pos);}}
+  panel();
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);
+  if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();}});
+const H0=location.hash.slice(1); if(VIEWS[H0]) V.view=H0;   // 首次載入的深層連結（例：04-edit.html#sum）
+render();
+</script>
+</body>
+</html>
