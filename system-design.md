@@ -31,6 +31,7 @@
 | 前端是否引入框架（React / Solid / 純 vanilla）| §2.3 執行 | 取決於原型複雜度與 `VoiceClient` 整合方式，需先看 SPIKE-002 |
 | `diarize` 走串流或批次 | SPIKE-001 | 官方文件未載明，猜測會導致 M01 架構做錯 |
 | `PiHarness` 是否可與 `withVoiceInput` 同在一個 DO 類 | SPIKE-003 | 兩者都是 mixin/DO 導向，組合方式未證實 |
+| 2 小時上限的計時用 DO alarm 或請求時比對 | SPIKE-003 | alarm 精度與 evict 後的重建行為需實測；兩者到期行為可能不同 |
 
 ---
 
@@ -164,7 +165,12 @@ webview 開 withVoice 會話 → 使用者語音提問 → STT
 { type: "ack",        payload: { idempotency_key, seq } }
 { type: "status",     payload: { connection: "ok" | "reconnecting", backlog: 整數 } }
 { type: "error",      payload: { code, message, recoverable: 布林 } }
+{ type: "limit",      payload: { reached: 布林, ends_at: ISO8601, warn: 布林 } }
 ```
+
+**`limit` 訊息（決策 D5）**：`warn` 為真 = 距 2 小時上限 ≤ 5 分鐘（前端顯示黃橫幅）；`reached` 為真 = 已達上限，
+伺服端已停止接受新音訊，前端必須熄燈並明說「接下來不會被記錄」。**權威在伺服端**（`meeting.ends_at` + DO alarm），
+裝置端僅負責顯示與停止收音——裝置被殺／鎖屏都不影響上限生效。
 
 #### 錯誤碼表（`code` 的窮舉；新增碼必須同步更新此表與 `DESIGN.md` §5.1）
 
@@ -199,7 +205,7 @@ GET 待辦     → { items[] }（who / what / due / source_seq）
 | 表 | 擁有者 Module | 主要欄位 | 寫入方式 |
 | --- | --- | --- | --- |
 | `pi_*`（PiHarness 管理）| M02 | 由套件定義 | 套件內部，本專案不直接寫 |
-| `meeting` | M01 建立 / M02 收尾 | `id` / `title` / `started_at` / `ended_at` / `status` | 建立、結束時更新 |
+| `meeting` | M01 建立 / M02 收尾 | `id` / `title` / `started_at` / `ends_at`（= `started_at` + 2 小時上限）/ `ended_at` / `status` | 建立時寫入 `ends_at`；結束或達上限時更新 |
 | `transcript_segment` | M02 寫入（M01 產生）| `idempotency_key`（PK）/ `seq` / `meeting_id` / `speaker_id` / `start_ms` / `end_ms` / `text` | **append-only** |
 | `speaker` | M01 命名 | `meeting_id` + `speaker_id`（複合鍵）/ `display_name` / `first_seen_seq` | 命名時 upsert |
 | `action_item` | M02 | `id` / `meeting_id` / `who` / `what` / `due`（可 null）/ `source_seq` | `upsert_action` |
@@ -220,6 +226,8 @@ GET 待辦     → { items[] }（who / what / due / source_seq）
 | F4 | 分段重送 | 同 `idempotency_key` 再次到達 | 去重，不重複寫入、不重複計帳 | M02-US-201 AC-3 |
 | F5 | 轉譯失敗 | `withVoiceInput` 回錯 | UI 顯示錯誤但**保留音檔**（不得刪），可重送 | M01-US-103 / 104 |
 | F6 | 上下文溢出 | 寫入長度逼近上限 | compaction；會議開頭內容仍可查 | M02-US-201 AC-4 |
+| F11 | 會議達 2 小時上限 | DO alarm 到 `ends_at` | 伺服端停止接受新音訊並下 `limit.reached`；前端熄燈 + 明說不再記錄；2:00 前資料完整保留，可一鍵產生記錄 | M01-US-101 AC-5 |
+| F12 | 到點時裝置離線 | 恢復後以伺服端 `ends_at` 比對 | 伺服端拒收 2:00 之後的分段（回 `ack` 但不入庫）；本地對應音檔刪除，避免「有音檔沒逐字稿」的懸空狀態 | M01-US-101 AC-5 / M01-US-102 |
 | F7 | 鎖屏 / 切背景 | webview 生命週期事件 | 停止收音 + **誠實顯示中斷**（不得假裝錄音中）| M01-US-101 AC-4 |
 | F8 | `PiHarness` Beta 破壞性改版 | 建置或執行期錯誤 | 版本鎖定（DoD）；備案 = 一般 `Agent` + 自建 SQLite | SPIKE-003 |
 | F9 | 模型幻覺期限 | 摘要產出後檢查 | `due` 為 null 契約 + 負向探針 | M02-US-203 AC-2 |

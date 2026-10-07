@@ -118,7 +118,9 @@ cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.5)}
     ③長按「結束會議」直到填滿（防誤觸）④點「發言者 3」→ 它會說「會議中維持編號，會後再命名」<br>
     <b>逐字稿跟隨（決策 D2）</b>：切到「上滑看歷史（停止跟隨）」再用下面的按鈕模擬新句子進來 →
     右下角「回到最新 · N 句新」會累加；點它才回到最新。<br>
-    <button class="cta ghost" style="margin-top:8px;padding:9px;font-size:13px" onclick="addLine()">＋ 模擬新句子進來</button></p>
+    <button class="cta ghost" style="margin-top:8px;padding:9px;font-size:13px" onclick="addLine()">＋ 模擬新句子進來</button><br>
+    <b>2 小時上限（決策 D5）</b>：切「剩 5 分鐘（接近上限）」看黃橫幅；切「已達 2 小時上限」看紅燈熄滅 +
+    「接下來的內容不會被記錄」+ 產生記錄 / 開新一場。按鈕可跳到 M02「記錄產生中」。</p>
   </section>
   <div class="panel" id="panel"></div>
 </aside>
@@ -212,16 +214,27 @@ function vStart(){
 // ---- 視圖：會議中 ----
 function vMeeting(){
   const interrupted = V.st==="interrupted", netwin = V.st==="netdown";
+  const limit = V.st==="limit", warn5 = V.st==="warn5";   // 決策 D5：2 小時上限
   const lines = (V.st==="scroll"?MOCK.history:[]).concat(V.st==="edge"?MOCK.edge:MOCK.lines);
   const followed = V.st!=="scroll" && V.follow;
   let html = `<div class="tbar"><button class="back" onclick="go('home')">‹ 我的會議</button><h3>Q4 預算檢討</h3></div><div class="body">`;
   if(netwin) html += `<div class="bn warn"><span>⚠️</span><div><b>網路中斷，錄音繼續</b><br>音訊已存到手機，恢復後會自動補上。</div></div>`;
+  if(warn5) html += `<div class="bn warn"><span>⏳</span><div><b>再 4 分 48 秒 就到 2 小時上限</b><br>
+    記錄會完整保留；時間到會自動結束，可隨時開新一場接續。</div></div>`;
   if(interrupted) html += `<div class="bn err"><span>⏹</span><div><b>錄音已中斷（鎖屏，00:47）</b><br>v1 不支援背景錄音。解鎖後可繼續這場會議，時間軸會接續。</div></div>`;
   if(V.st==="backfilling") html += `<div class="bn info"><span>⟳</span><div><b>回補中 ${V.backlog}/7 段</b><div class="bar"><i style="width:${Math.round(V.backlog/7*100)}%"></i></div></div></div>`;
   if(V.st==="error") html += `<div class="bn err"><span>⚡</span><div><b>這段無法轉譯</b><br>音檔已保留在手機，可重試。<button class="chip" onclick="toast('已重新送出第 118 段')">重試</button></div></div>`;
-  html += `<div class="rec"><span class="dot" style="${interrupted?"background:#555;animation:none":""}"></span>
-    <div class="t mono">${interrupted?"已中斷 00:47":"錄音中 12:04"}</div>
-    <div class="wave">${interrupted?"":`<i></i><i></i><i></i><i></i><i></i>`}</div></div>`;
+  const off = interrupted||limit;
+  html += `<div class="rec"><span class="dot" style="${off?"background:#555;animation:none":""}"></span>
+    <div class="t mono">${interrupted?"已中斷 00:47":limit?"已結束 2:00:00":warn5?"錄音中 1:55:12":"錄音中 12:04"}</div>
+    <div class="wave">${off?"":`<i></i><i></i><i></i><i></i><i></i>`}</div></div>`;
+  if(limit) html += `<div class="box" style="border-color:var(--err)">
+    <h4 style="color:var(--err)">⏹ 已達 2 小時上限，錄音已自動結束</h4>
+    <p>逐字稿 <b>1,842 句</b>已完整存好，音檔前段也保留。<br>
+    <b>2:00 之後的內容不會被記錄</b>（後段音檔不保留），我們不假裝還在錄。</p>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="cta" onclick="location.href='02-record.html#gen'">產生記錄</button>
+      <button class="cta ghost" onclick="go('start')">開新一場</button></div></div>`;
   if(V.st==="loading") html += `<div class="auto">等待第一句話…<span class="wave"><i></i><i></i><i></i></span></div>`;
   else html += lines.map(l=>`<div class="line ${l.st==="interim"?"interim":""}">
       <div class="g"><span class="chip n ${l.st==="overlap"?"ov":""}"
@@ -232,10 +245,13 @@ function vMeeting(){
   html += `<div class="auto">使用者決策 D1：會議中一律只顯示「發言者 N」，會後才統一命名</div>
     <button class="jump" id="jump" style="display:${followed?"none":"flex"}"
       onclick="jumpLatest()">↓ 回到最新${V.new>0?" · "+V.new+" 句新":""}</button>`;
-  return html+`</div><div class="foot">
-    <button class="cta hold" style="--p:${V.job}%" onmousedown="hold()" onmouseup="unhold()" onmouseleave="unhold()"
-      ontouchstart="hold()" ontouchend="unhold()">${V.job>0?"放開即取消 · 繼續按住結束":"長按結束會議"}</button>
-    <div class="note">會議中 AI 靜音，只出文字。上方「‹ 我的會議」可離場（錄音繼續）。</div></div>`;
+  const foot = limit
+    ? `<button class="cta" onclick="location.href='02-record.html#gen'">產生記錄並看摘要</button>
+       <div class="note">已自動結束，不會再收到新的逐字稿；要繼續討論請開新一場（避免一場兩小時以上的紀錄難查）。</div>`
+    : `<button class="cta hold" style="--p:${V.job}%" onmousedown="hold()" onmouseup="unhold()" onmouseleave="unhold()"
+        ontouchstart="hold()" ontouchend="unhold()">${V.job>0?"放開即取消 · 繼續按住結束":"長按結束會議"}</button>
+       <div class="note">會議中 AI 靜音，只出文字。上方「‹ 我的會議」可離場（錄音繼續）。</div>`;
+  return html+`</div><div class="foot">${foot}</div>`;
 }
 
 // ---- 視圖：權限被拒 ----
@@ -296,7 +312,8 @@ const STATES={
   start:[["happy","輸入名稱"],["error","名稱為空被擋"],["edge","超長名稱 60 字上限"]],
   meeting:[["happy","錄音中 + 逐字稿"],["loading","等待第一句"],["error","某段轉譯失敗"],["edge","超長句 / script / emoji"],
     ["netdown","網路中斷（黃橫幅）"],["interrupted","鎖屏中斷（紅燈熄滅）"],["backfilling","回補中 3/7"],
-    ["scroll","上滑看歷史（停止跟隨）"]],
+    ["scroll","上滑看歷史（停止跟隨）"],
+    ["warn5","剩 5 分鐘（接近上限）"],["limit","已達 2 小時上限（自動結束）"]],
   perm:[["error","權限被拒（阻斷）"]],
   resume:[["happy","7 段待補"],["error","第 3 段損毀"]],
 };
@@ -321,7 +338,8 @@ function render(){
     if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(e){} } }
   panel();
 }
-window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();} });
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();}});
+const H0=location.hash.slice(1); if(VIEWS[H0]) V.view=H0;   // 首次載入的深層連結（例：02-record.html#gen）
 render();
 </script>
 </body>

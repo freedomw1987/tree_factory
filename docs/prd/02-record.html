@@ -154,7 +154,7 @@ function vGen(){
   return `<div class="tbar"><h3>Q4 預算檢討</h3></div><div class="body">
     <div class="box"><h4>⟳ 正在整理這場會議</h4>
       <p>逐字稿已存好（118 句 · 3 人 · 12 分 04 秒）</p>
-      <p class="dim">${slow?"這場比較長（1 小時 42 分），需要多一點時間…":"正在抽取決策、爭點與待辦…"}</p>
+      <p class="dim">${slow?"這場到 2 小時上限，逐字稿很多，需要多一點時間…":"正在抽取決策、爭點與待辦…"}</p>
       <div class="bar"><i style="width:${V.prog}%"></i></div></div>
     ${slow?`<div class="bn info"><span>⏱</span><div><b>預計還要 38 秒</b><br>會議越長，整理越久；此時可以先去做別的事，關掉 app 也不會中斷。</div></div>`:""}
     <div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:65%"></div></div>`;
@@ -307,7 +307,7 @@ function tick(){ clearInterval(gt); V.prog=0; gt=setInterval(()=>{ V.prog+=6; if
 const VIEWS={gen:vGen,summary:vSummary,tr:vTr,act:vAct,spk:vSpk,export:vExp,fup:vFup};
 const TITLES={gen:"記錄產生中",summary:"會議詳情 — 摘要",tr:"會議詳情 — 逐字稿",spk:"發言者命名（會後統一）",act:"會議詳情 — 待辦",export:"匯出 / 分享",fup:"會後追問"};
 const STATES={
-  gen:[ ["happy","產生中（進度）"],["edge","1 小時長會議"],["error","產生失敗（可只重試摘要）"] ],
+  gen:[ ["happy","產生中（進度）"],["edge","2 小時上限長會議"],["error","產生失敗（可只重試摘要）"] ],
   summary:[["happy","決策／爭點／結論"],["loading","skeleton"],["empty","沒有明顯決策"],
     ["error","摘要產生失敗→可只重試"],["edge","超長逐字稿"]],
   tr:[["happy","逐字稿（含發言者 3）"],["loading","skeleton"],["empty","沒有逐字稿"],["edge","1,184 句虛擬捲動"]],
@@ -338,6 +338,7 @@ function render(){
   panel();
 }
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(VIEWS[h]&&h!==V.view){V.view=h;V.st="happy";render();}});
+const H0=location.hash.slice(1); if(VIEWS[H0]) V.view=H0;   // 首次載入的深層連結（例：02-record.html#gen）
 render();
 </script>
 </body>

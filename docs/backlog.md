@@ -42,7 +42,7 @@
 | **S 優勢** | 語音轉譯與 diarization 在 Cloudflare 有現成模型，不必自建 STT |
 | **W 劣勢** | 會議記錄是紅海；Pi Durable 為 Beta，API 會變動 |
 | **O 機會** | 逐字稿＋待辦的耐久性（斷網/閃退不遺失）是現有 app 少有的差異點 |
-| **T 威脅** | 1 小時會議的 token 成本與 compaction 品質若不穩，整個價值主張會崩 |
+| **T 威脅** | 2 小時會議的 token 成本與 compaction 品質若不穩，整個價值主張會崩（上限已定為 2 小時，故成本以 2 小時為基準估）|
 
 **最終選項**（已寫入 M02-US-201 AC 欄）：會議中 AI 靜音、逐字稿與筆記全部經由 Pi Durable 持久化，
 斷線/閃退可續且不重複計帳。
@@ -95,8 +95,8 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 | SPIKE-001 | Spike | M01 | 驗證 `withVoiceInput` 是否支援 nova-3 `diarize`、串流 diarization 是否成立 | — | P0 | 3 | PENDING | TECH-001 |
 | SPIKE-002 | Spike | M01 | 驗證 Tauri 2 iOS webview `getUserMedia` 收音與鎖屏/背景行為 | — | P0 | 3 | PENDING | TECH-001 |
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | PENDING | SPIKE-001 |
-| SPIKE-004 | Spike | M02 | 長會議成本實測（1 小時 → token/價格/compaction 行為）| — | P1 | 2 | PENDING | SPIKE-003 |
-| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景）| 4 條 BDD | P0 | 5 | PENDING | SPIKE-002 |
+| SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | PENDING | SPIKE-003 |
+| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 5 | PENDING | SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
@@ -164,8 +164,9 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 
 - **對應 Module**: M02
 - **AC**: 無（研究）
-- **驗收方式**: 產出 `docs/spike/SPIKE-004.md`，內含 1 小時會議的 STT 成本、Pi token 成本、compaction 觸發次數與摘要品質退化情形
-- **為什麼這個優先**: 「1 小時會議」是本產品的核心單位，成本若失控則價值主張不成立
+- **驗收方式**: 產出 `docs/spike/SPIKE-004.md`，內含 **2 小時會議（本產品長度上限）**的 STT 成本、Pi token 成本、
+  compaction 觸發次數與摘要品質退化情形；並據此回填 M02-US-203 AC-4 的處理時間門檻
+- **為什麼這個優先**: **2 小時**是本產品的長度上限（決策 D5），成本若失控則價值主張不成立；上限同時是成本天花板
 
 ### M01-US-101 一鍵開始 / 結束會議錄音
 
@@ -177,7 +178,12 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
   - **AC-2**: Given 錄音中 When 點「結束會議」 Then 立即停止收音並保留本次 session（不刪資料）
   - **AC-3**: Given 未取得 mic 權限 When 點「開始會議」 Then 顯示權限說明並引導至系統設定，不得靜默失敗
   - **AC-4**: Given 錄音中 When app 被切到背景或鎖屏 Then 明確顯示「錄音已中斷」狀態（不得假裝仍在錄）
-  - **AC-5** (DoD): 探針 `REGRESSION_MODULE=M01` 通過
+  - **AC-5**: Given 已錄 1 小時 55 分 When 距上限 ≤ 5 分鐘 Then 顯示黃橫幅明說「再 N 分鐘就到 2 小時上限、
+    記錄會完整保留」（紅燈不得提前熄滅）
+  - **AC-6**: Given 累計達 2 小時上限 When 到點 Then **自動結束錄音**、熄燈、明說「已達上限，
+    2:00 之後的內容不會被記錄」；2:00 前逐字稿與音檔完整保留並提供「產生記錄 / 開新一場」；
+    不得延長、不得靜默截斷、不得讓使用者以為還在錄
+  - **AC-7** (DoD): 探針 `REGRESSION_MODULE=M01` 通過
 - **依賴**: SPIKE-002
 - **驗收方式**: `REGRESSION_MODULE=M01` 全套（pipeline 腳本由 TECH-001 建立）
 - **為什麼這個優先**: P0。所有其他票的入口，沒有它其他都無法驗證
@@ -263,7 +269,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
   - **AC-1**: Given 會議進行到一半 When app 被殺後重開 Then 逐字稿完整還原至中斷前最後一句，不需重新轉譯
   - **AC-2**: Given Durable Object 被 evict When 有新的逐字稿事件到達 Then 物件自動醒回、重開 storage 並繼續寫入既有 session（不另開新 session）
   - **AC-3**: Given 同一段音訊因回補被送出兩次 When 伺服端處理 Then 逐字稿只保留一份（冪等），不得重複計帳
-  - **AC-4**: Given 會議長度超過模型上下文 When 持續寫入 Then 觸發 compaction 後仍可查得會議開頭內容，且不影響待辦抽取
+  - **AC-4**: Given 2 小時上限的會議（長度超過模型上下文）When 持續寫入 Then 觸發 compaction 後仍可查得會議開頭內容，且不影響待辦抽取
   - **AC-5** (DoD): 探針 `REGRESSION_MODULE=M02` 通過
 - **依賴**: SPIKE-003
 - **驗收方式**: `REGRESSION_MODULE=M02`
@@ -291,7 +297,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
   - **AC-1**: Given 一場已結束的會議 When 開啟記錄 Then 可看到三層：完整逐字稿（含 speaker 與時間戳）、摘要（決策 / 爭點 / 結論）、待辦（誰 / 做什麼 / 何時）
   - **AC-2**: Given 逐字稿中提到明確截止日 When 產生待辦 Then 期限欄位有值；若未提及則為空值，不得幻覺填入日期
   - **AC-3**: Given 產出的待辦 When 使用者逐條點開 Then 可回溯該待辦對應的逐字稿原句
-  - **AC-4**: Given 1 小時會議 When 產生摘要 Then 單場處理於 60 秒內完成
+  - **AC-4**: Given 2 小時上限的會議（約 1,800 句逐字稿）When 產生摘要 Then 單場處理於 120 秒內完成（**門檻由 SPIKE-004 實測後確認，可下調但不得放寬**）
 - **依賴**: M02-US-202, M01-US-105
 - **驗收方式**: `REGRESSION_MODULE=M02`
 - **為什麼這個優先**: P0。這是交付價值的最終端點——使用者真正要的東西
@@ -363,7 +369,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 
 | # | 問題 | 影響 | 何時解 |
 | --- | --- | --- | --- |
-| Q1 | 會議長度上限（2 小時？4 小時？）| 成本與 compaction 策略 | SPIKE-004 後 |
+| ~~Q1~~ | 會議長度上限 | ✅ 已解（2026-10-07）| **2 小時**（決策 D5）：剩 5 分鐘黃橫幅提醒 → 到點**自動結束且明說**「已達上限、接下來不會被記錄」，逐字稿完整保留並自動產生記錄，可開新一場接續。理由：成本有天花板 + 符合 P2 誠實原則。→ 見 M01-US-101 AC-5、DESIGN.md §7 D5 |
 | ~~Q2~~ | speaker 命名時機 | ✅ 已解（2026-10-07）| **會後統一命名**（批次），會議中零干擾 → 見 DESIGN.md §7 D1、M01-US-105 AC-4 |
 | ~~Q3~~ | 逐字稿在會議中顯示到什麼程度 | ✅ 已解（2026-10-07）| **最近 N 句 + 自動跟隨**（N = 渲染預算 30 句）；上滑停止跟隨、浮動鈕「回到最新 · N 句新」→ 見 M01-US-104 AC-3/AC-4、DESIGN.md §7 D2 |
 | Q4 | 音檔本地保留期限（隱私 vs 回補完整性）| M01-US-102 的清理策略 | §2.2 Design |
@@ -391,6 +397,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 
 | 版本 | 日期 | 變動 | 為什麼 |
 | --- | --- | --- | --- |
+| v1.4 | 2026-10-07 | 決策 D5（用戶指定）：會議長度上限 **2 小時**；M01-US-101 AC 4→5 條（新增「接近上限提醒 + 到點自動結束且明說」）；SPIKE-004 由 1 小時改 2 小時；M02-US-203 AC-4 由「1 小時 60 秒」改「2 小時 120 秒（門檻待 SPIKE-004 確認）」；Q1 結案 | 上限即成本天花板；到點不通知＝默默丟資料（比自動結束更痛的失敗）|
 | v1.3 | 2026-10-07 | 決策 D2 拍板：M01-US-104 AC 由 3 條增為 4 條（新增「回到最新 · N 句新」與「新句進來捲動位置不跳」）；Q3 結案 | 原型階段由用戶選定；會議中要的是「確認剛剛被記到」，不是翻舊帳 |
 | v1.2 | 2026-10-07 | 決策 D1 拍板：M01-US-105 改「會後統一命名（批次）」，AC 由 3 條增為 4 條（新增 AC-4 會議中不得命名的負向斷言）；Q2 結案 | 原型階段由用戶選定；P1 會議中零打擾優先於 P5 人比編號重要 |
 | v1.1 | 2026-10-07 | Module 由 4 個重切為 2 個（聽 / 記）；全數 US 重新編號；介面定義為逐字稿事件流 | 原切法違反「3-15 US / Module」（M01-M03 各僅 2 US），且切割依據為技術層而非功能內聚 |
