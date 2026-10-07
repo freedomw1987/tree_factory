@@ -27,6 +27,7 @@ border-radius:8px;padding:6px 9px;margin-bottom:4px;font-size:12px;cursor:pointe
 overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px #000a}
 .sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
 font-size:12px;color:var(--dim)}
+#app{display:flex;flex-direction:column;flex:1;min-height:0}
 .tbar{flex:0 0 52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--bd)}
 .tbar h3{font-size:16px;font-weight:600;flex:1}
 .back{background:none;border:0;color:var(--ac);font-size:13px;cursor:pointer;font-family:inherit}
@@ -99,6 +100,10 @@ font-size:15px;font-family:inherit}
 .toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1B242E;border:1px solid var(--ok);color:var(--tx);
 border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:8px}
 .auto{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--dim);padding:6px}
+.jump{position:absolute;right:22px;bottom:118px;z-index:15;display:flex;align-items:center;gap:6px;
+background:var(--ac);color:#04121F;border:0;border-radius:999px;padding:10px 15px;font:600 13px var(--f);
+cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.jump:active{transform:scale(.97)}
 .note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:10px;padding-left:10px;border-left:2px solid var(--bd)}
 </style>
 </head>
@@ -110,7 +115,10 @@ border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:
     <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
     <b>主流程</b>：首頁 → 開始會議 → 會議中（逐字稿長出來）→ 長按結束。<br>
     <b>重點試</b>：①會議中切「網路中斷」看黃橫幅 ②切「鎖屏」看紅燈熄滅 + 誠實文案
-    ③長按「結束會議」直到填滿（防誤觸）④點「發言者 3」→ 它會說「會議中維持編號，會後再命名」。</p>
+    ③長按「結束會議」直到填滿（防誤觸）④點「發言者 3」→ 它會說「會議中維持編號，會後再命名」<br>
+    <b>逐字稿跟隨（決策 D2）</b>：切到「上滑看歷史（停止跟隨）」再用下面的按鈕模擬新句子進來 →
+    右下角「回到最新 · N 句新」會累加；點它才回到最新。<br>
+    <button class="cta ghost" style="margin-top:8px;padding:9px;font-size:13px" onclick="addLine()">＋ 模擬新句子進來</button></p>
   </section>
   <div class="panel" id="panel"></div>
 </aside>
@@ -121,7 +129,7 @@ border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:
 </div>
 
 <script>
-const CH = [["m1","陳大文"],["m2","林小美"],["m3","發言者 3"]];
+const spkN = i => "發言者 " + (i+1);   // 決策 D1：會議中只有編號，沒有名字
 const MOCK = {
   home:[
     {id:"5",title:"Q4 預算檢討",pin:"rec",when:"進行中 · 12:04",meta:"3 人 · 逐字稿 118 句"},
@@ -130,23 +138,32 @@ const MOCK = {
     {id:"2",title:"Sprint 回顧",pin:null,when:"10/03 14:00",meta:"6 人 · 待辦 7 項"}
   ],
   lines:[
-    {s:0,n:"陳大文",t:"00:12",x:"那我們先過一下這季的預算。",st:"final"},
-    {s:1,n:"林小美",t:"00:19",x:"我這邊有整理一份表，行銷的部分超支大概 12%。",st:"final"},
-    {s:0,n:"陳大文",t:"00:31",x:"超支的原因是？",st:"final"},
-    {s:1,n:"林小美",t:"00:36",x:"主要是上個月的投放加碼，還有社群的合作案。",st:"final"},
-    {s:2,n:"發言者 3",t:"00:44",x:"那個合作案我知道，是我提的。",st:"overlap"},
-    {s:1,n:"林小美",t:"00:45",x:"（與發言者 3 重疊）對，我有記在會議紀錄裡。",st:"overlap"}
+    {s:0,n:spkN(0),t:"00:12",x:"那我們先過一下這季的預算。",st:"final"},
+    {s:1,n:spkN(1),t:"00:19",x:"我這邊有整理一份表，行銷的部分超支大概 12%。",st:"final"},
+    {s:0,n:spkN(0),t:"00:31",x:"超支的原因是？",st:"final"},
+    {s:1,n:spkN(1),t:"00:36",x:"主要是上個月的投放加碼，還有社群的合作案。",st:"final"},
+    {s:2,n:spkN(2),t:"00:44",x:"那個合作案我知道，是我提的。",st:"overlap"},
+    {s:1,n:spkN(1),t:"00:45",x:"（與發言者 3 重疊）對，我有記在會議紀錄裡。",st:"overlap"}
+  ],
+  history:[   // 會議前半段（「上滑看歷史」態用；讓容器真的溢出，上滑才不是假的）
+    {s:1,n:spkN(1),t:"00:01",x:"人都到齊了嗎？我們早五分鐘開始。",st:"final"},
+    {s:0,n:spkN(0),t:"00:03",x:"到齊了，先確認今天要談的三件事。",st:"final"},
+    {s:2,n:spkN(2),t:"00:05",x:"第一件是預算超支，第二件是合作案，第三件是招募。",st:"final"},
+    {s:0,n:spkN(0),t:"00:07",x:"好，那從預算開始，小美你先說。",st:"final"},
+    {s:1,n:spkN(1),t:"00:09",x:"好，我這邊看的是行銷這一塊。",st:"final"},
+    {s:2,n:spkN(2),t:"00:10",x:"等一下，人事那邊也有超支。",st:"final"},
+    {s:0,n:spkN(0),t:"00:11",x:"人事的我們後面再談，先講行銷。",st:"final"}
   ],
   edge:[
-    {s:0,n:"陳大文",t:"05:01",x:"這是一句超長的話，用來驗證 1000 字元的換行不會破版。"+
+    {s:0,n:spkN(0),t:"05:01",x:"這是一句超長的話，用來驗證 1000 字元的換行不會破版。"+
       "我們的預算表包含行銷、研發、人事、差旅、設備五個大項，其中行銷又細分成線上投放、線下活動、社群合作、內容製作四個子項，".repeat(3)+
       "以上是全部內容。",st:"final"},
-    {s:2,n:"發言者 3",t:"05:40",x:"測試特殊字元：<script>alert(1)<\\/script>、'; DROP TABLE meeting;-- 、😀🎉",st:"final"},
-    {s:1,n:"林小美",t:"05:44",x:"這些都要當純文字顯示，不能當 HTML 解析。",st:"interim"}
+    {s:2,n:spkN(2),t:"05:40",x:"測試特殊字元：<script>alert(1)<\\/script>、'; DROP TABLE meeting;-- 、😀🎉",st:"final"},
+    {s:1,n:spkN(1),t:"05:44",x:"這些都要當純文字顯示，不能當 HTML 解析。",st:"interim"}
   ]
 };
 const V = {view:"home",st:"happy",toast:null,
-  title:"",ttlErr:false,backlog:3,job:0,speakName:"",resumeSt:"happy"};
+  title:"",ttlErr:false,backlog:3,job:0,resumeSt:"happy",follow:true,new:0,extra:0};
 
 // ---- 視圖：首頁 ----
 function vHome(){
@@ -195,7 +212,8 @@ function vStart(){
 // ---- 視圖：會議中 ----
 function vMeeting(){
   const interrupted = V.st==="interrupted", netwin = V.st==="netdown";
-  const lines = V.st==="edge"?MOCK.edge:MOCK.lines;
+  const lines = (V.st==="scroll"?MOCK.history:[]).concat(V.st==="edge"?MOCK.edge:MOCK.lines);
+  const followed = V.st!=="scroll" && V.follow;
   let html = `<div class="tbar"><button class="back" onclick="go('home')">‹ 我的會議</button><h3>Q4 預算檢討</h3></div><div class="body">`;
   if(netwin) html += `<div class="bn warn"><span>⚠️</span><div><b>網路中斷，錄音繼續</b><br>音訊已存到手機，恢復後會自動補上。</div></div>`;
   if(interrupted) html += `<div class="bn err"><span>⏹</span><div><b>錄音已中斷（鎖屏，00:47）</b><br>v1 不支援背景錄音。解鎖後可繼續這場會議，時間軸會接續。</div></div>`;
@@ -211,7 +229,9 @@ function vMeeting(){
       <div><div class="c">${l.x.replace(/</g,"&lt;")}</div></div>
       <div class="tm mono">${l.t}</div></div>`).join("");
   if(lines.some(l=>l.st==="interim")) html += `<div class="auto">↑ 半透明 = 尚未定稿（interim）</div>`;
-  html += `<div class="auto">使用者決策：會議中一律只顯示「發言者 N」，會後才統一命名</div>`;
+  html += `<div class="auto">使用者決策 D1：會議中一律只顯示「發言者 N」，會後才統一命名</div>
+    <button class="jump" id="jump" style="display:${followed?"none":"flex"}"
+      onclick="jumpLatest()">↓ 回到最新${V.new>0?" · "+V.new+" 句新":""}</button>`;
   return html+`</div><div class="foot">
     <button class="cta hold" style="--p:${V.job}%" onmousedown="hold()" onmouseup="unhold()" onmouseleave="unhold()"
       ontouchstart="hold()" ontouchend="unhold()">${V.job>0?"放開即取消 · 繼續按住結束":"長按結束會議"}</button>
@@ -254,25 +274,49 @@ function hold(){ V.job=0; holdT=setInterval(()=>{ V.job+=7;
   if(V.job>=100){ clearInterval(holdT); V.job=0; toast('會議已結束（118 句逐字稿已存）→ 產生記錄中'); setTimeout(()=>location.href='02-record.html',900); } render(); },80); }
 function unhold(){ if(holdT){clearInterval(holdT);holdT=null;} V.job=0; render(); }
 
+// ---- 逐字稿自動跟隨（決策 D2）----
+function atBottom(el){ return el.scrollHeight-el.scrollTop-el.clientHeight < 32; }
+function onBodyScroll(e){
+  if(V.view!=="meeting"||V.st==="scroll") return;
+  const el=e.currentTarget, at=atBottom(el);
+  if(at!==V.follow){ V.follow=at; if(at) V.new=0; }
+  const j=document.getElementById("jump");
+  if(j){ j.style.display = V.follow?"none":"flex";
+    j.textContent = "↓ 回到最新" + (V.new>0?" · "+V.new+" 句新":""); }
+}
+function jumpLatest(){ V.follow=true; V.new=0; if(V.st==="scroll") V.st="happy"; render(); }
+const POOL = ["那我把細項補在表上，寄給大家。","好，那下一步先確認合約期限。","我下午可以處理這一塊。"];
+function addLine(){ const i=V.extra++ % 3;
+  MOCK.lines.push({s:i,n:spkN(i),t:"12:"+String(10+V.extra).padStart(2,"0"),x:POOL[i],st:"final"});
+  if(!V.follow) V.new++; render(); }
+
 const VIEWS={home:vHome,start:vStart,meeting:vMeeting,perm:vPerm,resume:vResume};
 const STATES={
   home:[["happy","有會議（含進行中置頂）"],["loading","載入中 skeleton"],["empty","一場都沒有"],["edge","1,000 場 / 分頁"]],
   start:[["happy","輸入名稱"],["error","名稱為空被擋"],["edge","超長名稱 60 字上限"]],
   meeting:[["happy","錄音中 + 逐字稿"],["loading","等待第一句"],["error","某段轉譯失敗"],["edge","超長句 / script / emoji"],
-    ["netdown","網路中斷（黃橫幅）"],["interrupted","鎖屏中斷（紅燈熄滅）"],["backfilling","回補中 3/7"]],
+    ["netdown","網路中斷（黃橫幅）"],["interrupted","鎖屏中斷（紅燈熄滅）"],["backfilling","回補中 3/7"],
+    ["scroll","上滑看歷史（停止跟隨）"]],
   perm:[["error","權限被拒（阻斷）"]],
   resume:[["happy","7 段待補"],["error","第 3 段損毀"]],
 };
 function panel(){
   document.getElementById("panel").innerHTML = Object.keys(VIEWS).map(v=>
     `<h2>${v}</h2>`+STATES[v].map(([s,l])=>
-      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';render()">${l}</button>`).join("")
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';if('${v}'==='meeting'){V.follow='${s}'!=='scroll';V.new='${s}'==='scroll'?3:0;}render()">${l}</button>`).join("")
   ).join("");
 }
 function render(){
   const a=document.activeElement, id=a&&a.id, pos=a&&a.selectionStart;
+  const pb=document.querySelector(".body"), prevTop=pb?pb.scrollTop:0;
   document.getElementById("app").innerHTML = VIEWS[V.view]() +
     (V.toast?`<div class="toast"><span>✅</span><span>${V.toast}</span></div>`:"");
+  const nb=document.querySelector(".body");
+  if(nb){ nb.onscroll=onBodyScroll;
+    if(V.view!=="meeting") nb.scrollTop=0;
+    else if(V.follow) nb.scrollTop=nb.scrollHeight;              // 自動跟隨最新一句
+    else nb.scrollTop = V.st==="scroll" ? Math.max(0,nb.scrollHeight-nb.clientHeight*1.9) : prevTop;
+  }
   if(id){ const el=document.getElementById(id);
     if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(e){} } }
   panel();

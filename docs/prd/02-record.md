@@ -137,6 +137,7 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-07 | v1.2 | 原型修掉 `#app` 未設 flex 欄導致 `.body` 無法捲動、內容被 `overflow:hidden` 切掉（長逐字稿與 20 位發言者原本看不到）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.1 | Step 5：決策 D1 拍板「會後統一命名」→ 新增 FR-217（會後批次命名入口，對應 M01-US-105）| Agent（dav-designer Step 5）|
 | 2026-10-07 | v1.0 | 初版：16 FR / 5 US / 依賴圖 / 追溯矩陣 | Agent（dav-designer Step 4）|
 
@@ -147,7 +148,7 @@ M02-US-201/202 需改為一般 `Agent` + 自建 SQLite。此變更會動到 FR-2
 | 項目 | 值 |
 | --- | --- |
 | 原型檔案 | `docs/prd/02-record.html` |
-| 檔案行數 | 343（上限 500 ✓） |
+| 檔案行數 | 344（上限 500 ✓） |
 | 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
 | 覆蓋畫面 | 7 個（`gen` / `summary` / `tr` / `act` / `spk` / `export` / `fup`），中間 4 個屬「會議詳情」 |
 | 可切換狀態 | 30 組 |
