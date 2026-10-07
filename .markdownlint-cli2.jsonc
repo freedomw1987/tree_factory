@@ -1,0 +1,5 @@
+{
+  "// 說明": "markdownlint-cli2 設定：規則仍由 .markdownlint.json 提供，這裡只加忽略清單",
+  "// 為什麼": "node_modules / .venv 內的第三方 .md 不該被本專案 lint",
+  "ignores": ["**/.venv/**", "**/node_modules/**", "**/target/**"]
+}

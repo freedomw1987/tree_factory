@@ -1,0 +1,24 @@
+# 依賴與產出物
+node_modules/
+target/
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# 環境與密鑰
+.env
+.env.*
+!.env.example
+.dev.vars
+.wrangler/
+
+# macOS
+.DS_Store
+
+# 編輯器
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# 交付物（依 SOP v2.0：僅 Markdown，不產 HTML）
+docs/deliverable/**/*.html
