@@ -161,7 +161,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 
 | US ID | 類型 | Module | 標題 | AC | 優先級 | Story Point | 狀態 | 依賴 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TECH-001 | TECH | — | 環境前置：rustup + iOS target + simulator runtime + wrangler 登入 | — | P0 | 2 | PENDING | — |
+| TECH-001 | TECH | — | 環境前置：rustup + iOS target + simulator runtime + **CocoaPods** + wrangler 登入 | — | P0 | 2 | DONE（見 `docs/env-setup.md`）| — |
 | SPIKE-001 | Spike | M01 | 驗證 `withVoiceInput` 是否支援 nova-3 `diarize`、串流 diarization 是否成立 | — | P0 | 3 | PENDING | TECH-001 |
 | SPIKE-002 | Spike | M01 | 驗證 Tauri 2 iOS webview `getUserMedia` 收音與鎖屏/背景行為 | — | P0 | 3 | PENDING | TECH-001 |
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | PENDING | SPIKE-001 |
@@ -725,15 +725,19 @@ M03 = 31 SP（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）；TECH-001/002 �
 
 | 項目 | 現況 | 動作 |
 | --- | --- | --- |
-| Xcode 27.0 | ✅ 已裝 | — |
-| iOS Simulator runtime | ❌ 無可用 iPhone | Xcode 下載 iOS runtime |
-| rustc 1.97.1 (Homebrew) | ⚠️ 無 rustup | 裝 rustup、確認 toolchain 來源不衝突 |
-| `aarch64-apple-ios` target | ❌ 未安裝 | `rustup target add aarch64-apple-ios` |
-| tauri-cli 2.11.4 | ✅ 已裝 | 之後加 `tauri ios init` |
-| node 22 / pnpm 11 / bun 1.3 | ✅ 已裝 | — |
-| wrangler | ❌ 未裝未登入 | `npm i -g wrangler` + `wrangler login` |
-| Cloudflare 帳號 | ❓ 未知 | `wrangler whoami` 確認 |
-| Apple 開發者帳號 | ❓ 未知 | 真機測試與簽章需要 |
+| Xcode 27.0 | ✅ 已裝（27A266a，完整版非 CLT）| — |
+| iOS Simulator runtime | ✅ iOS 27.0 Simulator（24A434 / arm64，8.05 GB）| 完成 |
+| rustc / cargo | ✅ 1.99.0（rustup 1.29.1 管理；Homebrew rust 已移除避免雙 toolchain）| 完成 |
+| iOS Rust targets | ✅ `aarch64-apple-ios` / `aarch64-apple-ios-sim` / `x86_64-apple-ios` | 完成 |
+| clippy / rustfmt | ✅ 已裝（Gate 2 用）| 完成 |
+| **CocoaPods 1.17.0** | ✅ 已裝（**v2.0 補漏列**：Tauri 2 iOS 會產生 `gen/apple/Podfile`）| 完成 |
+| tauri-cli 2.11.4 | ✅ 已裝（用 `cargo tauri` 呼叫，非 `tauri`）| 之後加 `cargo tauri ios init` |
+| node 22.23.1 / npm 10.9.8 / pnpm 11.22.0 / bun 1.3.14 | ✅ 已裝 | — |
+| wrangler 4.148.0 | ✅ 已裝已登入（`~/.local/bin`，npm prefix 免 sudo）| 完成 |
+| Cloudflare 帳號 | ✅ `davidaasm@gmail.com`（Account ID `989bd6be…`）| 完成 |
+| Apple 開發者帳號 | ❓ 未知（**模擬器開發不需要**，真機測試 / TestFlight 才要）| 上真機前確認 |
+
+> 執行紀錄與可重跑命令見 `docs/env-setup.md`（TECH-001 交付物）。
 
 ---
 
