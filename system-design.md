@@ -25,6 +25,7 @@
 | 本機儲存 | Tauri fs（音訊分段檔 + 待送佇列）| 斷網/被殺時不回饋到雲端（M01-US-102）| 需清理策略（backlog Q4）|
 | **問答檢索（M03）** | **待 SPIKE-005 決定**：DO SQLite 全文比對／向量索引／直接餵 LLM | 檢索方式決定成本與可回溯性，且必須**唯一**（不能兩個呼叫端各做一套）| 兩種方式的品質與成本差距未量測（SPIKE-005）|
 | **概念提取（M04）** | Workers AI LLM（會議結束後批次，非即時）| 概念層是加值層，**失敗不得影響記錄**（F17）| 粒度與噪音率為 SPIKE-006 |
+| **對話語音輸入（M03）** | **重用 `withVoiceInput` 服務、不重用會議收音管線** | 對話是單人短句：無 `diarize`、無分段上傳、無本地緩存回補 | 辨識錯字由使用者確認（先填後送，M03-US-308 AC-1）|
 | **對話持久化（M03）** | DO SQLite（`conversation` / `message` / `message_source`）| 對話串要跨 app 重啟存活（M03-US-304 AC-1），不能只存裝置端 | 長對話的儲存成長需 D12 之後觀察 |
 
 ### 1.1 待 SPIKE 決定、本檔暫不定案
@@ -446,4 +447,5 @@ edit_action({ action_id, field, value })     → { due_source: "user" | "model" 
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：技術棧 / 部件圖 / Module 邊界 / 資料流 / 介面契約 / 儲存模型 / 失敗模式 / 部署 | Agent（dav-designer Step 3）|
 | 2026-10-07 | v1.1 | §6 `transcript_segment` 寫入規則由「永遠 append-only」改為**分捕捉期 / 編輯期兩期**（新增 `edited_at` 欄位）；理由：決策 D7 / D8 與 `M01-US-103 AC-3` 的措辭矛盾（AC v1.1 已限定範圍）| §2.1 補規劃（M04 編輯能力）|
+| 2026-10-07 | v2.1 | Step 4.5 簽核後落地：§1 技術棧新增「對話語音輸入」列（重用 `withVoiceInput`、不重用會議收音管線）；§5.2 錯誤碼表補 `SOURCE_UNRESOLVED` / `CONCEPT_FAILED`（共 10 碼）並明訂「查無資料不是錯誤碼」；§5.4 規則 3 依 `M03-US-302 AC-4` 改寫（來源失效的結論**不輸出**，改以查無呈現）；§4.7 明訂丟棄 0 來源的概念 | Agent（dav-designer Step 4.5 / D11）|
 | 2026-10-07 | v2.0 | 第二輪（M03 問 / M04 編）：§1 新增檢索 / 概念提取 / 對話持久化三列；§1.1 新增 SPIKE-005 / 006 與 D11 / D12；§2 部件圖補 M03 / M04 並新增「寫入權集中 / 檢索權集中」兩個邊界判準；§3 新增 M03 / M04 邊界與 2 條規則；§4.4 改為呼叫 M03 引擎、新增 §4.5 問答 / §4.6 編輯 / §4.7 概念提取；§5.3 補對話 / 概念 / 標籤讀取與 `due_source`；**新增 §5.4 `ask()` 契約（7 條規則）與 §5.5 編輯 API 契約（5 條規則）**；§6 新增 7 張表（conversation / message / message_source / concept / concept_alias / concept_source / tag / tag_ref）與「三個不留舊版的例外」；§7 新增 F13~F21 | Agent（dav-designer Step 3，第二輪）|
