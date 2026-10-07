@@ -129,16 +129,18 @@ const M = {
       {s:2,n:"發言者 3",t:"00:44",x:"那個合作案我知道，是我提的。"},
       {s:0,n:"陳大文",t:"01:02",x:"那這樣，明細請小美週五之前給我，我們下次再定。"}],
     actions:[
-      {who:"林小美",what:"補一份行銷超支明細（含投放加碼與社群合作案分項）",due:"本週五",src:5},
-      {who:"陳大文",what:"協調研發結餘挪移額度",due:null,src:0},
-      {who:"發言者 3",what:"提供社群合作案的合約影本",due:null,src:4}]
+      {sid:1,what:"補一份行銷超支明細（含投放加碼與社群合作案分項）",due:"本週五",src:5},
+      {sid:0,what:"協調研發結餘挪移額度",due:null,src:0},
+      {sid:2,what:"提供社群合作案的合約影本",due:null,src:4}]
   },
   edge:{x:"上一季的檢討裡我們也遇過類似狀況，當時的處理方式是先把行銷的線上投放暫停兩週，"+
     "並把預算挪到內容製作，結果流量反而上升，所以這次的建議是重複同樣的做法。"+
     "另外那個合作案的合約我記得附錄有寫到分潤比例，".repeat(2)+"以上。"}
 };
+let NAMES=["","",""];   // 會後統一命名：預設全未命名，會議中只用編號
 const V={view:"summary",st:"happy",open:null,toast:null,exporting:false,ans:null,q:"",prog:0};
 const esc=s=>s.replace(/</g,"&lt;");
+const spkName=i=>NAMES[i]||("發言者 "+(i+1));
 
 // ---- 產生中 ----
 function vGen(){
@@ -185,10 +187,13 @@ function vTr(){
     <p>可能是錄音一開始就失敗，或會議長度為零。</p>
     <button class="cta ghost" onclick="go2('summary')">回到摘要</button></div>`;
   const L=M.note.transcript;
-  const head=V.st==="edge"?`<div class="bn info"><span>📚</span><div>共 1,184 句 · 只渲染可視範圍與最近 30 句（虛擬捲動）</div></div>`:"";
-  return h+head+L.map(l=>`<div class="line"><div class="g"><span class="chip ${l.n.includes("發言者")?"n":""}">${l.n}</span></div>
+  const un=NAMES.filter(x=>!x).length;
+  let head=V.st==="edge"?`<div class="bn info"><span>📚</span><div>共 1,184 句 · 只渲染可視範圍與最近 30 句（虛擬捲動）</div></div>`:"";
+  if(V.st!=="empty"&&un) head+=`<div class="bn info" style="cursor:pointer" onclick="go2('spk')">
+    <span>🏷️</span><div><b>有 ${un} 位發言者還沒命名</b><br>會議中先不打擾、只用編號；點這裡一次改完，逐字稿與待辦都會跟著更新。</div></div>`;
+  return h+head+L.map(l=>`<div class="line"><div class="g"><span class="chip ${NAMES[l.s]?"":"n"}">${spkName(l.s)}</span></div>
     <div><div class="c">${esc(l.x)}</div></div><div class="tm mono">${l.t}</div></div>`).join("")+
-    `<div class="note">未命名的發言者顯示為「發言者 3」——不會出現原始編號 0 起算，也不會是空白。</div></div>`;
+    `<div class="note">內部 <span class="mono">speaker_id</span> 從 0 起算，顯示一律 +1 —— 不會出現「發言者 0」，也不會是空白。</div></div>`;
 }
 // ---- 待辦 ----
 function vAct(){
@@ -201,10 +206,10 @@ function vAct(){
   if(V.st==="error") return h+`<div class="bn err"><span>⚡</span><div><b>待辦抽取失敗</b><br>逐字稿仍在。可單獨重試抽取，不用重跑整場。</div></div>
     <button class="cta" onclick="toast('重新抽取中…')">重試抽取待辦</button></div>`;
   return h+M.note.actions.map((a,i)=>`<div class="item"><div class="h" onclick="V.open=V.open===${i}?null:${i};render()">
-      <span class="w">${a.who}</span><span class="x">${esc(a.what)}</span>
+      <span class="w">${spkName(a.sid)}</span><span class="x">${esc(a.what)}</span>
       <span class="due ${a.due?"y":"n"}">${a.due?"期限 "+a.due:"未提及期限"}</span></div>
     ${V.open===i?`<div class="src">「${esc(M.note.transcript[a.src].x)}」<br>
-      <b>${M.note.transcript[a.src].n}</b> · ${M.note.transcript[a.src].t}（第 ${a.src+1} 句）
+      <b>${spkName(M.note.transcript[a.src].s)}</b> · ${M.note.transcript[a.src].t}（第 ${a.src+1} 句）
       <button class="cta ghost" style="margin-top:8px;padding:8px;font-size:12px"
         onclick="go('tr');V.toast='已跳到第 ${a.src+1} 句'">跳到逐字稿這一句</button></div>`:""}
     </div>`).join("")+
@@ -260,6 +265,36 @@ function ask(q){ V.q=q; V.ans=null; V.st="loading"; render();
       src:6,src_txt:"陳大文：「那這樣，明細請小美週五之前給我，我們下次再定。」"}; render(); },900); }
 function barge(){ V.ans=V.ans?{t:V.ans.t,src:null}:null; V.st=V.st==="error"?"happy":"happy"; V.q=""; V.toast="已停止播放，換你說話"; render(); }
 
+// ---- 會後統一命名 ----
+function vSpk(){
+  const n=V.st==="edge"?20:3;
+  const h=`<div class="tbar"><button onclick="go2('tr')">‹ 逐字稿</button><h3>發言者命名</h3></div><div class="body">`;
+  if(V.st==="empty") return h+`<div class="empty"><div class="ic">✅</div><h4>全部都命名好了</h4>
+    <p>這場會議的發言者都已有名字，逐字稿與待辦都會用名字顯示。</p>
+    <button class="cta" onclick="go2('tr')">回到逐字稿</button></div></div>`;
+  const un=NAMES.slice(0,n).filter(x=>!x).length;
+  return h+`<div class="bn info"><span>🏷️</span><div><b>有 ${un} 位還沒命名</b><br>
+    會議中只顯示編號（不打擾會議）；這裡一次改完，歷史句子一起套用。</div></div>
+    ${Array.from({length:n},(_,i)=>`<div class="item">
+      <div class="h" style="cursor:default"><span class="w">${i+1}</span>
+        <span class="x">${NAMES[i]?esc(NAMES[i]):'<span style="color:var(--dim)">尚未命名</span>'}</span>
+        <span class="due ${NAMES[i]?"y":"n"}">${NAMES[i]?"✓ 已命名":"未命名"}</span></div>
+      <input class="fld" style="margin-top:9px" id="sp${i}" placeholder="輸入名字，例如：阿明"
+        value="${(NAMES[i]||"").replace(/"/g,"&quot;")}" oninput="NAMES[${i}]=this.value.slice(0,20);render()">
+      <div class="cnt">${(NAMES[i]||"").length}/20</div></div>`).join("")}
+    ${V.st==="error"?`<div class="err-t">⚠️ 三個欄位都是空的。至少命名一位，或按「保持編號」離開。</div>`:""}
+    ${V.st==="edge"?`<div class="bn warn"><span>⚠️</span><div>20 位發言者：一次要改 20 個名字太累，可只改重要的幾位，其餘保持編號。</div></div>`:""}
+    </div><div class="foot"><button class="cta" onclick="applyNames(${n})">一次套用</button>
+    <div style="height:8px"></div>
+    <button class="cta ghost" onclick="go2('tr')">保持編號，之後再說</button>
+    <div class="note">名字只在會後改：會議中的逐字稿畫面沒有任何可點的文字，避免打斷會議。</div></div>`;
+}
+function applyNames(n){
+  const cnt=NAMES.slice(0,n).filter(x=>x).length;
+  if(!cnt){ V.st="error"; render(); return; }
+  V.view="tr"; V.st="happy"; toast(`已為 ${cnt} 位發言者命名，逐字稿與待辦已同步更新`); render();
+}
+
 function go(v){ V.view=v; V.st="happy"; render(); }
 function retry(){ V.view="summary"; V.st="loading"; render();
   setTimeout(()=>{ V.st="happy"; toast('摘要已重新產生（決策 2 · 爭點 1 · 結論 1）'); render(); }, 900); }
@@ -268,13 +303,14 @@ function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},
 let gt=null;
 function tick(){ clearInterval(gt); V.prog=0; gt=setInterval(()=>{ V.prog+=6; if(V.prog>=100){clearInterval(gt);V.view="summary";V.st="happy";render();} else render(); },120); }
 
-const VIEWS={gen:vGen,summary:vSummary,tr:vTr,act:vAct,export:vExp,fup:vFup};
-const NAMES={gen:"記錄產生中",summary:"會議詳情 — 摘要",tr:"會議詳情 — 逐字稿",act:"會議詳情 — 待辦",export:"匯出 / 分享",fup:"會後追問"};
+const VIEWS={gen:vGen,summary:vSummary,tr:vTr,act:vAct,spk:vSpk,export:vExp,fup:vFup};
+const TITLES={gen:"記錄產生中",summary:"會議詳情 — 摘要",tr:"會議詳情 — 逐字稿",spk:"發言者命名（會後統一）",act:"會議詳情 — 待辦",export:"匯出 / 分享",fup:"會後追問"};
 const STATES={
   gen:[ ["happy","產生中（進度）"],["edge","1 小時長會議"],["error","產生失敗（可只重試摘要）"] ],
   summary:[["happy","決策／爭點／結論"],["loading","skeleton"],["empty","沒有明顯決策"],
     ["error","摘要產生失敗→可只重試"],["edge","超長逐字稿"]],
   tr:[["happy","逐字稿（含發言者 3）"],["loading","skeleton"],["empty","沒有逐字稿"],["edge","1,184 句虛擬捲動"]],
+  spk:[["happy","3 位未命名 → 一次改完"],["empty","全部已命名"],["error","全部空白被擋"],["edge","20 位發言者"]],
   act:[["happy","3 條待辦（點開回溯）"],["loading","skeleton"],["empty","這場沒有待辦"],["error","抽取失敗"],
     ["edge","有期限 vs 未提及"]],
   export:[["happy","匯出"],["loading","產生檔案中"],["error","空間不足"],["edge","沒有可分享 app"]],
@@ -286,8 +322,8 @@ function tabs(){
 }
 function panel(){
   document.getElementById("panel").innerHTML=Object.keys(VIEWS).map(v=>
-    `<h2>${NAMES[v]}</h2>`+STATES[v].map(([s,l])=>
-      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';if('${v}'==='gen')tick();render()">${l}</button>`
+    `<h2>${TITLES[v]}</h2>`+STATES[v].map(([s,l])=>
+      `<button class="${V.view===v&&V.st===s?"on":""}" onclick="V.view='${v}';V.st='${s}';if('${v}'==='gen')tick();if('${v}'==='spk')NAMES='${s}'==='empty'?['陳大文','林小美','阿明']:['','',''];render()">${l}</button>`
     ).join("")).join("");
 }
 function render(){

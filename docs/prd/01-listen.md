@@ -32,8 +32,8 @@
 | FR-107 | 多人即時轉譯 | 為每句標 speaker 編號與起訖時間戳；append-only 寫入 | M01-US-103 |
 | FR-108 | 重疊發言不丟句 | 兩人同時說話時該段必須留下紀錄，不得靜默丟棄 | M01-US-103 |
 | FR-109 | 即時逐字稿顯示 | interim 與 final 視覺可區分；自動跟隨但可用上滑停止 | M01-US-104 |
-| FR-110 | speaker 命名 | 把 speaker 編號套用為名字，連同歷史句子一併更新 | M01-US-105 |
-| FR-111 | 未命名 fallback | 匯出時顯示「發言者 N」，不得顯示原始 0 起算編號或空白 | M01-US-105 |
+| FR-110 | speaker 命名（資料層）| 把 speaker 編號套用為名字，連同歷史句子一併更新 | M01-US-105 |
+| FR-111 | 未命名 fallback | 未命名時一律顯示「發言者 N」，不得顯示原始 0 起算編號或空白 | M01-US-105 |
 
 **FR 編號連續性**：FR-101 ~ FR-111 連續無跳號 ✓
 
@@ -92,15 +92,15 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | FR-107 多人即時轉譯 | M01-US-103 | 會議中 → `01-listen.html §meeting` | `docs/prd/01-listen.html` | ✅ 已原型 |
 | FR-108 重疊發言不丟句 | M01-US-103 | 會議中（重疊標記） → `01-listen.html §meeting（edge 態，overlap chip）` | `docs/prd/01-listen.html` | ✅ 已原型 |
 | FR-109 即時逐字稿顯示 | M01-US-104 | 會議中 → `01-listen.html §meeting（interim 樣式）` | `docs/prd/01-listen.html` | ✅ 已原型 |
-| FR-110 speaker 命名 | M01-US-105 | speaker 命名 sheet → `01-listen.html §speaker` | `docs/prd/01-listen.html` | ✅ 已原型 |
-| FR-111 未命名 fallback | M01-US-105 | 會議詳情 — 逐字稿（M02 畫面） → `02-record.html §tr（發言者 N fallback）` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-110 speaker 命名（資料層）| M01-US-105 | **會議中無 UI**（決策 D1：零打擾）；命名入口在 M02 → `02-record.html §spk` | `docs/prd/02-record.html` | ✅ 已原型 |
+| FR-111 未命名 fallback | M01-US-105 | 會議中 + 會議詳情逐字稿 → `02-record.html §tr` | `docs/prd/02-record.html` | ✅ 已原型 |
 
 **幽靈檢查**：
 - 每個 FR 都有對應 US ✓（11 FR / 5 US）
 - 每個 US 都被至少一個 FR 覆蓋 ✓（101: FR-101~103；102: FR-104~106；103: FR-107~108；104: FR-109；105: FR-110~111）
 - 沒有「有畫面但沒 US」的幽靈畫面（見 DESIGN.md §3.1，12 個畫面全部對到 US 或入口）✓
 
-**跨 Module 註記**：FR-111 的 fallback 文字出現在 M02 的「逐字稿」畫面。這是刻意的 —— 顯示格式由 M01 定義（誰產生編號誰定顯示規則），
+**跨 Module 註記**：FR-110 的 UI 與 FR-111 的 fallback 文字都出現在 M02 的「逐字稿」畫面（決策 D1：會議中一律不提供命名）。這是刻意的 —— 顯示格式由 M01 定義（誰產生編號誰定顯示規則），
 但渲染位置在 M02。兩份 PRD 都登記此 FR，避免成為沒人負責的孤兒。
 
 ### 5.1 跨模組 US（非 Module FR）
@@ -133,6 +133,7 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：11 FR / 5 US / 依賴圖 / 追溯矩陣 | Agent（dav-designer Step 4）|
+| 2026-10-07 | v1.1 | Step 5：決策 D1 拍板「會後統一命名」→ FR-110 改為資料層（M01 無 UI）、移除 M01 的 speaker 命名 sheet | Agent（dav-designer Step 5）|
 
 ---
 
@@ -141,12 +142,12 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | 項目 | 值 |
 | --- | --- |
 | 原型檔案 | `docs/prd/01-listen.html` |
-| 檔案行數 | 307（上限 500 ✓） |
+| 檔案行數 | 284（上限 500 ✓） |
 | 開啟方式 | 雙擊即開；單檔內嵌 CSS + JS；無 build tool、無外部依賴、無真實 API |
-| 覆蓋畫面 | 6 個（`home` / `start` / `meeting` / `perm` / `resume` / `speaker`），hash router |
-| 可切換狀態 | 21 組（= 6 畫面的 DoD-Full 五狀態展開） |
+| 覆蓋畫面 | 5 個（`home` / `start` / `meeting` / `perm` / `resume`），hash router |
+| 可切換狀態 | 17 組 |
 | 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
-| 驗證結果 | 21/21 狀態渲染非空；9/9 互動斷言通過；JavaScript 錯誤 0 |
+| 驗證結果 | 17/17 狀態渲染非空；JavaScript 錯誤 0 |
 
 互動斷言（實測輸出）：
 
@@ -155,7 +156,7 @@ M01-US-101 + M01-US-103 + M02-US-201 ─▶ INT-M01-M02-01（端到端）
 | 1 | 輸入框打字不失焦（`V.title` 狀態 + focus 保留） | ✓ 連續輸入後值為 `Q4 預算檢討` |
 | 2 | 標題空白時「開始錄音」CTA 為 disabled | ✓ |
 | 3 | 長按「結束會議」有填滿動效（防誤觸） | ✓ 300ms 時進度 21% |
-| 4 | speaker 改名套用到歷史句子 | ✓ 逐字稿出現「阿明」 |
+| 4 | 會議中點發言者 chip → 只提示、不開 sheet（決策 D1）| ✓ 畫面無 `.sheet`，逐字稿不變 |
 | 5 | 分頁切到「待辦」 | ✓ |
 | 6 | 點待辦展開逐字稿原句 | ✓ 展開第 6 句 |
 | 7 | 匯出 loading 期間 CTA disabled，完成後 toast | ✓ |

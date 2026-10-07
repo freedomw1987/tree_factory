@@ -110,7 +110,7 @@ border-radius:12px;padding:12px 14px;font-size:13px;z-index:30;display:flex;gap:
     <p><b>點哪裡試什麼</b>：右側控制台可切任一種狀態。<br>
     <b>主流程</b>：首頁 → 開始會議 → 會議中（逐字稿長出來）→ 長按結束。<br>
     <b>重點試</b>：①會議中切「網路中斷」看黃橫幅 ②切「鎖屏」看紅燈熄滅 + 誠實文案
-    ③長按「結束會議」直到填滿（防誤觸）④點「發言者 2」改名，看歷史句子一起變。</p>
+    ③長按「結束會議」直到填滿（防誤觸）④點「發言者 3」→ 它會說「會議中維持編號，會後再命名」。</p>
   </section>
   <div class="panel" id="panel"></div>
 </aside>
@@ -145,7 +145,7 @@ const MOCK = {
     {s:1,n:"林小美",t:"05:44",x:"這些都要當純文字顯示，不能當 HTML 解析。",st:"interim"}
   ]
 };
-const V = {view:"home",st:"happy",spName:"",toast:null,accented:false,
+const V = {view:"home",st:"happy",toast:null,
   title:"",ttlErr:false,backlog:3,job:0,speakName:"",resumeSt:"happy"};
 
 // ---- 視圖：首頁 ----
@@ -205,13 +205,13 @@ function vMeeting(){
     <div class="t mono">${interrupted?"已中斷 00:47":"錄音中 12:04"}</div>
     <div class="wave">${interrupted?"":`<i></i><i></i><i></i><i></i><i></i>`}</div></div>`;
   if(V.st==="loading") html += `<div class="auto">等待第一句話…<span class="wave"><i></i><i></i><i></i></span></div>`;
-  else html += lines.map((l,i)=>{ const nm = (l.s===2&&V.spName)?V.spName:l.n;
-    return `<div class="line ${l.st==="interim"?"interim":""}">
-      <div class="g"><span class="chip ${l.s===2&&!V.accented?"n":""} ${l.st==="overlap"?"ov":""}"
-        onclick="${l.s===2&&!V.accented?"go('speaker')":"toast('改名只對未命名的發言者')"}">${nm}</span></div>
+  else html += lines.map(l=>`<div class="line ${l.st==="interim"?"interim":""}">
+      <div class="g"><span class="chip n ${l.st==="overlap"?"ov":""}"
+        onclick="toast('會議中維持編號；會後在「逐字稿」一次命名')">${l.n}</span></div>
       <div><div class="c">${l.x.replace(/</g,"&lt;")}</div></div>
-      <div class="tm mono">${l.t}</div></div>`;}).join("");
+      <div class="tm mono">${l.t}</div></div>`).join("");
   if(lines.some(l=>l.st==="interim")) html += `<div class="auto">↑ 半透明 = 尚未定稿（interim）</div>`;
+  html += `<div class="auto">使用者決策：會議中一律只顯示「發言者 N」，會後才統一命名</div>`;
   return html+`</div><div class="foot">
     <button class="cta hold" style="--p:${V.job}%" onmousedown="hold()" onmouseup="unhold()" onmouseleave="unhold()"
       ontouchstart="hold()" ontouchend="unhold()">${V.job>0?"放開即取消 · 繼續按住結束":"長按結束會議"}</button>
@@ -246,28 +246,6 @@ function vResume(){
   </div></div>`;
 }
 
-// ---- 視圖：speaker 命名 sheet ----
-function vSpeaker(){
-  const named = V.speakName.trim();
-  return `<div class="tbar"><button class="back" onclick="go('home')">‹ 我的會議</button><h3>Q4 預算檢討</h3></div>
-  <div class="body"><div class="sk" style="height:64px"></div><div class="sk" style="height:64px"></div></div>
-  <div class="sheet"><div class="p">
-    <h4>發言者 3 是誰？</h4>
-    <div class="sub">${V.st==="empty"?"這場會議目前只偵測到 2 位發言者，還沒有第 3 位。"
-      :"改名會套用到他全部的句子（已說過 4 句、之後的也會用）。"}</div>
-    ${V.st==="empty"?``:`<input class="fld" id="sp" placeholder="輸入名字，例如：阿明" value="${V.speakName.replace(/"/g,"&quot;")}"
-      oninput="V.speakName=this.value;V.st='happy';render()">
-      <div class="cnt">${V.speakName.length}/20${V.speakName.length>20?" （僅取前 20 字）":""}</div>
-      ${V.st==="error"?`<div class="err-t">⚠️ 名字不能空白。若不想命名，按「保持發言者 3」。</div>`:""}`}
-    <div class="row"><button class="cta" ${V.st==="empty"?"disabled":""}
-      onclick="${V.st==="empty"?"":(named?"applyName()":"V.st='error';render()")}">套用</button></div>
-    <div class="row"><button class="cta ghost" onclick="go('meeting')">保持發言者 3</button></div>
-    <div class="note">UI 一律顯示「發言者 N」；程式碼/資料庫用 <span class="mono">speaker_id = N-1</span>。絕不出現「發言者 0」。</div>
-  </div></div>`;
-}
-function applyName(){ V.accented=true; V.spName=V.speakName.slice(0,20);
-  toast('已把發言者 3 改名為「'+V.spName+'」（歷史 4 句已更新，之後的也會沿用）'); go('meeting'); }
-
 // ---- 路由與渲染 ----
 function go(v){ V.view=v; V.st = v==='home'?'happy':(v==='meeting'?'happy':'happy'); location.hash=v; render(); }
 function toast(m){ V.toast=m; render(); setTimeout(()=>{V.toast=null;render();},2400); }
@@ -276,7 +254,7 @@ function hold(){ V.job=0; holdT=setInterval(()=>{ V.job+=7;
   if(V.job>=100){ clearInterval(holdT); V.job=0; toast('會議已結束（118 句逐字稿已存）→ 產生記錄中'); setTimeout(()=>location.href='02-record.html',900); } render(); },80); }
 function unhold(){ if(holdT){clearInterval(holdT);holdT=null;} V.job=0; render(); }
 
-const VIEWS={home:vHome,start:vStart,meeting:vMeeting,perm:vPerm,resume:vResume,speaker:vSpeaker};
+const VIEWS={home:vHome,start:vStart,meeting:vMeeting,perm:vPerm,resume:vResume};
 const STATES={
   home:[["happy","有會議（含進行中置頂）"],["loading","載入中 skeleton"],["empty","一場都沒有"],["edge","1,000 場 / 分頁"]],
   start:[["happy","輸入名稱"],["error","名稱為空被擋"],["edge","超長名稱 60 字上限"]],
@@ -284,7 +262,6 @@ const STATES={
     ["netdown","網路中斷（黃橫幅）"],["interrupted","鎖屏中斷（紅燈熄滅）"],["backfilling","回補中 3/7"]],
   perm:[["error","權限被拒（阻斷）"]],
   resume:[["happy","7 段待補"],["error","第 3 段損毀"]],
-  speaker:[["happy","改名"],["empty","尚無第 3 位"],["error","名字空白被擋"],["edge","超長名字截斷"]]
 };
 function panel(){
   document.getElementById("panel").innerHTML = Object.keys(VIEWS).map(v=>

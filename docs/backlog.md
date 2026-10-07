@@ -100,7 +100,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim + 完成）| 3 條 BDD | P1 | 3 | PENDING | M01-US-103 |
-| M01-US-105 | US | M01 | speaker 命名：把 speaker 2 貼成「阿明」| 3 條 BDD | P1 | 3 | PENDING | M01-US-103 |
+| M01-US-105 | US | M01 | 會後統一命名：把「發言者 2」改成「阿明」（決策 D1）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
 | INT-M01-M02-01 | US | INT | 端到端：開始會議 → 講話 → 螢幕即時逐字稿 → 中斷 → 恢復續接 | 3 條 BDD | P0 | 5 | PENDING | M01-US-101, M01-US-103, M02-US-201 |
 | M02-US-201 | US | M02 | 逐字稿持久化到 Durable Object，重開 app 續接、不重複不遺失 | 4 條 BDD | P0 | 8 | PENDING | SPIKE-003 |
 | M02-US-202 | US | M02 | 會議記錄 agent tools（append_transcript / upsert_action / finalize_notes）| 3 條 BDD | P0 | 5 | PENDING | M02-US-201 |
@@ -225,18 +225,20 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 - **驗收方式**: `REGRESSION_MODULE=M01`
 - **為什麼這個優先**: P1。不影響資料正確性，但「看得見 AI 記下了什麼」是信任感的來源
 
-### M01-US-105 speaker 命名
+### M01-US-105 會後統一命名
 
-- **對應 Module**: M01（聽）
+- **對應 Module**: M01（聽）— 資料層；命名 UI 在 M02 的「逐字稿」分頁（決策 D1）
 - **負責 dev**: （派工後填入）
 - **預估時間**: 3 SP
 - **AC**:
-  - **AC-1**: Given 逐字稿中出現未命名的 speaker 編號 When 使用者點該編號 Then 可輸入名字並套用至該 speaker 的所有歷史與未來句子
-  - **AC-2**: Given 已命名 speaker 2 為「阿明」 When 會議中 speaker 2 再次發言 Then 逐字稿直接顯示「阿明」
-  - **AC-3**: Given 未命名 speaker When 匯出記錄 Then 顯示為「發言者 2」而非空白或編號 0 起算的原生值
+  - **AC-1**: Given 會議已結束且逐字稿有 3 位未命名 speaker When 使用者於「逐字稿」分頁開命名 sheet 一次輸入並套用 Then 所有歷史句子與待辦負責人同步換成名字
+  - **AC-2**: Given 命名 sheet 部分欄位留空 When 按「一次套用」 Then 有填的生效、留空的維持「發言者 N」；三欄全空則擋下並說明原因
+  - **AC-3**: Given 未命名 speaker When 會議中、逐字稿或匯出檔顯示 Then 顯示為「發言者 2」而非空白或 0 起算的原生值
+  - **AC-4**: Given 會議進行中 When 使用者點擊逐字稿的發言者編號 Then 不開 sheet、不改資料，僅提示「會後再命名」
 - **依賴**: M01-US-103
 - **驗收方式**: `REGRESSION_MODULE=M01`
-- **為什麼這個優先**: P1。零工程的天花板很低但價值很高——沒有這條，會議記錄對使用者幾乎不可用
+- **為什麼這個優先**: P1。零工程的天花板很低但價值很高——沒有這條，會議記錄對使用者幾乎不可用。
+  AC-4 是決策 D1 的負向斷言：會議中「不能」命名也是需求
 
 ### INT-M01-M02-01 端到端整合
 
@@ -361,7 +363,7 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 | # | 問題 | 影響 | 何時解 |
 | --- | --- | --- | --- |
 | Q1 | 會議長度上限（2 小時？4 小時？）| 成本與 compaction 策略 | SPIKE-004 後 |
-| Q2 | speaker 命名時機（會議中即時 vs 會後）| M01-US-105 的 UI | §2.2 Design |
+| ~~Q2~~ | speaker 命名時機 | ✅ 已解（2026-10-07）| **會後統一命名**（批次），會議中零干擾 → 見 DESIGN.md §7 D1、M01-US-105 AC-4 |
 | Q3 | 逐字稿在會議中顯示到什麼程度（只看最近 N 句 vs 全文可捲）| M01-US-104 的 UI | §2.2 Design |
 | Q4 | 音檔本地保留期限（隱私 vs 回補完整性）| M01-US-102 的清理策略 | §2.2 Design |
 | Q5 | 是否需要「會議範本」（例：週會 / 客戶訪談）改變摘要風格 | M02-US-203 的 prompt | v2 |
@@ -388,5 +390,6 @@ v1.1 重切：原 4 個模組（M01 app-shell / M02 voice-pipeline / M03 agent-c
 
 | 版本 | 日期 | 變動 | 為什麼 |
 | --- | --- | --- | --- |
+| v1.2 | 2026-10-07 | 決策 D1 拍板：M01-US-105 改「會後統一命名（批次）」，AC 由 3 條增為 4 條（新增 AC-4 會議中不得命名的負向斷言）；Q2 結案 | 原型階段由用戶選定；P1 會議中零打擾優先於 P5 人比編號重要 |
 | v1.1 | 2026-10-07 | Module 由 4 個重切為 2 個（聽 / 記）；全數 US 重新編號；介面定義為逐字稿事件流 | 原切法違反「3-15 US / Module」（M01-M03 各僅 2 US），且切割依據為技術層而非功能內聚 |
 | v1.0 | 2026-10-07 | 初版：17 項 backlog（4 Spike / 11 US / 2 TECH）+ Module 草稿 + SWOT + 成熟度評估 | §2.1 Plan Gate 產出 |
