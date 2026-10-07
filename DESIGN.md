@@ -212,7 +212,7 @@ tree_factory（v2.0：4 Module / 3 階段）
 | 對話歷史 sheet | M03 | M03-US-304 | ✅ 切換對話串 | ✅ 載入中 | ✅ 只有一個對話 | ✅ 載入失敗 | ✅ 100 串對話 / 刪除確認 |
 | 範圍指示器與切換 | M03 | M03-US-307 | ✅ 本場 ⇄ 全部 | — | — | — | ✅ 鎖本場卻問跨場問題（明說範圍）|
 | 來源回溯（跳逐字稿高亮）| M03 | M03-US-302 AC-2 | ✅ 捲到並高亮 | ✅ 跳頁載入中 | — | ✅ 該場已被刪除 | ✅ 回溯到第 1,842 句 |
-| 逐字稿編輯（inline）| M04 | M04-US-401 | ✅ 儲存後立即更新 | ✅ 儲存中 | — | ✅ 儲存失敗（原句復原）| ✅ 空白 / 2,000 字 / 只有空白 |
+| 逐字稿編輯（inline）| M04 | M04-US-401 | ✅ 儲存後立即更新 | ✅ 儲存中 | — | ✅ 儲存失敗（**保留使用者輸入** + 重試）| ✅ 空白 / 2,000 字 / 只有空白 |
 | 編輯旗標（僅 agent 引用處）| M04 | M04-US-402 | ✅ 「此句有人工修正」| — | ✅ 沒被編輯過（不顯示）| — | ✅ 改回原樣仍標示 |
 | 摘要編輯 | M04 | M04-US-403 | ✅ 編輯並保存 | ✅ 儲存中 | ✅ 無決策 / 無爭點 | ✅ 保存失敗 | ✅ 超長內容 / 清空全部 |
 | 待辦編輯（人工填期限）| M04 | M04-US-403 | ✅ 人工填期限 | ✅ 儲存中 | ✅ 這場沒有待辦 | ✅ 保存失敗 | ✅ 期限留空（維持 null）/ 模型未填 |
@@ -313,6 +313,9 @@ tree_factory（v2.0：4 Module / 3 階段）
    可一鍵切回「問全部」。**不得在 prompt 裡偷偷鎖**（M03-US-307 AC-1）
 6. **被人工修正的來源要標示**（決策 D8）：來源卡上，若該句 `edited_at` 非 null，加一行
    「此句有人工修正」。**只有來源處顯示**，逐字稿畫面不顯示（見 §2.4 規則）
+7. **輸入邊界（Step 4.5 自審補）**：問題為空白 / 只有空白字元 → 不得送出（CTA disabled）；
+   超過 **1,000 字元** → 擋下並說明。理由：超長問題會讓檢索與成本失控，且實務上沒人這樣問；
+   1,000 是實作預設值，不是產品承諾
 
 ### 4.5 編輯流程（M04，階段 C）
 
@@ -345,6 +348,9 @@ tree_factory（v2.0：4 Module / 3 階段）
    而不是單純的二次確認。二次確認只能防誤觸，不能防選錯
 4. **概念不可手動新增**（v1 Non-goals）：只可改名 / 合併 / 刪除。理由：手動建概念會產生
    「使用者建了但 AI 認不出」的落差；v1 先讓 AI 提取，觀察噪音率（SPIKE-006）再決定
+5. **儲存失敗不得吃掉輸入**（Step 4.5 自審修正）：儲存失敗時**保留使用者剛才打的字**，
+   只顯示錯誤 + 「重試」，**不得**默默復原成原句。理由：改錯字是使用者的勞動，
+   靜默復原等於把他的勞動丟掉，而且他不會知道發生什麼事（違反 P7 的誠實精神）
 
 ---
 
@@ -363,7 +369,7 @@ tree_factory（v2.0：4 Module / 3 階段）
 | `Sheet` | 底部彈出面板（標題輸入 / 命名 / 匯出）| open / closed |
 | `SegmentedTabs` | 摘要 / 逐字稿 / 待辦 | 3 tabs, 可滑動切換 |
 | `ActionItem` | 待辦一列（誰 / 做什麼 / 何時）| 有期限 / 無期限 / 展開回溯 |
-| `FollowUpBubble` | 追問對話氣泡 | user / ai / thinking / not-found |
+| ~~`FollowUpBubble`~~ | **v2.0 起由 `ChatBubble` + `SourceCard` 取代**（INT-M02-M03-01：兩個呼叫端的來源渲染必須一致，不得各做一套）| — |
 | `TabBar` | 底部 3 分頁（對話 / 會議 / 概念）| chat / meeting / concept（階段 A 只有前兩個）|
 | `ChatBubble` | 對話氣泡 | user / ai / thinking / **not-found** / **out-of-scope** / interrupted |
 | `StreamingText` | 串流中的文字（含光標）| streaming / done / interrupted |
@@ -400,7 +406,7 @@ tree_factory（v2.0：4 Module / 3 階段）
 | `NOTES_FAILED` | ✅ | `ErrorState`（inline，留在詳情頁）| 「摘要產生失敗」+ 重試（逐字稿不受影響）|
 | `EXPORT_FAILED` | ✅ | `Sheet` 內 inline 錯誤 | 「匯出失敗」+ 重試 |
 | `MODEL_UNAVAILABLE` | ✅ | `ErrorState` | 「服務暫時不可用」+ 稍後重試 |
-| `SOURCE_UNRESOLVED` | ✅ | `SourceCard` 降級（**回答文字保留**）| 「這條結論的來源暫時取不到」|
+| `SOURCE_UNRESOLVED` | ✅ | 該條結論改以「查無資料」呈現（**不當成答案輸出**）| 「這條結論的來源找不到了，已經改為查無」|
 | `CONCEPT_FAILED` | ✅ | `Banner`（warn，只在概念頁）| 「概念整理失敗，會議記錄不受影響」+ 重試 |
 
 **「查無資料」不是錯誤碼（v2.0 新增說明）**：`answered` / `not_found` / `out_of_scope` / `partial`
@@ -412,7 +418,8 @@ tree_factory（v2.0：4 Module / 3 階段）
 | `answered` | `ChatBubble`(ai) + `SourceCard` × N | （答案）|
 | `not_found` | `ChatBubble`(not-found) + 可能相關會議清單 | 「會議記錄裡沒有提到這件事。」|
 | `out_of_scope` | `ChatBubble`(out-of-scope)、無來源 | 「這不在會議記錄的範圍內，我沒有相關資料。」|
-| `partial` | `ChatBubble`(ai) + `Banner`(warn) | （答案）+「有 N 場沒查到：<場名>」|
+| `partial` | `ChatBubble`(ai) + `Banner`(warn) | （其他有效結論）+「有 N 場沒查到：<場名>」或「有 1 條結論的來源找不到，已改為查無」|
+| `partial`（全數來源失效）| 升級為 `not_found` | 「這題的來源都找不到了，所以我不回答」|
 
 **規則**：可重試的錯誤**一律不得阻斷會議**（`Banner` / inline）；不可重試的才用阻斷式 `ErrorState`。
 這對應 P1「會議中零打擾」—— 錄音不能因任何後端錯誤而中止。

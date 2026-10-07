@@ -157,6 +157,7 @@ M04-US-404/405（概念卡的來源句格式與來源回溯共用同一套來源
 | --- | --- |
 | 原型檔案 | `docs/prd/03-ask.html`（規劃中）|
 | 覆蓋畫面 | `chat` / `src` / `multi` / `hist` / `scope`（+ 狀態變體）|
-| 狀態覆蓋 | 18 組（見 `DESIGN.md` §3.1 的 M03 段），全部 DoD-Full |
+| 畫面數 | 5（`chat` / `src` / `multi` / `hist` / `scope`）|
+| 狀態覆蓋 | 對應 `DESIGN.md` §3.1 的 **8 列（M03 段）**，全部 DoD-Full；實際可切換狀態組數待 Step 5 回填 |
 | 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
 | 驗證結果 | ⬜ 待 Step 5 回填 |

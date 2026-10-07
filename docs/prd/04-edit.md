@@ -167,6 +167,6 @@ M03-US-307 的標籤篩選擴充（階段 C 後）需要 M04-US-406。
 | --- | --- |
 | 原型檔案 | `docs/prd/04-edit.html`（編輯層）、`docs/prd/05-concept.html`（概念層）（規劃中）|
 | 覆蓋畫面 | 04：`tr-edit` / `sum-edit` / `act-edit` / `regen`；05：`list` / `card` / `search` / `merge` / `tag` |
-| 狀態覆蓋 | 20 組（見 `DESIGN.md` §3.1 的 M04 段），全部 DoD-Full |
+| 狀態覆蓋 | 對應 `DESIGN.md` §3.1 的 **10 列（M04 段）**，全部 DoD-Full；實際可切換狀態組數待 Step 5 回填 |
 | 驗證命令 | Playwright（`channel: chrome`）以 `file://` 載入，逐一切換狀態並斷言 |
 | 驗證結果 | ⬜ 待 Step 5 回填 |

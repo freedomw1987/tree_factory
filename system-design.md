@@ -213,6 +213,7 @@ v2.0 起 **M02 不含任何檢索邏輯**——「查無不編造」（F10 / F13
     → 非同步觸發概念提取（LLM，一次一場）
     → 輸入：該場逐字稿 + 既有 concept 清單 + concept_alias（避免重複抽同一個錯）
     → 抽出 5~15 個概念（粒度待 SPIKE-006）
+    → **丟棄「0 個來源」的概念**（概念的定義就是「有出處」，無出處不算概念）
     → upsert concept（name / type）+ 寫入 concept_source（meeting_id + source_seq）
     → 失敗 → CONCEPT_FAILED（Banner，只在概念頁）；記錄與摘要完全不受影響
     → 合併 / 改名 / 刪除 → 在同一交易內轉移引用，**斷言 0 孤兒**；失敗則整批回滾
@@ -271,8 +272,14 @@ v2.0 起 **M02 不含任何檢索邏輯**——「查無不編造」（F10 / F13
 | `NOTES_FAILED` | 摘要 / 待辦抽取失敗 | ✅ | M02 / LLM |
 | `EXPORT_FAILED` | 匯出寫檔失敗 | ✅ | M02 |
 | `MODEL_UNAVAILABLE` | 模型服務暫時不可用 | ✅ | Worker → Workers AI |
+| `SOURCE_UNRESOLVED` | 回答引用的來源句解析失敗（該條結論降級為查無）| ✅ | M03（§5.4 規則 3）|
+| `CONCEPT_FAILED` | 概念提取失敗或產出 0 個概念 | ✅ | M04（§4.7）|
 
 **協定規則**：`recoverable = true` 的錯誤**不得**導致錄音中止；只有 `AUTH_INVALID` 可阻斷流程。
+**共 10 碼**（8 碼會議期 + 2 碼問答 / 概念期），與 `DESIGN.md` §5.1 逐碼對齊（v2.0 已核對）。
+
+**「查無資料」不是錯誤碼**：`ask()` 的 `status`（`answered` / `not_found` / `out_of_scope` / `partial`）
+是**正常回答狀態**，不進本表（見 `DESIGN.md` §5.1 與 §5.4 規則 6）。
 
 ### 5.3 記錄讀取（M02 → UI）
 
@@ -310,8 +317,10 @@ ask({ question: 字串, scope: meeting_id | "all", idempotency_key: 字串 })
 1. **`scope` 必填，不得由引擎推測**（M03-US-307 AC-1）。`"all"` 與 `meeting_id` 的差別只在範圍，不在行為
 2. **引擎是唯一檢索點**：兩個呼叫端都不得自己查逐字稿表（見 §3 邊界規則）
 3. **`sources` 每一項都必須能解析到真實存在的 `transcript_segment`**。
-   解析失敗 → 該項降級、狀態由 `answered` 改為 `partial` 並發 `SOURCE_UNRESOLVED`，**不得虛構來源**
-   （M03-US-302 AC-4：解析失敗必須降級為查無，而非照樣輸出）
+   解析失敗時（M03-US-302 AC-4）：
+   - 該條結論**不輸出**，改以「查無資料」呈現 + 發 `SOURCE_UNRESOLVED`
+   - 還有其他有效結論 → `status = partial`；**全數失效 → `status = not_found`**
+   - **不得虛構來源、也不得把無來源的結論照樣當成答案輸出**
 4. **`edited_at` 由引擎在回答時從 DB 讀取**，不讀 agent session 的記憶。
    因此「此句有人工修正」的標示責任在**引擎**，兩個呼叫端只負責顯示（INT-M02-M03-01 AC-3）
 5. **來源的錨點是 `seq` 而非文字**：使用者改錯字不會讓來源斷鏈。
