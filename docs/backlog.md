@@ -176,7 +176,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **M01-US-106** | US | M01 | **原生錄音層**：Tauri plugin（`AVAudioEngine`）取代 webview `MediaRecorder`，支援背景/鎖屏續錄（決策 **D14**）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-002b |
 | **M01-US-107** | US | M01 | **背景/鎖屏缺口標記**：`visibilitychange → hidden` 即標 `TRANSCRIPT_GAP`，逐字稿明示「此段未錄到」（失敗模式 F22）| 3 條 BDD | P0 | 3 | PENDING | M01-US-101 |
 | **M01-US-108** | US | M01 | 錄音續航：`WakeLock` 防關屏 + 會議中提示「請保持畫面開啟」| 2 條 BDD | P1 | 2 | PENDING | M01-US-101 |
-| **M01-US-109** | US | M01 | `DiarizingNova3Transcriber` 聚段規則純函式 + 單元測試（**本專案第一個 TDD 標的**）| 3 條 BDD | P0 | 3 | PENDING | SPIKE-001 |
+| **M01-US-109** | US | M01 | `DiarizingNova3Transcriber` 聚段規則純函式 + 單元測試（**本專案第一個 TDD 標的**）| 4 條 BDD | P0 | 3 | DONE（17 測試全綠，`worker/src/segmentation.ts`）| SPIKE-001 |
 | INT-M01-M02-01 | US | INT | 端到端：開始會議 → 講話 → 螢幕即時逐字稿 → 中斷 → 恢復續接 | 3 條 BDD | P0 | 5 | PENDING | M01-US-101, M01-US-103, M02-US-201 |
 | M02-US-201 | US | M02 | 逐字稿持久化到 Durable Object，重開 app 續接、不重複不遺失 | 4 條 BDD | P0 | 8 | PENDING | SPIKE-003 |
 | M02-US-202 | US | M02 | 會議記錄 agent tools（append_transcript / upsert_action / finalize_notes）| 3 條 BDD | P0 | 5 | PENDING | M02-US-201 |
@@ -363,6 +363,13 @@ P1 = 37 SP、P2 = 12 SP｜三階段：A **104 SP** / B **39 SP** / C 27 SP（由
   - **AC-2**: Given 任一段發言 When 產生逐字稿 Then 附帶該段起訖時間戳（相對會議開始）
   - **AC-3**: Given 會議進行中 When 收到逐字稿事件 Then 伺服端以 append-only 方式寫入，不得改寫既有句子（**只約束 M01 寫入階段**；會議後的人工編輯見 M04-US-401 / 決策 D7、D8）
   - **AC-4**: Given 兩人同時說話 When 轉譯 Then 不得靜默丟句（可標為重疊或合併，但必須留下紀錄）
+  - **AC-6** (2026-10-08 補，由 M01-US-109 的已知問題 #2 與 Gate 4 reviewer 衍生):
+    Given 上游把同一段發言以 interim 與 final 混餵（同一 `idempotency_key` 送達兩次），
+    或 `UtteranceEnd` 早於該句 final 落地 When 聚段與寫入 Then
+    只產生一段逐字稿，不得出現重複句子
+  - **AC-7** (2026-10-08 補): Given 串流參數 `utterance_end_ms=1000` 而停頓規則門檻為 1200ms
+    When 一段發言後靜音 1.1 秒 Then 段落由 `UtteranceEnd` 切開（約 1.0 秒），
+    且**不得**產生兩個內容重疊的段落
   - **AC-5** (DoD): 探針 `REGRESSION_MODULE=M01` 通過
 - **依賴**: SPIKE-001
 - **驗收方式**: `REGRESSION_MODULE=M01`
@@ -396,6 +403,26 @@ P1 = 37 SP、P2 = 12 SP｜三階段：A **104 SP** / B **39 SP** / C 27 SP（由
 - **驗收方式**: `REGRESSION_MODULE=M01`
 - **為什麼這個優先**: P1。零工程的天花板很低但價值很高——沒有這條，會議記錄對使用者幾乎不可用。
   AC-4 是決策 D1 的負向斷言：會議中「不能」命名也是需求
+
+### M01-US-109 逐字稿聚段器（本專案第一個 TDD 標的）
+
+- **對應 Module**: M01（聽）
+- **負責 dev**: Agent（trust mode）
+- **預估時間**: 3 SP（實際：含 TDD 紅燈迭代與 Gate 3 探針器，約 35 分鐘）
+- **AC**: 4 條 BDD（見 `docs/ac/M01-US-109.md`）
+  - **AC-1**: 同一講者連續發言 → 聚成一段（文字以單空格串接、時間戳換算毫秒）
+  - **AC-2**: 講者變更 → 立即切段（即使停頓很短）；`speakerId` 保持 0 起算
+  - **AC-3**: 停頓嚴格大於 1200ms 才切段（恰等於不切）；門檻可覆寫
+  - **AC-4**: `UtteranceEnd` 強制收尾且不吞後續字；`flush()` 取出最後一段（冪等）
+- **依賴**: SPIKE-001
+- **驗收方式**: `cd worker && npx vitest run`（17 測試）／`REGRESSION_MODULE=M01 npm run regression`
+- **為什麼這個優先**: P0。SPIKE-001 證實 nova-3 只在單字層級給 `speaker`、
+  串流不回 `paragraphs` / `utterances`——聚段規則不自己寫，M01-US-103 就沒有段落可顯示。
+  且它是**純函式**（無 I/O / 無時鐘），是全專案最便宜、回報最高的 TDD 起點。
+- **本輪新增的關鍵決定（介面契約）**: `feed()` **只回已終結的段落**；進行中用 `pending()`、
+  收尾用 `flush()`。理由：串流中「最後一段」在下一字到來前無法判定完成，
+  提早吐出正是「句子亂切」的來源（此決定由 TDD 第一輪紅燈逼出，已寫入 AC 文件）。
+- **交付物**: `docs/deliverable/2026-10-08-M01-US-109-聚段器.md`
 
 ### INT-M01-M02-01 端到端整合
 
