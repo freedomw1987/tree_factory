@@ -48,7 +48,12 @@ import {
   GapInvalidError,
   TranscriptGapLog,
 } from "./storage/gap-store.js";
-import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
+import {
+  SessionCorruptError,
+  SessionStore,
+  type SessionSnapshot,
+  type SessionSql,
+} from "./storage/session-store.js";
 import {
   SEGMENT_PAGE_LIMIT_MAX,
   TRANSCRIPT_SKEW_TOLERANCE_MS,
@@ -239,6 +244,11 @@ export class MeetingDurableObject {
           return json({ error: "NOT_FOUND", path: url.pathname }, 404);
       }
     } catch (error) {
+      if (error instanceof SessionCorruptError) {
+        // TECH-008：DB 被竊改（欄位不合法／時間軸被平移）與「程式 bug」在維運上是兩件事，
+        // 所以給它自己的 code。`recoverable:false`：DO 每次讀都會失敗，裝置端只能停錄。
+        return json({ error: error.code, message: error.message, recoverable: false }, 500);
+      }
       if (error instanceof MissingCredentialError) {
         // AUTH_INVALID 是唯一允許阻斷的錯誤（system-design §5.2）。
         return json({ error: error.code, message: error.message, recoverable: false }, 401);
@@ -358,7 +368,9 @@ export class MeetingDurableObject {
    * 所以任何一次請求都必須先把過期的 recording 收成 ended（否則狀態會被讀成還在錄）。
    */
   #readSession(store: SessionStore): SessionSnapshot | null {
-    const snapshot = store.read();
+    // TECH-008：讀取必須帶入「現在時間」，否則「兩欄一起往後推」的竊改看不出來
+    // （差值仍是 2 小時）。時間來源與其他路徑同一個 `#now()`，測試注入固定時鐘即可重現。
+    const snapshot = store.read(this.#now());
     if (snapshot === null) return null;
     const expired = expireSession(snapshot.session, this.#now());
     if (expired === snapshot.session) return snapshot;

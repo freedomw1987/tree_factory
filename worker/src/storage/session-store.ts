@@ -11,6 +11,7 @@
 import {
   MEETING_MAX_MS,
   SESSION_ENDED_REASONS,
+  sessionClockViolation,
   type MeetingSession,
   type SessionEndedReason,
 } from "../session.js";
@@ -79,11 +80,26 @@ export class SessionStore {
     this.#sql = sql;
   }
 
-  read(): SessionSnapshot | null {
+  /**
+   * TECH-008：`nowMs` **必填**。
+   *
+   * 為什麼不給預設值：可選參數的失敗模式是「新呼叫端忘記帶 → 時間合理性檢查靜默消失」，
+   * 那正是這一票要防的錯。必填會變成 TypeScript 編譯錯誤，把「誰帶什麼時間」寫進型別。
+   */
+  read(nowMs: number): SessionSnapshot | null {
+    // 必填只保證「有帶」，不保證「帶得對」：`NaN` / `±Infinity` 會讓下面兩個 `>` 比較
+    // 全部是 false → 整套時間檢查被靜默關掉（Gate 4 oracle F2 實測）。這裡把它變成吵鬧的失敗。
+    if (!Number.isFinite(nowMs)) {
+      throw new SessionCorruptError(`讀取時間不是有限數：now=${nowMs}`);
+    }
     this.#ensure();
     const [row] = this.#sql.exec(SELECT).toArray();
     if (row === undefined) return null;
-    return toSnapshot(row as Record<string, unknown>);
+    const snapshot = toSnapshot(row as Record<string, unknown>);
+    // 驗證失敗**不寫回任何東西**（讀取是唯讀的；否則壞資料會被「修」成另一個壞樣子）。
+    const violation = sessionClockViolation(snapshot.session, nowMs);
+    if (violation !== null) throw new SessionCorruptError(violation);
+    return snapshot;
   }
 
   write(snapshot: SessionSnapshot): void {

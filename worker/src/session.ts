@@ -16,6 +16,19 @@ export const MEETING_MAX_MS = 2 * 60 * 60 * 1000;
 /** 距上限多久開始廣播 warn（AC-5：剩 ≤ 5 分鐘）。 */
 export const LIMIT_WARN_LEAD_MS = 5 * 60 * 1000;
 
+/**
+ * TECH-008：讀 session 時允許的時鐘偏差。
+ *
+ * 為什麼需要容忍值：真實世界的「現在時間」會被 NTP 校正與平台抖動推來推去，
+ * 而會議的開始時間是**寫死的**。若要求 `started_at_ms <= now` 嚴格成立，
+ * 一次秒級的時鐘回調就會讓整場會議讀不出來。
+ *
+ * 為什麼 60 秒就夠：真正要擋的是「同量平移」（把 `started_at` / `ends_at` 一起往後推），
+ * 那是小時級 ~ 年級的位移；60 秒相對 2 小時上限只有 0.8%，
+ * 且與逐字稿的 `TRANSCRIPT_SKEW_TOLERANCE_MS` 同數量級、遠小於 `LIMIT_WARN_LEAD_MS`。
+ */
+export const SESSION_CLOCK_TOLERANCE_MS = 60_000;
+
 export type SessionState = "recording" | "ended";
 /**
  * 結束原因：
@@ -102,6 +115,42 @@ export function sessionStatus(session: MeetingSession, nowMs: number): SessionSt
     warn: phase === "recording" && remainingMs <= LIMIT_WARN_LEAD_MS,
     reached,
   };
+}
+
+/**
+ * TECH-008：帶入「現在時間」的合理性檢查。
+ *
+ * 原本的讀取驗證只檢查 `ends_at_ms === started_at_ms + MEETING_MAX_MS` —— 那是**差值**，
+ * 不是**位置**：把兩欄一起往後推 1 小時，差值照樣是 2 小時，於是「2 小時上限」被無聲延長
+ * （推到未來更糟：`now < started_at_ms`，看起來還沒開始，寫入卻被放行）。
+ *
+ * **這一票真正擋下的東西（Gate 4 oracle 實測後校正，不要寫得比事實大）**：
+ * 設 Δ = 兩欄一起平移的量、elapsed = `now - started_at`（平移前），則
+ * `違規 ⟺ Δ > elapsed + SESSION_CLOCK_TOLERANCE_MS`。
+ * 也就是「把 `started_at` 推到『現在 + 60s』之後」才擋得住；**Δ ≤ elapsed + 60s 一律放行**，
+ * 在會議尾端（elapsed≈2h）等於上限可以被再續一次。
+ * 原因是這裡只驗**位置**（不得在未來），而 DB 內沒有任何不可被同步改寫的錨點。
+ *
+ * 為什麼仍然只有上界、不補下界：
+ * - 「幾小時前開始、現在才讀」是合法情境（查歷史會議），不能被擋；
+ * - 往過去的平移在 DB 裡與真實歷史長得一模一樣，訂下界只會誤擋而不會多擋；
+ * - 真正的補法需要 DO 外的可信錨點 → 另立票，不在本票範圍。
+ *
+ * 兩條規則的先後：`ends_at_ms` 那條由第一條 + 差值不變式推得，實質守門是 `started_at_ms`，
+ * 第二條是「未來放寬不變式」的保險（defense-in-depth，正式路徑不可達）。
+ *
+ * 回傳違規說明（給 `SessionCorruptError` 用）；一切正常則回 `null`。
+ */
+export function sessionClockViolation(session: MeetingSession, nowMs: number): string | null {
+  if (session.startedAtMs > nowMs + SESSION_CLOCK_TOLERANCE_MS) {
+    return `started_at_ms (${session.startedAtMs}) 在未來（now=${nowMs}，容忍 ${SESSION_CLOCK_TOLERANCE_MS}ms）`;
+  }
+  // 由上一條 + `ends_at_ms === started_at_ms + MEETING_MAX_MS` 推得，仍獨立寫下來：
+  // 未來若有人調整檢查順序或放寬不變式，這一條必須自己站得住。
+  if (session.endsAtMs > nowMs + MEETING_MAX_MS + SESSION_CLOCK_TOLERANCE_MS) {
+    return `ends_at_ms (${session.endsAtMs}) 超過「現在 + 上限」（now=${nowMs}，上限 ${MEETING_MAX_MS}ms，容忍 ${SESSION_CLOCK_TOLERANCE_MS}ms）`;
+  }
+  return null;
 }
 
 /** 逐字稿寫入的唯一守門員（DoD：2:00 之後不得再寫入；會議結束後也不得寫入）。 */

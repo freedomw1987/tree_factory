@@ -39,14 +39,14 @@ describe("M01-US-101 session 持久化", () => {
 
   it("M01-Given 全新 DO When 讀 session Then null（還沒開始，不是一筆空 session）", () => {
     const { sql } = sqlDevice();
-    expect(new SessionStore(sql).read()).toBeNull();
+    expect(new SessionStore(sql).read(STARTED)).toBeNull();
   });
 
   it("M01-Given 開始一場會議 When 寫入後重讀 Then 權威時間軸逐欄一致（含逐字稿寫入次數）", () => {
     const { sql } = sqlDevice();
     const store = new SessionStore(sql);
     store.write({ session: startSession("m-1", STARTED), transcriptWrites: 7 });
-    const read = store.read();
+    const read = store.read(STARTED);
     expect(read?.session).toEqual(startSession("m-1", STARTED));
     expect(read?.transcriptWrites).toBe(7);
   });
@@ -59,14 +59,14 @@ describe("M01-US-101 session 持久化", () => {
     store.write({ session: stopped, transcriptWrites: 2 });
     const rows = sql.exec("SELECT COUNT(*) AS n FROM meeting_session").toArray() as { n: number }[];
     expect(rows[0]?.n).toBe(1);
-    expect(store.read()?.session).toEqual(stopped);
-    expect(store.read()?.transcriptWrites).toBe(2);
+    expect(store.read(STARTED)?.session).toEqual(stopped);
+    expect(store.read(STARTED)?.transcriptWrites).toBe(2);
   });
 
   it("M01-Given 另一個 store 實例（模擬 DO 被回收後重開）When 讀同一份 storage Then 同一份資料", () => {
     const { sql } = sqlDevice();
     new SessionStore(sql).write({ session: startSession("m-1", STARTED), transcriptWrites: 3 });
-    const reopened = new SessionStore(sql).read();
+    const reopened = new SessionStore(sql).read(STARTED);
     expect(reopened?.session.meetingId).toBe("m-1");
     expect(reopened?.session.endsAtMs).toBe(STARTED + 7_200_000);
     expect(reopened?.transcriptWrites).toBe(3);
@@ -78,7 +78,7 @@ describe("M01-US-101 session 持久化", () => {
     store.write({ session: startSession("m-1", STARTED), transcriptWrites: 0 });
     // 模擬外部/舊版把上限往後推（繞過 store 的驗證，例如另一支 migration 寫壞）。
     sql.exec("UPDATE meeting_session SET ends_at_ms = ? WHERE id = 1", STARTED + 99_999_999);
-    expect(() => store.read()).toThrowError(/SESSION_CORRUPT/);
+    expect(() => store.read(STARTED)).toThrowError(/SESSION_CORRUPT/);
   });
 
   it("M01-Given 想寫入不是 2 小時的 session When write Then 立刻擋下，且不留下任何列", () => {
@@ -88,7 +88,7 @@ describe("M01-US-101 session 持久化", () => {
     expect(() => store.write({ session: tampered, transcriptWrites: 0 })).toThrowError(
       /SESSION_CORRUPT/,
     );
-    expect(store.read()).toBeNull();
+    expect(store.read(STARTED)).toBeNull();
   });
 
   it("M01-Given 想寫入非法 state When 寫入 Then SQLite CHECK 擋下（資料庫層是第二道防線）", () => {
