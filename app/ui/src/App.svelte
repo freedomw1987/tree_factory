@@ -4,6 +4,7 @@
   import MeetingList from "./screens/MeetingList.svelte";
   import MeetingScreen from "./screens/MeetingScreen.svelte";
   import PermissionBlocked from "./screens/PermissionBlocked.svelte";
+  import RecoverPrompt from "./screens/RecoverPrompt.svelte";
   import StartSheet from "./screens/StartSheet.svelte";
 </script>
 
@@ -25,6 +26,8 @@
           <StartSheet />
         {:else if app.view === "permission"}
           <PermissionBlocked />
+        {:else if app.view === "recover"}
+          <RecoverPrompt />
         {/if}
       {:else}
         <section class="empty" data-testid="chat-empty">

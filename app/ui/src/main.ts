@@ -2,7 +2,16 @@ import { mount } from "svelte";
 
 import "./app.css";
 import App from "./App.svelte";
-import { loadMeetings, notifyVisibility, tickMeeting, workerBaseUrl } from "./lib/app.svelte";
+import {
+  discardUnfinished,
+  flushChunks,
+  initRecovery,
+  loadMeetings,
+  notifyVisibility,
+  resumeUnfinished,
+  tickMeeting,
+  workerBaseUrl,
+} from "./lib/app.svelte";
 import { probeIfEnabled } from "./lib/dev/cors-probe";
 
 const target = document.getElementById("app");
@@ -11,6 +20,16 @@ if (target === null) throw new Error("找不到 #app 掛載點");
 mount(App, { target });
 
 void loadMeetings();
+
+// M01-US-102 AC-3：掃本機分段暫存；有未完成的會議會切到恢復畫面（不自動丟棄）。
+// 刻意排在 `loadMeetings()` **之後**：恢復畫面會顯示會議標題（取自同一份清單），
+// 先掃描會在標題還沒回來時就把使用者帶到恢復畫面（畫面閃一下、標題空白）。
+void loadMeetings().then(() => initRecovery());
+
+// AC-2：網路恢復時把還沒送出的分段補送（ChunkQueue 內有 backoff，重複觸發安全）。
+window.addEventListener("online", () => {
+  void flushChunks();
+});
 
 // AC-4：切背景 / 鎖屏必須誠實顯示中斷（webview 在背景不會繼續收音，見 SPIKE-002）。
 document.addEventListener("visibilitychange", () => {
@@ -25,7 +44,15 @@ setInterval(() => tickMeeting(), 1_000);
 // 因此提供明確的鉤子來驅動「中斷 / 到點」這兩條路徑，而不是在測試裡等兩小時。
 if (import.meta.env.DEV) {
   Object.assign(globalThis, {
-    __tf: { notifyVisibility, tickMeeting, loadMeetings },
+    __tf: {
+      notifyVisibility,
+      tickMeeting,
+      loadMeetings,
+      initRecovery,
+      resumeUnfinished,
+      discardUnfinished,
+      flushChunks,
+    },
   });
 }
 

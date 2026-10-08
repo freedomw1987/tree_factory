@@ -57,6 +57,8 @@ export default {
               "GET /m/:meetingId/session",
               "POST /m/:meetingId/session/stop",
               "POST /m/:meetingId/transcript",
+              "POST /m/:meetingId/audio/chunk?seq=",
+              "GET /m/:meetingId/audio/chunks",
               "POST /m/:meetingId/submit",
               "GET /m/:meetingId/wake?ms=",
               "GET /m/:meetingId/release",

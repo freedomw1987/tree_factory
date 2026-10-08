@@ -23,6 +23,7 @@ import {
   type MeetingBindings,
   type OpenMeetingResult,
 } from "./harness/meeting-harness.js";
+import { sha256Hex16 } from "./hash.js";
 import {
   SESSION_ENDED_REASONS,
   acceptsTranscriptWrites,
@@ -33,6 +34,14 @@ import {
   type MeetingSession,
   type SessionEndedReason,
 } from "./session.js";
+import {
+  AUDIO_RETENTION_DAYS,
+  AudioChunkStore,
+  ChunkConflictError,
+  ChunkInvalidError,
+  TranscriptChunkLedger,
+  type ChunkSql,
+} from "./storage/chunk-store.js";
 import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
 
 /** Worker 綁定（含 secret 與 vars）。 */
@@ -144,6 +153,10 @@ export class MeetingDurableObject {
           return await this.#sessionStopRoute(request);
         case "/transcript":
           return await this.#transcriptRoute(request);
+        case "/audio/chunk":
+          return await this.#audioChunkRoute(request, url);
+        case "/audio/chunks":
+          return this.#audioChunkListRoute();
         case "/release": {
           // 照實回報：有 open 正在飛時 release() 會延後（不把即將交出去的 harness 關掉）。
           const decision = await this.#lifecycle.release();
@@ -171,6 +184,13 @@ export class MeetingDurableObject {
       if (error instanceof MissingCredentialError) {
         // AUTH_INVALID 是唯一允許阻斷的錯誤（system-design §5.2）。
         return json({ error: error.code, message: error.message, recoverable: false }, 401);
+      }
+      if (error instanceof ChunkConflictError) {
+        // 同 seq 不同內容：**不覆蓋**（覆蓋會讓已落地的逐字稿與音檔對不上）。
+        return json({ error: error.code, message: error.message, recoverable: false }, 409);
+      }
+      if (error instanceof ChunkInvalidError) {
+        return json({ error: error.code, message: error.message }, 400);
       }
       if (error instanceof UnknownProviderError || error instanceof ModelUnavailableError) {
         // 設定錯誤（provider / 模型 id）：明確講出來，不讓它變成一個含糊的 INTERNAL。
@@ -207,7 +227,7 @@ export class MeetingDurableObject {
     const opened = await this.#lifecycle.onAlarm();
     await opened.root(); // 觸發一次讀取，確認重建後同一場會議讀得回來
     // 正常情況下 `onAlarm()` 已經開完，這裡會真的關掉；萬一延後（有別的 open 在飛），
-    // 也會計進 `stats.deferredReleases` 並在 /health 看得到，不是静默丢掉。
+    // 也會計進 `stats.deferredReleases` 並在 /health 看得到，不是靜默丟掉。
     await this.#lifecycle.release();
   }
 
@@ -219,6 +239,33 @@ export class MeetingDurableObject {
 
   #sessionStore(): SessionStore {
     return new SessionStore(this.#ctx.storage.sql as unknown as SessionSql);
+  }
+
+  /**
+   * DO SQL 的最小介面：`rowsWritten` 是用來判斷 `INSERT OR IGNORE` 到底有沒有寫進去
+   * （＝是否為重送）的唯讀計數；拿不到時 store 會退化成「寫入前是否存在」的判斷。
+   */
+  #chunkSql(): ChunkSql {
+    const sql = this.#ctx.storage.sql as unknown as {
+      exec(query: string, ...bindings: unknown[]): { toArray(): unknown[]; rowsWritten?: number };
+    };
+    return {
+      exec: (query, ...bindings) => {
+        const cursor = sql.exec(query, ...bindings);
+        return {
+          toArray: () => cursor.toArray(),
+          changes: typeof cursor.rowsWritten === "number" ? cursor.rowsWritten : undefined,
+        };
+      },
+    };
+  }
+
+  #chunkStore(): AudioChunkStore {
+    return new AudioChunkStore(this.#chunkSql());
+  }
+
+  #transcriptLedger(): TranscriptChunkLedger {
+    return new TranscriptChunkLedger(this.#chunkSql());
   }
 
   /**
@@ -308,8 +355,59 @@ export class MeetingDurableObject {
   }
 
   /**
-   * 逐字稿寫入守門員（M01-US-101 只負責「該不該收」；內容落地是 M01-US-103）。
-   * DoD 探針就鎖在這裡：2:00 之後一律拒收，且已接受的資料不被刪。
+   * M01-US-102：上傳一段音訊（冪等）。
+   *
+   * `seq` 走 query、內容走 body 原始位元組。為什麼不用 JSON + base64：base64 會膨脹 33%，
+   * 而音訊分段是熱路徑（每 30 秒一次）；原始位元組直送最省。
+   *
+   * 重送（同 seq 同內容）回 `accepted:true, duplicate:true`：對裝置端而言這仍是成功，
+   * 所以不該用 4xx 讓重試邏輯糾結；真正的錯誤（同 seq 不同內容）是 409 SEQ_CONFLICT。
+   */
+  async #audioChunkRoute(request: Request, url: URL): Promise<Response> {
+    const current = this.#readSession(this.#sessionStore());
+    if (current === null) {
+      // 沒開始過的會議就不該有分段（也不該比 session 早到：那代表裝置端順序錯了）。
+      return json({ error: "SESSION_NOT_STARTED", message: "這場會議還沒開始" }, 404);
+    }
+    const rawSeq = url.searchParams.get("seq");
+    if (rawSeq === null || !/^\d+$/.test(rawSeq)) {
+      throw new ChunkInvalidError(`seq 必須是正整數字串，收到 ${JSON.stringify(rawSeq)}`);
+    }
+    const seq = Number(rawSeq);
+    const bytes = await request.arrayBuffer();
+    if (bytes.byteLength === 0) {
+      throw new ChunkInvalidError("分段內容是空的（byteLength=0）");
+    }
+    const contentHash = await sha256Hex16(bytes);
+    const result = this.#chunkStore().record({ seq, byteLen: bytes.byteLength, contentHash, nowMs: this.#now() });
+    return json(result, 201);
+  }
+
+  /**
+   * 恢復對帳用：回報伺服端已收下的分段，以及「下一個還缺的 seq」。
+   * 裝置端用 `expectedNextSeq` 判斷缺段（AC-4 時間軸連續），不必自己推。
+   */
+  #audioChunkListRoute(): Response {
+    const current = this.#readSession(this.#sessionStore());
+    if (current === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "這場會議還沒開始" }, 404);
+    }
+    const store = this.#chunkStore();
+    return json({
+      meetingId: current.session.meetingId,
+      chunks: store.list(),
+      count: store.count(),
+      lastSeq: store.lastSeq(),
+      expectedNextSeq: store.expectedNextSeq(),
+      retentionDays: AUDIO_RETENTION_DAYS,
+    });
+  }
+
+  /**
+   * 逐字稿寫入守門員（M01-US-101）＋ 分段冪等（M01-US-102 AC-4：重送不得產生重複句）。
+   *
+   * 順序刻意是「先守門 → 再認領 seq」：被 2:00 上限或空內文擋下的請求，
+   * 不應該先把 seq 燒掉（否則使用者補上內容後反而被當成重送）。
    */
   async #transcriptRoute(request: Request): Promise<Response> {
     const store = this.#sessionStore();
@@ -317,10 +415,21 @@ export class MeetingDurableObject {
     if (current === null) {
       return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
     }
-    const body = (await request.json().catch(() => ({}))) as { text?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { text?: unknown; chunkSeq?: unknown };
     const text = typeof body.text === "string" ? body.text : "";
     if (text.trim() === "") {
       return json({ error: "EMPTY_CONTENT", message: "逐字稿不得為空" }, 400);
+    }
+    const chunkSeq =
+      typeof body.chunkSeq === "number" && Number.isSafeInteger(body.chunkSeq) ? body.chunkSeq : undefined;
+    if (chunkSeq !== undefined && this.#transcriptLedger().has(chunkSeq)) {
+      // 重送：不是錯誤，但也不得增加計數（＝不會產生第二句）。
+      return json({
+        accepted: false,
+        duplicate: true,
+        chunkSeq,
+        transcriptWrites: current.transcriptWrites,
+      });
     }
     if (!acceptsTranscriptWrites(current.session, this.#now())) {
       const status = sessionStatus(current.session, this.#now());
@@ -336,6 +445,15 @@ export class MeetingDurableObject {
         409,
       );
     }
+    if (chunkSeq !== undefined && !this.#transcriptLedger().claim(chunkSeq, this.#now())) {
+      // 競態：另一個並行請求先認領了同一個 seq。
+      return json({
+        accepted: false,
+        duplicate: true,
+        chunkSeq,
+        transcriptWrites: current.transcriptWrites,
+      });
+    }
     const next: SessionSnapshot = {
       session: current.session,
       transcriptWrites: current.transcriptWrites + 1,
@@ -343,8 +461,10 @@ export class MeetingDurableObject {
     store.write(next);
     return json({
       accepted: true,
+      duplicate: false,
+      chunkSeq: chunkSeq ?? null,
       transcriptWrites: next.transcriptWrites,
-      note: "逐字稿內容的落地由 M01-US-103 接上；這裡只驗證寫入守門員。",
+      note: "逐字稿內容的落地由 M01-US-103 接上；這裡只驗證寫入守門員與分段冪等。",
     });
   }
 
