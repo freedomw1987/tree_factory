@@ -6,6 +6,8 @@
 // 這個驗收條件只有「母行程手動跑過」的證據，重構會**靜默**改變結論。
 // 修法：把純函式抽到 `scripts/cors-probe-lib.mjs`，由這個檔案守門。
 
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -127,6 +129,17 @@ describe("M01-TECH-010 cors-probe 的判斷邏輯", () => {
     ].join("\n");
     expect(devOrigins(source)).toEqual(["http://localhost:1420", "tauri://localhost"]);
     expect(devOrigins("const DEV_ORIGINS = 42;")).toBeNull();
+    // reviewer 第三輪（覆蓋率備註）：上面的 source 是字串常量，格式真的漂移時它不會紅。
+    // 補一條「餵真的 `src/cors.ts`」——釘住「單一真相來源」這個宣稱本身。
+    const real = readFileSync(new URL("../src/cors.ts", import.meta.url), "utf8");
+    expect(devOrigins(real)).toEqual([
+      "http://localhost:1420",
+      "http://127.0.0.1:1420",
+      "http://localhost:4173",
+      "http://127.0.0.1:4173",
+      "tauri://localhost",
+      "http://tauri.localhost",
+    ]);
   });
 
   it("M01-TECH-010-Given 清單解析出 0 筆 When 決定要測哪些來源 Then 報錯（不靜默退化成只剩漂移對照組）", () => {

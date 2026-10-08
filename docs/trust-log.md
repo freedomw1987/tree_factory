@@ -801,6 +801,8 @@ UI 單元 / E2E **本輪未重跑**——本輪只動 `worker/scripts/*` 與 `do
 5. **P2-5**：`exitCodeFor([])`→2、`hint([])`→「沒有來源可測」（不可達，但純函式不該給綠的方向）。
 
 **P2-4／P2-5 的斷言都塞進既有 `it()`**，所以不新增測試條數 → 不引發新一輪數字連鎖。
+6. **覆蓋率備註**：`devOrigins` 只被餵字串常量 → 補「餵真的 `worker/src/cors.ts`」的斷言（塞進既有 `it()`），
+   並用「`1420`→`1421`」突變證明它會紅（**1 紅**，非空砲）。
 
 **本輪實測**：worker **294 passed（22 檔）**；`cors.test.ts` 32 ＋ `cors-probe-lib.test.mjs` 13 = **45**；
 `tsc --noEmit` = 0；markdownlint **69 檔 0 issues**；`REGRESSION_MODULE=M01` **passed=245 failed=0**。
