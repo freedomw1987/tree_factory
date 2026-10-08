@@ -29,16 +29,22 @@ if (import.meta.env.DEV) {
   });
 }
 
-// TECH-006：真實 webview 內的 CORS 實證（只有 `VITE_CORS_PROBE=1` 時才會跑）。
+// TECH-006：真實 webview 內的 CORS 實證。
+//
 // 為什麼要在 app 裡做而不是用 curl：只有跑在 webview 裡的程式知道 webview 送出的 Origin。
-void (async () => {
-  const report = await probeIfEnabled(import.meta.env.VITE_CORS_PROBE, workerBaseUrl());
-  if (report === null) return;
-  const pre = document.createElement("pre");
-  pre.dataset.testid = "cors-probe";
-  pre.textContent = `[TECH-006 CORS 探針]\n${report}`;
-  pre.style.cssText =
-    "position:fixed;inset:auto 0 0 0;margin:0;padding:12px;font:12px/1.5 ui-monospace,monospace;" +
-    "background:#131A22;color:#E8EEF5;border-top:1px solid #28323D;white-space:pre-wrap;z-index:99";
-  document.body.append(pre);
-})();
+// 為什麼用 top-level 的**常數**判斷（而不是傳旗標進函式）：vite 可以把整段
+// 移除（tree-shake），未設旗標的 production build 就不會帶探針程式碼（Gate 4 第 1 輪 P2 的修正；
+// 舊寫法雖然不執行，但程式碼與 `session/start` 字串仍留在 bundle 裡）。
+if (import.meta.env.VITE_CORS_PROBE === "1") {
+  void (async () => {
+    const report = await probeIfEnabled("1", workerBaseUrl());
+    if (report === null) return;
+    const pre = document.createElement("pre");
+    pre.dataset.testid = "cors-probe";
+    pre.textContent = `[TECH-006 CORS 探針]\n${report}`;
+    pre.style.cssText =
+      "position:fixed;inset:auto 0 0 0;margin:0;padding:12px;font:12px/1.5 ui-monospace,monospace;" +
+      "background:#131A22;color:#E8EEF5;border-top:1px solid #28323D;white-space:pre-wrap;z-index:99";
+    document.body.append(pre);
+  })();
+}
