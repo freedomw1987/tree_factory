@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app, openStartSheet, sortedMeetings } from "../lib/app.svelte";
+  import Icon from "../lib/ui/Icon.svelte";
   import { formatClock } from "../lib/recorder/limit";
 
   const items = $derived(sortedMeetings());
@@ -35,7 +36,7 @@
   <p class="dim">載入列表…</p>
 {:else if items.length === 0}
   <section class="empty" data-testid="list-empty">
-    <p class="big">🎙️</p>
+    <p class="big"><Icon name="mic" size={38} /></p>
     <h2>還沒有任何會議</h2>
     <p class="dim">第一場會議開完之後，逐字稿、摘要與待辦都會出現在這裡。</p>
   </section>
@@ -138,8 +139,9 @@
   }
 
   .big {
-    font-size: 40px;
+    /* 圖示自帶尺寸（DESIGN §5 規則 8：空狀態 38pt），這裡只管間距。 */
     margin: 0 0 var(--space-3);
+    line-height: 0;
   }
 
   .empty h2 {

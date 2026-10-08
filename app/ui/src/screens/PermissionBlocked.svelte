@@ -1,5 +1,6 @@
 <script lang="ts">
   import { backToList, openStartSheet, rec } from "../lib/app.svelte";
+  import Icon from "../lib/ui/Icon.svelte";
 </script>
 
 <!--
@@ -7,7 +8,8 @@
   這裡刻意是「阻斷頁」而不是一個 toast：沒有麥克風就沒有這個產品，含糊帶過等於騙使用者。
 -->
 <section class="blocked" data-testid="perm-blocked">
-  <p class="big" aria-hidden="true">🎙️</p>
+  <!-- 圖示對齊原型：權限被拒用 `ban`（`docs/prd/01-listen.html` 的空狀態／權限頁）。 -->
+  <p class="big" aria-hidden="true"><Icon name="ban" size={38} /></p>
   <h2>沒有麥克風權限</h2>
   <p>{rec.snapshot.notice?.message ?? "本 App 需要麥克風權限才能錄製會議內容。"}</p>
 
@@ -35,8 +37,9 @@
   }
 
   .big {
-    font-size: 40px;
+    /* 圖示自帶尺寸（DESIGN §5 規則 8：空狀態 38pt），這裡只管間距。 */
     margin: 0 0 var(--space-3);
+    line-height: 0;
   }
 
   h2 {

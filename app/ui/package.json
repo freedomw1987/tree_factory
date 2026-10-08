@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run && npm run check:icons",
     "test:e2e": "playwright test",
     "regression": "vitest run -t M01",
+    "check:icons": "node scripts/check-design-icons.mjs",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --threshold error",
-    "lint": "svelte-check --tsconfig ./tsconfig.json --threshold warning"
+    "lint": "svelte-check --tsconfig ./tsconfig.json --threshold warning && npm run check:icons"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

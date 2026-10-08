@@ -168,7 +168,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | DONE（`docs/spike/SPIKE-003.md`）| SPIKE-001 |
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
-| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | **DONE**（2026-10-09：**iPhone 12 mini 真機驗收通過** —— webview 來源 `tauri://localhost` allowed=true、使用者實機走完「開始→錄音中→長按結束」；過程中修好 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、「`100dvh` 溢出、外框高度未定致逐字稿撐開畫面），新增 5 條不變式 + 3 條 iPhone 尺寸 E2E；現況 **E2E 9 / 單元 54 / M01 回歸 40+14 / worker 132 全綠**；Gate 4 兩輪獨立稽核後經用戶裁決通過；後續缺口已轉票 TECH-006 ~ 010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
+| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | **DONE**（2026-10-09：**iPhone 12 mini 真機驗收通過** —— webview 來源 `tauri://localhost` allowed=true、使用者實機走完「開始→錄音中→長按結束」；過程中修好 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、「`100dvh` 溢出、外框高度未定致逐字稿撐開畫面），新增 5 條不變式 + 3 條 iPhone 尺寸 E2E；現況 **E2E 11 / 單元 75 / M01 回歸 40+35 / worker 132 全綠**；Gate 4 兩輪獨立稽核後經用戶裁決通過；後續缺口已轉票 TECH-006 ~ 010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
@@ -212,13 +212,14 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING（**部分已交付 2026-10-09**：`e2e/iphone-viewport.spec.ts` 已覆蓋 iPhone 390×844 + 注入安全區的 3 條（開始會議可及、結束會議可及、長逐字稿不得推走按鈕）；**仍待**：其餘畫面（會議列表 / 開始 sheet / 權限阻斷頁）在手機寬度的溢出與點擊區檢查、橫向排列）| M01-US-101 |
 | **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
 | **TECH-009** | TECH | — | worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）| — | P1 | 3 | PENDING | M01-US-101 |
+| **TECH-011** | TECH | — | app 實作對齊 `DESIGN.md` §5 規則 8：emoji icon → inline SVG `Icon` 元件（`app/ui` 5 處）| — | P2 | 2 | **DONE**（2026-10-09：5 處 emoji → `Icon`（chat/mic/ban，圖形取自原型 `IP` 表逐字元相同）；三層守門（`scripts/check-design-icons.mjs` 全檔含 `.css`＋原型同源 / `icon.test.ts`＋`emoji.ts` / `icon-component.test.ts`＋E2E）；Gate 4 獨立稽核 P0/P1=0，另 8 條 P2 經用戶裁決修 6 條；`dist` 正式 bundle 實測 0 emoji）| M01-US-101 |
 
-**合計**：**181 SP / 51 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
-P1 = 41 SP、P2 = **15 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪 +6 平移）
+**合計**：**183 SP / 52 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
+P1 = 41 SP、P2 = **17 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪 +6 平移）
 
 **Module 分佈實算**（含掛在該 Module 的 SPIKE）：M01 = **54 SP**（含 SPIKE-001/002/002b）、M02 = **42 SP**
-（含 SPIKE-003/004/004b）、M03 = **33 SP**（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）、INT = 8 SP、TECH = **17 SP**
-（TECH-001~010）。合計 181 SP。
+（含 SPIKE-003/004/004b）、M03 = **33 SP**（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）、INT = 8 SP、TECH = **19 SP**
+（TECH-001~011）。合計 183 SP。
 
 > **SPIKE-002 / 004 造成的計畫變動**：新增 12 項 / 34 SP（含反思轉出的 2 項），其中 8 項是 P0
 > —— 因為兩個 spike 各揭露一個「原本以為沒問題、其實不成立」的前提
@@ -818,6 +819,8 @@ P1 = 41 SP、P2 = **15 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP�
 
 | 版本 | 日期 | 變動 | 為什麼 |
 | --- | --- | --- | --- |
+| **v2.7** | **2026-10-09** | **TECH-011 → DONE**（emoji → `Icon` 元件 + 三層守門）；依 Gate 4 複驗修正 6 條 P2：①新增 `scripts/check-design-icons.mjs`（掃 `src/**` 含 `.css`、驗原型同源；掛進 `npm test` / `npm run lint`）②去註解改逐字元掃描器並抽成 `emoji.ts`（自帶 11 條測試）③ `@html` 查表限自有鍵 ④`DESIGN.md` §3 的 8 處 emoji 改 `Icon(name)` ⑤更正本檔失真的測試數字；**SP 不變**（183 SP）| 用戶裁決「現在修守門缺口 4 條 + 文件 2 條」：守門會漏＝等於沒有守門（checker 實測 `.css` 注入 emoji 時 vitest 仍 4 passed）；DESIGN §3 與 §5 規則 8 自相矛盾 |
+| **v2.6** | **2026-10-09** | 新增 **TECH-011**（app 實作對齊 `DESIGN.md` §5 規則 8「圖示一律 inline SVG、禁用 emoji」：`app/ui` 5 處 emoji icon → `Icon` 元件，2 SP / P2）→ 合計 181 → **183 SP**、P2 15 → **17 SP**、TECH 17 → **19 SP** | 規則早在 2026-10-07（DESIGN v2.2）就已立、PRD 原型也照做了，獨漏 app 實作 → 補齊並加靜態守門測試（避免再次無聲退化）|
 | **v2.5** | **2026-10-09** | **M01-US-101 → DONE**（iPhone 12 mini 真機驗收通過）；TECH-006 → DONE（併入同一次真機驗收）；TECH-007 標記「部分已交付」（iPhone 尺寸 E2E 3 條 + 外框高度不變式）；**SP 不變**（174 SP）| 真機驗收暴露出 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、`100dvh` 溢出、外框高度未定致逐字稿撐開畫面）；修好才算真的滿足 AC-1 / AC-2，屬原票範圍內的修正，不追加 SP |
 | **v2.4** | **2026-10-08** | M01-US-101 開工後**計畫修正**：SP 5 → **8**（原估只算「UI 一顆按鈕」，未計入 app 前端外殼、伺服端權威時間軸（DO session + alarm）、跨來源 CORS）→ 合計 171 → **174 SP**、P0 122 → **125 SP**、階段 A 104 → **107 SP**；狀態改 IN PROGRESS（真機驗收待用戶）| 依 SOP「SP 變動必留痕」：估錯要寫下來，不能默默吃掉多做的 3 SP |
 | **v2.3** | **2026-10-08** | §2.4 反思轉票：新增 **M01-US-109**（聚段規則 TDD，3 SP / P0）、**TECH-005**（探針退場，1 SP / P2）→ 合計 167 → **171 SP** | 反思維度「測試覆蓋率」「技術債」各轉出一張票（不可只寫在報告裡）|

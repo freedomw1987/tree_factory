@@ -151,3 +151,33 @@ test("AC-3：麥克風被拒時進阻斷頁、明說原因並給設定指引（�
   await expect(page.getByTestId("perm-blocked")).toContainText("設定");
   await expect(page.getByTestId("btn-perm-retry")).toBeVisible();
 });
+
+test("圖示一律 inline SVG，不是 emoji（DESIGN.md §5 規則 8 / TECH-011）", async ({ page }) => {
+  // 會議列表空狀態：圖示必須是 <svg>，且文字節點裡不得夾帶 emoji
+  await expect(page.getByTestId("list-empty")).toBeVisible();
+  await expect(page.getByTestId("list-empty").locator("svg")).toBeVisible();
+  const emptyText = await page.getByTestId("list-empty").innerText();
+  expect(emptyText).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u);
+
+  // 底部 tab bar：兩個分頁都要有 svg 圖示，文字只留標籤
+  await expect(page.getByTestId("tab-meetings").locator("svg")).toBeVisible();
+  await expect(page.getByTestId("tab-chat").locator("svg")).toBeVisible();
+  await expect(page.getByTestId("tab-meetings")).toHaveText("會議");
+
+  // 對話首頁空狀態（38pt 大圖示）
+  await page.getByTestId("tab-chat").click();
+  await expect(page.getByTestId("chat-empty")).toBeVisible();
+  await expect(page.getByTestId("chat-empty").getByTestId("icon-chat")).toBeVisible();
+});
+
+test("權限被拒頁的圖示也是 SVG（原型同源：ban）", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
+  });
+  await page.reload();
+
+  await submitStart(page, "E2E 圖示測試");
+  await expect(page.getByTestId("perm-blocked")).toBeVisible();
+  await expect(page.getByTestId("icon-ban")).toBeVisible();
+});

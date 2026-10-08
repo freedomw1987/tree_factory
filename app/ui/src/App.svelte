@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app, dismissToast, setTab } from "./lib/app.svelte";
+  import Icon from "./lib/ui/Icon.svelte";
   import MeetingList from "./screens/MeetingList.svelte";
   import MeetingScreen from "./screens/MeetingScreen.svelte";
   import PermissionBlocked from "./screens/PermissionBlocked.svelte";
@@ -27,7 +28,7 @@
         {/if}
       {:else}
         <section class="empty" data-testid="chat-empty">
-          <p class="big">💬</p>
+          <p class="big"><Icon name="chat" size={38} /></p>
           <h2>還沒有資料可以問</h2>
           <p class="dim">等你開完第一場會議，就能問我「上次決定了什麼」。</p>
         </section>
@@ -41,7 +42,7 @@
         class:active={app.tab === "meetings"}
         onclick={() => setTab("meetings")}
       >
-        <span aria-hidden="true">📝</span>
+        <span aria-hidden="true"><Icon name="mic" /></span>
         <span>會議</span>
       </button>
       <button
@@ -50,7 +51,7 @@
         class:active={app.tab === "chat"}
         onclick={() => setTab("chat")}
       >
-        <span aria-hidden="true">💬</span>
+        <span aria-hidden="true"><Icon name="chat" /></span>
         <span>對話</span>
       </button>
     </nav>
@@ -124,8 +125,10 @@
   }
 
   .empty .big {
-    font-size: 40px;
+    /* 圖示自帶尺寸（DESIGN §5 規則 8：空狀態 38pt），這裡只管間距；
+       line-height: 0 避免 inline SVG 的基線留白影響與下方文字的距離。 */
     margin: 0 0 var(--space-3);
+    line-height: 0;
   }
 
   .empty h2 {
