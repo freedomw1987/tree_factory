@@ -668,3 +668,87 @@ UI 回歸 **188 passed**；Playwright **35 passed（41.2s）**（`--output=/tmp/
 `docs/deliverable/2026-10-09-TECH-008-session讀取帶now時間.md`、`worker/test/session-clock.test.ts`（新）
 ＋ `session.ts` / `session-store.ts` / `meeting-do.ts` / `session-store.test.ts`；
 `docs/backlog.md`（TECH-008 → DONE、新增 TECH-014、changelog v2.10/v2.11）；本檔。
+
+## 2026-10-09 05:40 — TECH-010（CORS 埠漂移的診斷）trust mode 收官
+
+**為什麼挑這一票**：TECH-008 收官後距 deadline（07:00）還有約 1 小時 20 分，
+在剩下的預算裡挑了 backlog 上**最小、且完全在 worker 內**的 P2（1 SP）——
+不碰 UI、不需要 E2E 變更、不需要新依賴。
+
+**問題**：dev server 埠漂移（1420 → 1421）時白名單沒中 → 瀏覽器整包擋掉 → 前端只看到
+`Failed to fetch`，**與「請求根本沒送到」同症狀**。TECH-006 已有 `[cors] allowed=false` 的
+事件記錄，但證據落在 **server log**，而開發者的第一現場是 DevTools；且 CORS 失敗時 JS
+**讀不到 body**——現場唯一還看得見的是**回應標頭**。
+
+**決策（寫進設計 D1~D6，每條都有可推翻條件）**：
+- D1 診斷走**回應標頭**（不改 status/body；改 status 會破壞既有契約、回 body 對 JS 無效）。
+- D2 **沿用** `DEBUG_ORIGINS=1`，不新增第二個旗標（兩個開關必然出現假陰性）。
+- D3 只回「對方自己送的 Origin」＋一個布林，**不回白名單**（否則等於送攻擊者清單）。
+- D4 只加標頭；`withDiagnostics({})` **原樣回傳同一個 Response**（未開旗標零足跡可斷言）。
+- D5 腳本 `cors-probe.mjs` 的清單**從 `src/cors.ts` 解析**（單一真相來源，解析失敗 exit 2）；
+  預設附一個**刻意漂移的來源** `:1421` 當對照組；離開碼 `0` 全過 / `1` 有被擋 / `2` 打不到。
+- D6 適用範圍：腳本只重播 wire；**真的 webview 實測不腳本化**。
+
+**最重要的一條誠實界定**（母行程自己縮小原票敘述）：原票寫「`allowed=false` 不再與正式被擋同症狀」，
+但實情是**前端 JS 仍讀不到這些標頭**（CORS 失敗時 `fetch` 直接 reject、`response.headers` 不存在），
+所以「同症狀」只是**降級**成「DevTools 一眼可辨」，**不是消滅**；受益者是**開發者**，不是裝置端程式。
+另外「webview 實測流程腳本化」只做了 **wire 層**那一半。兩條都寫進 AC 的「誠實範圍界定」與交付文 §4。
+
+**證據**：Gate 1 紅 `10 failed | 15 passed (25)` → 綠 `25 passed`（新增 10 條）；
+Gate 2 `tsc --noEmit` exit 0、lint **68 檔 0 issues**；Gate 3 worker **274 passed（21 檔）**、
+M01 回歸 **passed=225 failed=0**；真 workerd **兩顆**（8807 開旗標：6 個 dev 來源 `allowed=true`、
+`:1421` `⛔ allowed=false`、離開碼 1；8808 未開旗標：無診斷標頭、離開碼 0；8807 log 14 行 `[cors]`）。
+Gate 4：reviewer（靜態）＋ oracle（執行對抗）並行只讀（run `f1866044-…`）。
+
+**產出**：`docs/ac/TECH-010.md`、`docs/design/TECH-010-cors-diagnostic-headers.md`、
+`docs/deliverable/2026-10-09-TECH-010-CORS埠漂移診斷.md`、`worker/scripts/cors-probe.mjs`（新）
+＋ `worker/src/cors.ts` / `worker/src/index.ts` / `worker/test/cors.test.ts`；
+`docs/backlog.md`（TECH-010 → DONE（部分：wire 層）、changelog v2.12）；本檔。
+
+## 2026-10-09 05:50 — TECH-010 Gate 4 裁決的處置（P1 + 3×P2 + 2×審查 P2）
+
+**兩條通道的裁決**：reviewer（靜態，`e32d4095-…`）＝**可合併（附註）**；
+oracle（執行對抗，`31bd2e51-…`）＝**需修正後合併**（0 P0、**1 P1**、3 P2）。
+照 trust mode 的「不做半成品」紀律，**P1 一律修完才 commit**，P2 全部當輪修完（不轉票），
+理由是：三條 P2 都是**這一票自己新開的**面（回顯輸入 / 快取變化 / 解析退化），
+留給下一個人等於留一個「上線後才會被發現」的坑。
+
+### 決策
+
+- **D7（oracle P1 → 必修正確做法）**：把 `cors-probe.mjs` 的判讀／離開碼／參數／清單解析抽成
+  `scripts/cors-probe-lib.mjs` 純函式，配 `test/cors-probe-lib.test.mjs`（11 條），IO 留原地。
+  **不採用**的替代方案：①只加註解承認沒測（等於把 P1 轉成永久風險）；
+  ②用 bash 腳本包一層黑箱測試（脆弱且要起 wrangler，違反測試快速原則）；
+  ③把 `scripts/**` 拉進 `tsconfig`（治不了「沒有斷言」這件事，且可能拖進一堆 node 型別問題）。
+  **不做**的更遠方案：改 TS 執行腳本（超出 1 SP）。
+- **D8（oracle P2-1）**：加 `safeHeaderOrigin`，只放行 `\x20`–`\x7e`、長度 ≤255，其餘 `(invalid)`；
+  白名單比對仍用**原始** Origin（淨化不得改變放行判斷）。
+- **D9（oracle P2-2）**：`withDiagnostics` 在標頭非空時確保 `Vary` 含 `origin`（不重複、不覆蓋）。
+- **D10（oracle P2-3）**：`resolveOrigins` 對「區塊找不到」與「解析出 0 筆」都回錯誤 → `exit 2`。
+- **D11（reviewer P2）**：TECH-010 註解塊搬到 TECH-006 JSDoc 之前，保住 `corsDebugLine` 的文件；
+  文件條數一律改成**實測值**（17 條 + 11 條 lib 測試）。
+
+### 心得（要傳給下一個人的）
+
+1. **「有驗收條件」不等於「有守門」**：AC-5 寫了「離開碼 0/1/2」，但邏輯在 `.mjs`、不在 typecheck、
+   也沒有測試——oracle 的 M5 把它變成全綠假象。**驗收條件必須落在會被自動化檢驗的地方**，
+   否則重構會靜默改結論。這條比本票的功能本身更值得記住。
+2. **審查會問「你新加了什麼」**：D8/D9 兩條都不是「你的程式寫錯了」，而是
+   「你這票新增了一個回應標頭是對手的輸入」→ 於是淨化／`Vary` 成為這票的責任。
+3. **重構後一定要真跑一次**：`node --check` 抓不到「重複宣告」，這次靠**實跑腳本**
+   才發現 `SyntaxError: Identifier 'base' has already been declared`。
+
+### 證據（處置後重跑）
+
+- Gate 1 突變（每一條都證明測試真的在守）：M1=2 紅、M2=7 紅、M3=1 紅、M4=1 紅、
+  **M5 送審前 0 紅（存活）→ 拆檔後 5 紅**、M6=1 紅、M7=2 紅、M8=1 紅；基線 43 綠，還原後 md5 相同。
+- Gate 2：`tsc --noEmit` exit 0；lint **68 檔 0 issues**。
+- Gate 3：worker **292 passed（22 檔）**（`cors.test.ts` 32、`cors-probe-lib.test.mjs` 11）；
+  M01 回歸 **passed=243 failed=0**。
+- 真 workerd（**8809**，開旗標）：`cors-probe.mjs` 6 個 dev 來源 `allowed=true`、`:1421` `⛔ false`、
+  **exit 1**；對不存在的埠 **exit 2**；`curl -D -` 看到 `Vary: origin`；raw socket 送 VT →
+  `x-cors-origin: (invalid)`。
+- Gate 4 兩條通道的結論、逐項發現與處置表：交付文 §5。
+
+**未做（維持誠實）**：真的 webview 實測仍未腳本化；`scripts/**` 仍不在 typecheck；
+`withDiagnostics` 對串流 body 未實測；`(invalid)` 不是對方原文。
