@@ -23,9 +23,9 @@ export const LIMIT_WARN_LEAD_MS = 5 * 60 * 1000;
  * 而會議的開始時間是**寫死的**。若要求 `started_at_ms <= now` 嚴格成立，
  * 一次秒級的時鐘回調就會讓整場會議讀不出來。
  *
- * 為什麼 60 秒就夠：真正要擋的是「同量平移」（把 `started_at` / `ends_at` 一起往後推），
- * 那是小時級 ~ 年級的位移；60 秒相對 2 小時上限只有 0.8%，
- * 且與逐字稿的 `TRANSCRIPT_SKEW_TOLERANCE_MS` 同數量級、遠小於 `LIMIT_WARN_LEAD_MS`。
+ * 60 秒的角色（Gate 4 oracle 校正後）：它只是**未來方向**的緩衝，**不是**「被擋掉的平移量」。
+ * 被放行的平移量是 `elapsed + 60s` —— 詳見 `sessionClockViolation` 上方的 `違規 ⟺ Δ > elapsed + TOL`。
+ * 數量級參考：與逐字稿的 `TRANSCRIPT_SKEW_TOLERANCE_MS` 同級、遠小於 `LIMIT_WARN_LEAD_MS`。
  */
 export const SESSION_CLOCK_TOLERANCE_MS = 60_000;
 

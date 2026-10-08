@@ -180,7 +180,7 @@ describe("M01-TECH-008 session 讀取的時間合理性", () => {
     expect(store.read(STARTED - 30_000)?.session.startedAtMs).toBe(STARTED);
   });
 
-  it("M01-TECH-008 Given DO 的 session 被同量平移 When GET /session Then 500 且 error=SESSION_CORRUPT", async () => {
+  it("M01-TECH-008 Given DO 的 session 剛開始錄音（elapsed 0）被平移 1 小時 When GET /session Then 500 且 error=SESSION_CORRUPT", async () => {
     const { durable, db } = doDevice();
     expect((await call(durable, "/session/start", {})).status).toBe(201);
     shiftSessionBy(db, 60 * 60 * 1000);
