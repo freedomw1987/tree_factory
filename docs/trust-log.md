@@ -752,3 +752,37 @@ oracle（執行對抗，`31bd2e51-…`）＝**需修正後合併**（0 P0、**1 
 
 **未做（維持誠實）**：真的 webview 實測仍未腳本化；`scripts/**` 仍不在 typecheck；
 `withDiagnostics` 對串流 body 未實測；`(invalid)` 不是對方原文。
+
+## 2026-10-09 06:05 — TECH-010 第二輪複驗（處置後）→ 修殘留 P2-1／P2-2
+
+**背景**：05:50 的處置（P1 + 3×P2 + 2×審查 P2）已 commit，但「處置後的 patch」還沒被獨立複驗過。
+06:00 起跑 workflow `6c274327-ba99-476d-87d9-40039bd94208`（reviewer 靜態 + oracle 執行，只讀），
+審 `/tmp/tech10-round2.patch` = `git diff 09bdb04..1565430`（11 檔、+1160/−9）。
+
+**判讀**：
+
+- **oracle2（`b58415b5-812d-48b1-adfb-ae737fb1826c`）= 可合併（附註）**：第一輪 P1 **確實修好**——同一突變
+  （`verdict()` 一律回 `allowed`）由「0 紅」變 **5 紅**；另 3 條突變（取消淨化／不加 `Vary`／0 筆不報錯）
+  = 1／2／1 紅；8821 實測漂移來源有 `Vary: origin` + `x-cors-allowed: false` 且**無**
+  `access-control-allow-origin`；8822（未開旗標）**連 `Vary` 都沒有**（零足跡比原文件宣稱更強）；
+  raw socket VT → `(invalid)`。
+- **reviewer2（`854d41af-9816-4b82-8f3c-8610256639b1`）= 06:05 時仍在跑，未回**。**不假裝它回來了**。
+
+**殘留與處置（同一輪修完）**：
+
+- **P2-1**：文件寫「新增 17 條（入口 6）」，實測 **18 條（入口 7）**（= 32 − 14 既有；
+  `grep -c 'it("M01-TECH-010'` = 18）。→ AC／設計／交付文／backlog 全部更正；
+  設計文件補上「首批 11 條（10 紅 + 1 條實作前就綠）」的算術。
+- **P2-2**：worker 已有 `ALLOWED_ORIGINS` 覆寫時，預設清單全紅而提示卻叫你去「設定 ALLOWED_ORIGINS」
+  → 追不存在的漂移。→ 收尾提示抽成 `hint()` 純函式並分支（沒開旗標就直說「無法分辨漂移與覆寫，
+  請用 `--origin`」）＋ 2 條測試；真 workerd **8828**（`ALLOWED_ORIGINS=tauri://localhost`、未開旗標）
+  實測：離開碼 **1**、提示為新文案。
+- **P3**（>255 ASCII 來源 → `allowed=true` + `x-cors-origin: (invalid)` 自相矛盾）：只記錄進設計 D7，不修。
+- **P3（推論）**：腳本分不出「被擋」與「打得到但回應異常」（冷啟看過一次 500）：記錄、未定級更高。
+
+**決策**：不在這一輪開新票。理由：距離 deadline（07:00，內部截止 06:30）剩不到 30 分鐘，
+任何新票都無法完成完整 SOP 的 4 個 Gate——**開一半的票比不開更糟**（違反「不交半成品」）。
+
+**驗證（本輪實測，非宣稱）**：worker **294 passed（22 檔）**（`cors.test.ts` 32 + `cors-probe-lib.test.mjs` 13）；
+`tsc --noEmit` exit 0；markdownlint **68 檔 0 issues**；`REGRESSION_MODULE=M01` **passed=245 failed=0**。
+UI 單元 / E2E **本輪未重跑**——本輪只動 `worker/scripts/*` 與 `docs/*`，未觸及 `app/`（誠實聲明，不冒充驗過）。

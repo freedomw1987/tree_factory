@@ -83,6 +83,10 @@ oracle 用 raw socket 實測：workerd 會擋掉含 CR/LF（obs-fold）與 NUL �
 **可推翻條件**：若某天要支援非 ASCII 的 Origin（IDN / punycode 混合寫法），
 這個白名單就會擋掉合法值——那時要改成 RFC 允許的字元集，而不是放寬成「什麼都收」。
 
+**已知邊角（第二輪 oracle P3）**：若 `ALLOWED_ORIGINS` 設了一個 **>255 字元的 ASCII 來源**，
+同一個 `Origin` 會拿到 `access-control-allow-origin`（放行）但 `x-cors-origin: (invalid)`
+（淨化上限）→ 診斷看起來自相矛盾。實務上瀏覽器不會送這種 Origin，故只記錄、不修。
+
 ### D8 — 診斷標頭非空時一併帶 `Vary: origin`（Gate 4 oracle P2-2）
 
 診斷標頭的**值**隨請求的 `Origin` 變動，若回應沒有 `Vary: origin`，
@@ -111,28 +115,37 @@ oracle 用 raw socket 實測：workerd 會擋掉含 CR/LF（obs-fold）與 NUL �
 並印出誤導訊息；現在 `resolveOrigins` 明確回錯誤 → `exit 2`。
 **可推翻條件**：若未來腳本改用 `tsx`/bundler 直接跑 TS，這段拆檔就沒必要，可收回單一檔案。
 
+**第二輪 oracle P2-2 的補丁（`hint()`）**：預設清單來自**原始碼**的 `DEV_ORIGINS`，
+但 runtime 可能被 `ALLOWED_ORIGINS` 覆寫——此時預設清單全紅，而第一版提示卻說
+「請設定 `ALLOWED_ORIGINS`」（**它已經設了**），把人送去追不存在的埠漂移。
+現在 `hint()` 會先看「有沒有任何一列的診斷標頭可用」：沒開旗標＝成因無法分辨，
+就直說「可能被 `ALLOWED_ORIGINS` 覆寫，請用 `--origin` 指定實際來源」。
+**殘留（誠實）**：若**開了旗標又同時覆寫**，提示仍指向「設定／更新 `ALLOWED_ORIGINS`」——
+要真正分辨，得讓 worker 回報「這次用的是哪一份清單」，本票不做。
+
 ## 變更範圍
 
 | 檔案 | 性質 |
 | --- | --- |
 | `worker/src/cors.ts` | 新增 `corsDiagnosticHeaders`、`safeHeaderOrigin`、`withDiagnostics`（含 `Vary: origin`） |
 | `worker/src/index.ts` | 入口計算一次 `diagnostic`，preflight / 首頁 / DO 轉發三條回傳路徑都套上 |
-| `worker/test/cors.test.ts` | 新增 17 條（純函式 7、合併 4、入口 6） |
+| `worker/test/cors.test.ts` | 新增 18 條（純函式 7、合併 4、入口 7） |
 | `worker/scripts/cors-probe.mjs` | 新增（CLI 重播；IO 只在這裡） |
-| `worker/scripts/cors-probe-lib.mjs` | 新增（純函式：參數／判讀／離開碼／清單解析，供測試 import） |
-| `worker/test/cors-probe-lib.test.mjs` | 新增 11 條（D9：讓「離開碼 0/1/2」有自動化守門） |
+| `worker/scripts/cors-probe-lib.mjs` | 新增（純函式：參數／判讀／離開碼／清單解析／收尾提示，供測試 import） |
+| `worker/test/cors-probe-lib.test.mjs` | 新增 13 條（D9：讓「離開碼 0/1/2」有自動化守門；含 2 條 `hint`） |
 
 ## 測試策略（Gate 1）
 
-- 先寫測試後寫程式：第一批紅燈 `10 failed | 15 passed (25)`（新 10 條全紅、既有 15 條綠），
-  實作後 `25 passed`。
+- 先寫測試後寫程式：第一批紅燈 `10 failed | 15 passed (25)`——**新 11 條**（10 紅 ＋ 1 條在實作前就成立：
+  「未開旗標 → 打漂移來源完全沒有診斷標頭」，見 `/tmp/tech10-gate1-red.log`），**既有 14 條**綠；實作後 `25 passed`。
 - Gate 4 reviewer（靜態）指出覆蓋細節、oracle（執行對抗）指出三條新引入的硬化空間 →
   再補 **7 條**：`debugFlag = "true"`／`"1 "` 仍回空（判斷不寬鬆）、白名單命中的 **OPTIONS** 要同時有
   `x-cors-allowed: true` 與 `access-control-allow-origin`、未開旗標時 **DO 轉發路徑**（POST）
   `x-cors-origin` 為 `null`、`safeHeaderOrigin` 對垂直 tab 回 `(invalid)` 且**比對仍用原始 Origin**、
   正常 Origin 原樣通過、非空診斷標頭要帶 `Vary: origin`、既有 `Vary` 不重複也不被覆蓋。
-- 最終條數 **17 條**（純函式 7、合併 4、入口 6），另加 `test/cors-probe-lib.test.mjs` **11 條**。
-- 對抗測試（Gate 4 oracle 的 M5 存活）→ 修法 D9 後重跑突變：M5（判讀一律 allowed）**5 紅**、
+- 最終條數 **18 條**（純函式 7、合併 4、入口 7），另加 `test/cors-probe-lib.test.mjs` **13 條**
+  （第二輪 oracle 抓到「17」是低報：`grep -c 'it("M01-TECH-010'` = 18、`git show 09bdb04:…` = 14，18 = 32 − 14）。
+- 對抗測試（Gate 4 oracle 的 M5 存活）→ 修法 D9 後重跑突變（第二輪 oracle 獨立複驗）：M5（判讀一律 allowed）**5 紅**、
   M6（取消淨化）**1 紅**、M7（不加 `Vary`）**2 紅**、M8（清單 0 筆不報錯）**1 紅**；基線 43 綠。
 - 入口層測試用假 `MEETING` namespace（與 `index-routing.test.ts` 同法）——驗「入口本身」的行為；
   真的 workerd 行為由 Gate 3 的兩顆 wrangler + 腳本實跑負責。
