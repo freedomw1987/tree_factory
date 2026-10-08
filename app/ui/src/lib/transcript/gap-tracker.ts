@@ -313,7 +313,7 @@ function permanentOf(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "PERMANENT";
 }
 
-/** 解析本機存的缺口陣列；壞掉（不是 JSON / 不是陣列 / 單筆不合法）一律當成沒有，不丢錯。 */
+/** 解析本機存的缺口陣列；壞掉（不是 JSON / 不是陣列 / 單筆不合法）一律當成沒有，不丟錯。 */
 function parseRecords(raw: string | null | undefined): GapRecord[] {
   try {
     if (raw === null || raw === undefined) return [];

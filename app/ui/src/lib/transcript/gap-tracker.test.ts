@@ -115,7 +115,7 @@ describe("M01-US-107 本機儲存與待補送掃描", () => {
     expect(listPendingGapMeetings(storage)).toEqual(["m-pending"]);
   });
 
-  it("M01-Given 本機資料壞掉（亂碼 / 不是陣列）When 掃描 Then 不丢錯，當成沒有缺口", () => {
+  it("M01-Given 本機資料壞掉（亂碼 / 不是陣列）When 掃描 Then 不丟錯，當成沒有缺口", () => {
     const storage = fakeLocalStorage({
       "tree_factory.transcript-gaps.v1:m-bad": "{ not json",
       "tree_factory.transcript-gaps.v1:m-weird": JSON.stringify([{ seq: 0, fromMs: -1, synced: false }]),
