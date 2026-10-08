@@ -35,12 +35,15 @@
 | `worker/src/harness/lifecycle.ts` | 新增 | `HarnessLifecycle`：單例、懶初始化、alarms 只往前 |
 | `worker/src/harness/meeting-harness.ts` | 新增 | `openMeeting()`、`resolveModel()`、憑證繫結、壓縮政策推導 |
 | `worker/src/storage/do-sqlite.ts` | 新增 | `DoSqliteDatabase`：官方介面六方法 + 交易排隊 |
-| `worker/test/do-sqlite.test.ts` | 新增 | 6 項 |
-| `worker/test/lifecycle.test.ts` | 新增 | 12 項 |
+| `worker/test/do-sqlite.test.ts` | 新增 | 12 項（儲存適配器契約 + handle 失效時機）|
+| `worker/test/lifecycle.test.ts` | 新增 | 13 項（AC-1 / AC-3，含併發 release）|
+| `worker/test/meeting-do.test.ts` | 新增 | 15 項（DO HTTP 入口 / 參數驗證 / 錯誤映射 / `/release`）|
+| `worker/test/meeting-harness.test.ts` | 新增 | 5 項（模型解析 / 目錄驗證 / 壓縮政策）|
 | `worker/test/harness-persistence.test.ts` | 新增 | 10 項 |
 | `worker/scripts/do-smoke.mjs` | 新增 | 真 workerd 冒煙：19 項檢查 |
 | `worker/package.json` / `package-lock.json` | 修改 | 加 `smoke:do` script + `pi-ai` / `pi-durable` / `chord` 依賴 |
-| `docs/ac/TECH-004.md` | 新增 | 6 條 BDD AC + 介面契約 + 12 個實測陷阱（含第二輪） |
+| `docs/ac/TECH-004.md` | 新增 | 6 條 BDD AC + 介面契約 + **14 個實測陷阱**（#1–#10 原始 + R3/R4 追加）|
+| `docs/deliverable/2026-10-08-TECH-004-DO-harness生命週期.md` | 新增 | 本文件（含三輪 checker 原文）|
 | `docs/backlog.md` | 修改 | TECH-004 → `DONE` |
 
 ## 測試 / 驗收證據
@@ -72,6 +75,14 @@ Test Files  2 failed (2)
 $ cd worker && npx vitest run          # 實作後（第二輪修正）
 Test Files  6 passed (6)
      Tests  71 passed (71)
+
+$ npx vitest run test/meeting-do.test.ts      # 實作前（第三輪修正）
+Test Files  1 failed (1)
+     Tests  1 failed | 14 passed (15)  # 未編碼 ?ms=+5 → 200（應 400）
+
+$ cd worker && npx vitest run          # 實作後（第三輪修正）
+Test Files  6 passed (6)
+     Tests  72 passed (72)
 ```
 
 > ⚠️ **誠實記錄**：第二輪那兩個測試的**第一版**都是「假綠」：① 非整數 `ms` 那個一開始被
@@ -113,8 +124,8 @@ $ cd worker && REGRESSION_MODE=true REGRESSION_REPORT_PATH=reports/tech-004-regr
 （下表為該輪 45 項的組成；下列第二段是本次稽核修正後的數字。）
 
 ```text
-$ cd worker && npm run regression      # 第二輪稽核修正後
-[regression-guard] 結果：passed=71 failed=0
+$ cd worker && npm run regression      # 第三輪稽核修正後
+[regression-guard] 結果：passed=72 failed=0
 [regression-guard] 報告：/Users/apple/Sites/localhost/tree_factory/worker/reports/regression.json
 [regression-guard] ✅ 通過
 ```
@@ -124,10 +135,10 @@ $ cd worker && npm run regression      # 第二輪稽核修正後
 | `worker/test/do-sqlite.test.ts` | 12 | 單元（儲存適配器契約，含交易排隊 4 項 + handle 失效時機）|
 | `worker/test/lifecycle.test.ts` | 13 | 單元（AC-1 / AC-3，含併發 release）|
 | `worker/test/harness-persistence.test.ts` | 10 | 單元 + 整合（AC-2 / AC-4 / AC-6）|
-| `worker/test/meeting-do.test.ts` | 14 | 單元（DO HTTP 入口 / 參數驗證 / 錯誤映射 / `/release`）|
+| `worker/test/meeting-do.test.ts` | 15 | 單元（DO HTTP 入口 / 參數驗證 / 錯誤映射 / `/release`）|
 | `worker/test/meeting-harness.test.ts` | 5 | 單元（模型解析 / 目錄驗證 / 壓縮政策）|
 | `worker/test/segmentation.test.ts` | 17 | 既有基線（M01-US-109，未觸及，證明無回歸）|
-| **合計** | **71** | 全綠（TECH-004 自身 54；M01-US-109 基線 17）|
+| **合計** | **72** | 全綠（TECH-004 自身 55；M01-US-109 基線 17）|
 
 ### Gate 3 補強：真 workerd Durable Object 冒煙
 
@@ -214,8 +225,8 @@ verdict **0 P0 / 0 P1 / 4 P2（本輪新發現）**；Task A 複驗：第一輪 
 | NEW-P2-3 AC 文件表頭 `do-sqlite.test.ts`（10）與對帳表（11）自相矛盾（R1-8 只部分修）| P2 | ✅ 表頭改 12 + 逐 AC 對帳重算（TECH-004 自身 54、總 71）|
 | NEW-P2-4 `/release`（R1-2 的使用者介面）零測試 | P2 | ✅ 補 2 項（fresh／撞上在飛的 open）|
 
-> **Gate 4 尚未通過**：第二輪仍是「有找到更多問題」，故已修正並跑**第三輪**；
-> 第三輪 verdict 回來前，本票不得進入 §2.4 反省（依 gate-4 `fail_action`）。
+> **Gate 4 尚未通過**：第三輪仍是「有找到更多問題」（2 P2，且結語與發現自相矛盾），
+> 故已修正並跑**第四輪**；第四輪 verdict 回來前，本票不得進入 §2.4 反省（依 gate-4 `fail_action`）。
 
 #### 第二輪 checker 原文（逐字貼回，未節錄）
 
@@ -373,10 +384,90 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 但有 **4 個 P2**：handle 失效時機比官方晚一個 commit 窗口（契約細節未對齊）、`ms=0` 仍可立即 alarm（忙迴圈家族沒補完）、AC 文件表頭數字復發錯誤（R1-8 只部分修）、`/release` 的使用者介面零測試。另有 4 項文件已自承的殘留（§5.2 表缺 `PROVIDER_UNKNOWN`、recoverable/500 落差、FALLBACK 死路徑、faux 繞過模型驗證）。
 ````
 
-**第三輪**：進行中（同一 checker 契約，重點放在「第二輪 4 條是否真的修好 + 有沒有新缺陷」）。
-第三輪原文一樣**只貼在此處**，不以口頭摘要代替。
+**第三輪補完（2026-10-08，verdict 0 P0 / 0 P1 / 2 P2）**：
 
-## 本輪實測抓到的 13 個陷阱（已修，皆寫進 AC 文件）
+| 第三輪新發現 | 等級 | 處置 |
+| --- | --- | --- |
+| NEW-3-1 `/wake?ms=+5`（未編碼）被當成 5ms——格式檢查先 `trim`，而 query 的 `+` 就是空白；且測試用 `encodeURIComponent` 測不到 | P2 | ✅ 格式檢查改看**原字串**（不 trim）＋補未編碼 raw query 測試 |
+| NEW-3-2 deliverable 同檔「12 個／13 個陷阱」自相矛盾、宣稱「皆寫進 AC 文件」為假、變更清單測試數仍舊值（第二輪 NEW-P2-3 同族**第三次復發**）| P2 | ✅ 兩張表同步為 **14 條**；變更清單改現值（12／13／15／5／10）|
+
+> ⚠️ **verdict 矛盾處理**：第三輪 checker 同時給了「2 P2」與結語「沒找到更多問題」。
+> 我不把它當作「乾淨通過」，而是**修完 2 條再跑第四輪**——避免用一句制式結語掩蓋已列在報告裡的發現。
+
+**第四輪**：進行中（同一 checker 契約）。第四輪原文一樣**只貼在此處**，不以口頭摘要代替。
+
+#### 第三輪 checker 原文（逐字貼回，含 2 條新發現與「沒驗到」清單）
+
+````text
+[Verdict] 0 P0 / 0 P1 / 2 P2（本輪新發現）
+Task A：第二輪 4 條新發現全部確實修好（僅 A-2 有 1 個表單編碼破口，列為新 P2），
+所有新測試經「對 800063d / 42f7466 舊碼重跑」證明真會紅。
+
+[A-1] scope.active = false 確實在「回呼 settle 後、平台 COMMIT 前」，順序與官方 node.js:117/:122 一致。
+  [P1 success] commit-window=THREW order=["begin","callback-settled","REJECTED","commit"]
+  [P4 commit-fail] rejected=platform COMMIT failed handle-after=inactive
+  [P5 rollback-fail] isAggregate=true order=["callback failed","rollback failed"]
+  [P6 nested-tx] race=[null,"nested-done"] order=["begin","sql:NESTED","commit","begin","sql:OUTER","commit"]
+
+[A-2] 0.5／0x1f／1e3／" 1500x"／-0／Infinity／NaN／1e309／20 位數／9007199254740992／١٢٣
+  → 全部 400 MS_INVALID；0／0001500／" 1500" → 200；沒有任何 500 / NaN 路徑。
+  但 +5（未編碼）→ 200（見 NEW-3-1）；%2B5 → 400。
+  AC-3 當時文字仍只列「缺漏／空字串／空白／非有限／負數」，未明文寫出「0 是刻意放行」。
+
+[A-3] 表頭（12／14）與逐 AC 對帳（9+5+14+2+1+11+12 = 54）與實際 it( 數完全對得上；
+  舊數字只出現在「歷史紅綠燈／第二輪原文引用」內（合理保留）；backlog 的 54 單元 + 19 冒煙 正確。
+  但 deliverable 的變更清單（非引用段）仍留舊數，且同一份文件「12 個／13 個陷阱」自相矛盾。
+
+[A-4] 真紅測試：/tmp/oldworker（800063d）→ Tests 14 failed | 12 passed (26)；
+  （42f7466）→ Tests 2 failed | 24 passed (26)。
+  「探針打到真 MeetingDurableObject，deferred 分支由 current() 同步設 #opening 觸發，非時間相關 flake」。
+
+[NEW-3-1 P2] /wake?ms=+5（未編碼）被當成 5ms 接受——「只收十進位整數字串」有 URL 編碼破口
+  檔案：worker/src/meeting-do.ts:101-105（raw.trim() 先於 /^\d+$/）；
+  測試 worker/test/meeting-do.test.ts:150-152 用 encodeURIComponent(raw) 把 + 編成 %2B，測不到原始 URL 的 +。
+  實際輸出：
+    [/wake?ms=+5] 200 {"scheduled":true,"at":1791424711921,"previous":null} alarms=[1791424711921]
+    [/wake?ms=%2B5] 400 {"error":"MS_INVALID","value":"+5"} alarms=[]
+  影響：低—中。呼叫端打 /wake?ms=+5 會得到 5ms 的近似立即 alarm；且測試宣稱 +5 → 400
+  只在 percent-encoded 形式成立，形成「測試假通過」的同族盲點。
+  建議修法：(a) 明說前後空白被容忍；或 (b) 不再 trim、要求整個原字串精確符合 ^[0-9]+$。
+  無論哪個，測試都應加「未編碼 raw query」一案。→ 本專案採 (b)（fail-loud）。
+
+[NEW-3-2 P2] 文件數字/敘述與現實不符（第二輪 NEW-P2-3 的同族第三次復發）
+  檔案：deliverable:41-43, 379、docs/ac/TECH-004.md:99-110
+  deliverable:43  ... 6 條 BDD AC + 介面契約 + 12 個實測陷阱（含第二輪）
+  deliverable:379 ## 本輪實測抓到的 13 個陷阱（已修，皆寫進 AC 文件）
+  AC 文件陷阱表實際只有 10 列（#1–#10）
+  不一致點：①同一份文件「12 個/13 個」；②「皆寫進 AC 文件」為假（#11/#12/#13 當時不在 AC 表）；
+  ③變更清單仍寫 do-sqlite.test.ts 6 項（實際 12）、lifecycle.test.ts 12 項（實際 13）。
+  已知問題欄位 1–9 項與內容一致（無誤）。
+
+[沒驗到 / 無法驗證]
+  - 真 workerd 平台行為未驗（依只讀紀律未起 dev server）：19 項冒煙未執行，
+    僅以 grep -c '^check(' = 19 證實數量與文件相符。
+  - 歷史紅燈 16 failed | 49 passed (65) 無法重現（test set 已不同）——未驗。
+  - /wake 的 MS_REQUIRED/MS_INVALID/MS_TOO_LARGE 不在 §5.2 十碼表，
+    但 /wake 是 DO 維運端點、非裝置 WS 協定，不計為新 P2。
+  - 已知殘留復核：與文件描述一致，未發現比文件更嚴重。
+  - /wake?ms=0 忙迴圈：刻意保留，未驗「呼叫端連續打 0 是否真的造成 open/close 風暴」。
+
+[指令表]
+  1. cd worker && npx vitest run → 6 files / 71 passed（第三輪修正前）
+  2. vite-node /tmp/probe-handle-window3.ts → 如上 [A-1]
+  3. vite-node /tmp/probe-handle-window3b.ts → 同步/await throw 時 handle 皆 inactive；巢狀 tx 排隊無死鎖
+  4. vite-node /tmp/probe-do3.ts → ms 族如 [A-2]；+5 未編碼 → 200；/release fresh → {released:false,deferred:false}
+  5. node -e URLSearchParams → ?ms=+5 → " 5"；?ms=%2B5 → "+5"
+  6. /tmp/oldworker（800063d）跑新測試 → 14 failed / 12 passed
+  7. /tmp/oldworker（42f7466）跑新測試 → 2 failed / 24 passed
+  8. grep -c '^check(' scripts/do-smoke.mjs → 19
+  9. grep -n（AC / deliverable / backlog / §5.2）→ 數字對帳如 [A-3] / NEW-3-2
+ 10. git status --short → 空（未動 repo；暫存只在 /tmp/）
+
+[最後一行] 沒找到更多問題。
+  → 注：同一份報告列了 2 條 P2，與此結語矛盾，故本專案不視為通過（已修完再跑第四輪）。
+````
+
+## 本輪實測抓到的 14 個陷阱（已修；#1–#10 與 R3/R4 追加同步寫進 AC 文件陷阱表）
 
 | # | 陷阱 | 症狀 | 修法 |
 | --- | --- | --- | --- |
@@ -393,8 +484,10 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 | 11 | 交易 handle 的失效時機比官方晚一個 commit 窗口 | 回呼結束後、`COMMIT` 前的窗口內，已失效的 handle 竟**真的執行下去**（不丟錯）| 第二輪 NEW-P2-1：`scope.active = false` 移進回呼 settle 後、`COMMIT` 前（鏡射官方 `node.js:117`）|
 | 12 | 自己寫的假替身測試「自我實現」 | 假 storage 把**平台自己的 tx 物件**交給探針（沒 `.exec` → 一定 throw）→ 測試假通過 | 測試必須把**我方 handle** 從回呼裡抓出來；先確認探針打到受測物件再看紅燈 |
 | 13 | `wrangler dev --var KEY=VALUE` 靜默無效 | 等號形式**不報錯也不生效**，DO 仍讀 `wrangler.toml` 的 `HARNESS_PROVIDER=cloudflare-workers-ai` → 冒煙全線 401 `AUTH_INVALID` | 用冒號：`--var HARNESS_PROVIDER:faux`（wrangler 4.148.0 實測；文件要寫對形式）|
+| 14 | `/wake?ms=+5` 的 `+` 在 query 裡是**空白** | 第二輪加了整數檢查但**先 trim** → `" 5"` 被當成合法 5ms（近似立即 alarm）；測試用 `encodeURIComponent` 編成 `%2B5`，**測不到原始 URL** | 第三輪 NEW-3-1：格式檢查改看**原字串**（不 trim）；測試補未編碼 raw query |
 
-> 陷阱 1 / 2 / 7 屬同一族「**參數在傳遞鏈上退化**」——這是 DO 轉發層最常見的靜默失敗；
+> 陷阱 1 / 2 / 7 / 14 屬同一族「**參數在傳遞鏈上退化**」——這是 DO 轉發層最常見的靜默失敗
+> （第 14 條不只是程式，還包括「測試把它編碼掉、所以測不到」）；
 > 陷阱 3 / 8 / 9 / 10 / 11 屬同一族「**契約/介面沒逐條落實**」；
 > 陷阱 12 / 13 是**驗證方法本身**的陷阱（假綠測試、環境覆寫沒真的生效）。
 > 陷阱 1/2/7 都會造成 alarm 忙迴圈，被冒煙的「alarm 時間 = 現在 + 1500ms」一項同時鎖住。
@@ -402,19 +495,22 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 ## 已知問題
 
 1. **Gate 1（TDD）紅燈只補到「追加修正」那一段**：原始 TECH-004 實作在 trust mode 期間完成，
-   紅燈無法回溯補齊。追加的 26 項測試（第一輪 +21、第二輪 +5）有完整紅→綠證據（見 Gate 1）。
+   紅燈無法回溯補齊。追加的 27 項測試（第一輪 +21、第二輪 +5、第三輪 +1）有完整紅→綠證據（見 Gate 1）。
    第二輪 checker 也誠實指出：**舊的紅燈歷史輸出無法重現**（test set 已不同），只能確認測試存在且鎖住行為。
-2. **Gate 4（reviewer）兩輪均未通過，第三輪進行中**：
-   第一輪 verdict 0 P0 / 2 P1 / 9 P2；第二輪（修正後重跑）0 P0 / 0 P1 / **4 P2（新發現）**。
-   兩輪都「有找到更多問題」，依 `fail_action` 不得進入 §2.4；兩輪發現已全數處置，
-   **第三輪 verdict 回來且為「沒找到更多問題」前，本票不視為 Gate 4 通過。**
+2. **Gate 4（reviewer）三輪均未通過，第四輪進行中**：
+   第一輪 verdict 0 P0 / 2 P1 / 9 P2；第二輪 0 P0 / 0 P1 / **4 P2（新發現）**；
+   第三輪 0 P0 / 0 P1 / **2 P2（新發現）**。三輪都「有找到更多問題」，依 `fail_action` 不得進入 §2.4；
+   三輪發現已全數處置，**第四輪 verdict 回來且為「沒找到更多問題」前，本票不視為 Gate 4 通過。**
+   ⚠️ 第三輪的結語雖然寫了「沒找到更多問題」，但同一份報告列了 2 條 P2，**故不採計為通過**。
 3. **`worker/reports/` 已 gitignore**：回歸報告不入版控，需重跑才能重建。
 4. **冒煙需手動起 dev server**：`do-smoke.mjs` 依賴外部 `wrangler dev`（預設 8787，可用
    `DO_SMOKE_BASE` 覆寫）；未自動化進 CI。
 5. **AC 文件數字三度修正**：①冒煙「20 項」→ 實際 **19 項**；②測試對照表把
    `lifecycle.test.ts` 記為 AC-1 11 項 / AC-3 4 項，實際為 6 / 6，且漏列 `do-sqlite.test.ts`；
    ③修成逐 AC 對帳（單元 49 + 冒煙 19），但**表頭仍留 `do-sqlite.test.ts`（10）**（實際 11）
-   ——被第二輪 checker 抓為 NEW-P2-3；④本輪再修為單元 54 + 冒煙 19 並逐項對帳。
+   ——被第二輪 checker 抓為 NEW-P2-3；④第二輪再修為單元 54 + 冒煙 19 並逐項對帳；
+   ⑤第三輪又抓到 deliverable 同檔「12 個／13 個陷阱」自相矛盾 + 變更清單舊數（NEW-3-2）→
+   已統一為 14 條並兩表同步。**同一類缺陷四度復發**，故「改數字必須全域搜尋」已寫進根因改善動作。
    **根因：寫 AC 時憑印象填數字；同一類錯在修正中復發。**
 6. **`regression-guard.mjs` 顯示瑕疵**：被 `-t` 篩掉的測試顯示為 `✗`（實際為 skipped），
    易誤讀為失敗。判定邏輯（`failed === 0 && passed > 0`）正確，只有**顯示**誤導。
@@ -434,12 +530,12 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 ## 下一步建議
 
 - **驗收方式（3 分鐘）**：
-  1. `cd worker && npx vitest run` → 71 passed；
+  1. `cd worker && npx vitest run` → 72 passed；
   2. `cd worker && npx tsc --noEmit && npm run lint` → 0 errors / 0 issues；
   3. （選）`npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux &`
      然後 `npm run smoke:do` → 19 項全綠。
      ⚠️ `--var` 必須用**冒號**（`KEY:VALUE`）；用等號 `KEY=VALUE` 會**靜默不生效**（見陷阱 13）。
-- **風險提示**：① 三輪 reviewer 之間可能仍有殘留問題，第三輪 verdict 應併同本文件歸檔；
+- **風險提示**：① 四輪 reviewer 之間可能仍有殘留問題，第四輪 verdict 應併同本文件歸檔；
   ② `PROVIDER_UNKNOWN` 未進 §5.2 表，若要下發裝置端必須先補（見已知問題 8）；
   ③ 下一張相依票是 SPIKE-002b（原生錄音 plugin 可行性，0.5 天時間盒），
   它會決定 M01-US-106（8 SP）要不要做。
@@ -460,9 +556,9 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 | --- | --- | --- |
 | UX/UI | — 不適用 | 純後端骨架，無使用者介面 |
 | RWD | — 不適用 | 同上 |
-| 技術債 | ⚠️ 有條件通過 | 無 TODO；13 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 兩輪（11 + 4 項）全數處置（第三輪進行中）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
+| 技術債 | ⚠️ 有條件通過 | 無 TODO；14 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 三輪（11 + 4 + 2 項）全數處置（第四輪進行中）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
 | 可維護性 | ✅ 通過 | 分層清楚（lifecycle / storage / harness / DO 入口）；DO 入口只做平台接線；核心邏輯皆可單測 |
-| 測試覆蓋率 | ✅ 通過 | 6 條 AC 皆有對應測試（單元 54 + 冒煙 19）；另含合約測試（交易排隊、handle 失效時機、`AggregateError` 順序）與 DO HTTP 入口測試（含 `/release`）|
+| 測試覆蓋率 | ✅ 通過 | 6 條 AC 皆有對應測試（單元 55 + 冒煙 19）；另含合約測試（交易排隊、handle 失效時機、`AggregateError` 順序）與 DO HTTP 入口測試（含 `/release` 與 raw query 編碼）|
 | 需求對齊 | ✅ 通過 | 逐條對上 SPIKE-003 的三個平台事實；模型與壓縮政策對上 D15 |
 
 ### 根因分析與改善動作
@@ -478,7 +574,8 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 | **靜默失敗族（P2-1/2/3/6）** | 四個地方在「輸入不合法」時都選了**最安靜的退化路徑**（`Number("")→0`、未知 provider → 換 Cloudflare、未知模型 → 24k 窗口、未知 cursor → `[]`）| 全部改成丟錯或明確 400/500。**教訓：非法輸入一律走「吵鬧」路徑；退化只能用於明確可接受的預設值** |
 | **P2→P1 的嚴重性分了兩輪才定** | 第一輪各項自評偏低（全列 P2），是 jev 快篩把靜默失敗族扶正的 | 已把「**靜默失敗是否會讓裝置繼續跑而錯**」寫進分級自檢。**教訓：分級要看「錯了會怎樣」不是「錯得大不大」** |
 | **移植契約時只抄了「看到的那一條」（第二輪 P2-1）** | 把官方 `SerialOperationQueue` 移植過來時，只對齊了「排隊」與「回呼後失效」兩個大行為，**沒逐行比對「失效發生的確切位置」**（官方在 `COMMIT` 前就失效）| 已移進回呼 settle 後。**教訓：移植參考實作要逐行對齊，不是只對齊「看起來像」的行為；移植時「差一個窗口」等於契約沒落實** |
-| **修正清單裡「文件類」項目自己復發（第二輪 P2-3）** | 第一輪明明被點名「AC 數字不精確」，修正時只改了對帳表、漏了表頭——**沒有全域搜尋同一個數字** | 已修並改為「以實際測試輸出逐 AC 對帳」。**教訓：改數字類缺陷時要把同一數字的所有出現處一起改（此類錯誤重複發生第三次）** |
+| **修正清單裡「文件類」項目自己復發（第二輪 P2-3 → 第三輪 NEW-3-2）** | 第一輪明明被點名「AC 數字不精確」，修正時只改了對帳表、漏了表頭——**沒有全域搜尋同一個數字**；第二輪又只改 AC 文件、沒同步 deliverable（**同檔內就自相矛盾**）| 已修並改為「以實際測試輸出逐 AC 對帳」+「數字類修改要 `grep` 全部出現處」。**教訓：文件類缺陷不會自動停，它會復發到你把「搜尋」變成動作** |
+| **URL 編碼破口（第三輪 R4-1）** | 把「query 參數」當成一般字串：`URLSearchParams` 已把 `+` 解成空白，程式再 `trim` 就等於放行；且**測試自己用 `encodeURIComponent` 把要驗的字元編掉了** | 改看原字串（fail-loud）+ 測試改加未編碼 raw query。**教訓：驗「非法輸入」時，測試必須用與真實呼叫端**完全一樣的原始形式**——測試自己做的編碼/轉義會把破口藏起來** |
 | **驗證方法本身出錯（第二輪 P2-3/P2-4 + 陷阱 12/13）** | ① 假 storage 測試自我實現（探針打到平台物件）；② 冒煙用 `--var KEY=VALUE` 靜默不生效，**我還差點把它當成「程式壞了」**；③ `/release` 這條自己剛修的路徑零測試 | 已補測試 + 把「探針要打到受測物件」寫進測試準則；`--var` 改冒號形式。**教訓：假替身測試要先證明它會紅；環境覆寫要先證明它生效（否則紅燈可能在說謊）** |
 
 ### 建議新增 Backlog item

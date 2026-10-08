@@ -156,6 +156,22 @@ describe("MeetingDurableObject（TECH-004）", () => {
     }
   });
 
+  it("/wake?ms=+5（未編碼，query 中 + 是空白）與 %201500 → 400 MS_INVALID（嚴格模式不 trim）", async () => {
+    // 第二輪修了「只收十進位整數字串」，但當時測試用 encodeURIComponent(`+5`) → `%2B5`，
+    // 測不到**原始 URL 的 `+`**；而 URLSearchParams 會把 `+` 解成空白，若再 trim 就等於放行 `?ms=+5`
+    //（近似立即 alarm）。所以格式檢查必須看「原字串」，不能先 trim。
+    const { durable, alarms } = makeDurable();
+    const plus = await call(durable, "/wake?ms=+5");
+    expect(plus.status).toBe(400);
+    expect(plus.body).toMatchObject({ error: "MS_INVALID" });
+
+    const spaced = await call(durable, "/wake?ms=%201500");
+    expect(spaced.status).toBe(400);
+    expect(spaced.body).toMatchObject({ error: "MS_INVALID" });
+
+    expect(alarms).toEqual([]);
+  });
+
   it("/release 沒東西可放 → { released:false, deferred:false } 並回報 stats", async () => {
     const { durable } = makeDurable();
     const { status, body } = await call(durable, "/release");

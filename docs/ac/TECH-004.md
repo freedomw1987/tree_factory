@@ -51,8 +51,12 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 - **When** 呼叫 `wakeIn(ms)`
 - **Then** 設定 alarm 於 `now + ms`
 - **And** 若已有**更早**的 alarm，**不得**改動它（只往前不往後，避免長工作被延後）
-- **And** `ms` 缺漏／空字串／只有空白／非有限／負數 → 明確報錯（**不得**退化成 0，
+- **And** `ms` 缺漏／空字串／只有空白 → 400 `MS_REQUIRED`（**不得**退化成 0，
   否則會變成立即 alarm 的忙迴圈）
+- **And** `ms` 只接受**十進位整數字串**（看原字串，**不 trim**）：`0.5`／`0x1f`／`1e3`／`+5`／
+  `-1`／`abc`／超出安全整數 → 400 `MS_INVALID`
+  （注：query 裡的 `+` 會被解成空白；若先 trim 就等於放行 `?ms=+5` 的 5ms alarm）
+- **And** `ms=0` 是**明確**的「立刻接力」（刻意放行，與「沒帶 `ms`」的退化不同）
 - **And** `ms > 300000`（`MAX_ALARM_DELAY_MS`）→ 400 `MS_TOO_LARGE`（一次醒來最多再往前排 5 分鐘，醒來後再接力）
 - **And When** alarm 醒來（`alarm()`）
 - **Then** 若 harness 已被釋放（等價 DO 被回收）→ 重建後仍指向**同一場會議**
@@ -94,7 +98,7 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 | `resolveModel(bindings, phase)` | 缺憑證 → `AUTH_INVALID`；未知 provider → `PROVIDER_UNKNOWN`；faux → 免憑證 |
 | `openMeeting(storage, options)` | **先驗模型存在再碰 storage**（fail fast）；查不到 → `MODEL_UNAVAILABLE` |
 
-## 已知陷阱（本輪實測抓到，已修）
+## 已知陷阱（本輪實測抓到，已修；共 14 條）
 
 | # | 陷阱 | 症狀 | 修法 |
 | --- | --- | --- | --- |
@@ -108,6 +112,10 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 | 8 | `release()` 撞上「正在開」的 harness | 舊版等 `open()` 完再關 → 等待者拿到**已經關閉**的 harness（而且 storage 一起被關）| `release()` 改回 `ReleaseDecision`：此時**延後不關**；`current()` 成功後清 `#opening` |
 | 9 | 未知 provider／打錯的模型 id | 靜默換 provider、靜默用 24k 窗口算壓縮政策（**靜默失敗族**）| provider 白名單 + 先驗目錄，查不到就丟 `PROVIDER_UNKNOWN` / `MODEL_UNAVAILABLE` |
 | 10 | 宣告了卻沒有效果的常數／函式 | `MAX_ALARM_DELAY_MS`、`DEFAULT_ALARM_DELAY_MS`、`currentConversationId` 無人使用（讀者誤以為有防護）| `/wake` 真的套上限、範例字串用 `DEFAULT_ALARM_DELAY_MS`、刪掉 dead export |
+| 11 | 交易 handle 的失效時機比官方晚一個 commit 窗口 | 回呼結束後、`COMMIT` 前再用 handle，竟會**真的執行**下去（不丟錯）| 見 §追加驗收 **R3-1**：`scope.active = false` 移進回呼 settle 後、`COMMIT` 前（對齊官方 `node.js:117`）|
+| 12 | 自己寫的假替身測試「自我實現」 | 假 storage 把**平台自己的 tx 物件**交給探針（沒 `.exec` → 一定 throw）→ 測試假通過 | 測試必須把**我方 handle** 從回呼裡抓出來；先證明探針打到受測物件再看紅燈 |
+| 13 | `/wake?ms=` 的 `+` 是空白，trim 後放行 | 第二輪加了整數檢查，但**先 trim**；`?ms=+5` → `" 5"` → 放行成 5ms，而測試用 `encodeURIComponent` 測不到 | 見 §追加驗收 **R4-1**：格式檢查改看**原字串**（不 trim）；測試改加未編碼 raw query |
+| 14 | `wrangler dev --var KEY=VALUE` **靜默無效** | 等號形式不報錯也不生效，DO 仍讀 `wrangler.toml` 的 provider → 冒煙全線 401 `AUTH_INVALID`（看起來像程式壞了）| 用冒號 `--var HARNESS_PROVIDER:faux`（wrangler 4.148.0 實測）|
 
 ## 測試與證據對照
 
@@ -115,16 +123,16 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 | --- | --- | --- |
 | AC-1（單例與懶初始化）| `lifecycle.test.ts` 7 項（懶初始化／單例／併發／失敗重試／release 重建／release no-op／**併發 release 不得關掉正在交付的 harness**）；`meeting-do.test.ts` 2 項（`/release` 沒東西可放／**撞上正在交付中的 harness**→`deferred:true`）| `do-smoke.mjs` 4 項 |
 | AC-2（憑證繫結）| `harness-persistence.test.ts` 4 項（缺憑證 `AUTH_INVALID`／憑證齊全與綁定覆寫／faux 免憑證／`AuthContext` 讀綁定）；`meeting-do.test.ts` 1 項（DO 這一層回 401 `AUTH_INVALID`）| —（faux 啟動下跳過，由單元覆蓋）|
-| AC-3（alarms 接力）| `lifecycle.test.ts` 6 項（設定 alarm／只往前／拒絕非法值／onAlarm 重建／onAlarm 重用／缺 `getAlarm`）；`meeting-do.test.ts` 8 項（缺 `ms`／空字串／只有空白／非法值／超上限 `MS_TOO_LARGE`／邊界值與正常值／**`ms=0` 明確語意**／**非整數字串一律 `MS_INVALID`**）| `do-smoke.mjs` 8 項（含重建後 conversationId／entries 不變）|
+| AC-3（alarms 接力）| `lifecycle.test.ts` 6 項（設定 alarm／只往前／拒絕非法值／onAlarm 重建／onAlarm 重用／缺 `getAlarm`）；`meeting-do.test.ts` 9 項（缺 `ms`／空字串／只有空白／非法值／超上限 `MS_TOO_LARGE`／邊界值與正常值／**`ms=0` 明確語意**／**非整數字串一律 `MS_INVALID`**／**未編碼 `+5` 與 `%201500`**）| `do-smoke.mjs` 8 項（含重建後 conversationId／entries 不變）|
 | AC-4（重啟後同一場會議）| `harness-persistence.test.ts` 2 項（重開同 conversation、真跑一個 turn）| `do-smoke.mjs` 3 項 |
 | AC-5（一場會議 = 一個 DO）| `meeting-do.test.ts` 1 項（未知路徑 404，DO 的 HTTP 介面契約）| `do-smoke.mjs` 2 項（兩會議不同 DO、各自 opens=1）|
 | AC-6（模型與壓縮政策 D15）| `harness-persistence.test.ts` 4 項（模型在目錄／可覆寫／壓縮政策推導／自訂壓縮政策）；`meeting-harness.test.ts` 5 項（未知 provider／支援清單／打錯 id 不碰 storage／未知 provider 不碰 storage／窗口與政策）；`meeting-do.test.ts` 2 項（`PROVIDER_UNKNOWN`／`MODEL_UNAVAILABLE`）| `do-smoke.mjs` 1 項 |
 | （儲存適配器契約）| `do-sqlite.test.ts` 12 項（繫結轉換／cursor 兩形狀／**交易排隊**／handle 失效／**handle 在 COMMIT 之前就失效**／回滾 `AggregateError`／未知 cursor 丟錯…）| — |
 | （冒煙基礎設施）| — | `do-smoke.mjs` 1 項（Worker 活著）|
 
-**對帳**：單元 + 整合 = 9+5+14+2+1+11+12 = **54 項**（TECH-004 自身）；冒煙 = 4+8+3+2+1+1 = **19 項**。
+**對帳**：單元 + 整合 = 9+5+15+2+1+11+12 = **55 項**（TECH-004 自身）；冒煙 = 4+8+3+2+1+1 = **19 項**。
 
-**總計**：`worker` 測試 71 項（含 M01-US-109 的 17 項；TECH-004 自身 54 項）；
+**總計**：`worker` 測試 72 項（含 M01-US-109 的 17 項；TECH-004 自身 55 項）；
 真 workerd DO 冒煙 **19 項檢查全綠**（另 1 項 `AUTH_INVALID` 由單元測試覆蓋，
 冒煙以 faux 啟動故跳過）。
 
@@ -148,6 +156,14 @@ Test Files  2 failed (2)
 # 綠燈（第二輪修正後）：cd worker && npx vitest run
 Test Files  6 passed (6)
      Tests  71 passed (71)
+
+# 紅燈（第三輪修正前）：npx vitest run test/meeting-do.test.ts
+Test Files  1 failed (1)
+     Tests  1 failed | 14 passed (15)   # 未編碼的 ?ms=+5 → 200（應為 400）
+
+# 綠燈（第三輪修正後）：cd worker && npx vitest run
+Test Files  6 passed (6)
+     Tests  72 passed (72)
 ```
 
 ### 冒煙重跑指令（可審查）
@@ -308,4 +324,92 @@ DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 > **完整原文**（含 15 條指令與結果、已知殘留 4 項）見交付文件
 > `docs/deliverable/2026-10-08-TECH-004-DO-harness生命週期.md` 的「Gate 4 第二輪」段落。
 
-**第二輪已處理完畢，第三輪稽核進行中**；Gate 4 是否通過以第三輪 verdict 為準。
+**第三輪已處理完畢，第四輪稽核進行中**；Gate 4 是否通過以第四輪 verdict 為準。
+
+### 第三輪稽核（修正後重跑）— 新發現與處置
+
+**第三輪 verdict：0 P0 / 0 P1 / 2 P2（本輪新發現）**；Task A：第二輪 4 條**全部確實修好**；
+另用 `git show 800063d` / `42f7466` 把新測試 checkout 到 `/tmp` 重跑，證明**新測試真會紅**
+（`800063d` → 14 failed / 12 passed；`42f7466` → 2 failed / 24 passed）。
+
+> ⚠️ **Verdict 判定說明（誠實記錄）**：本輪 checker **同時**給了「2 P2」與最後一行
+> 「沒找到更多問題」——兩者矛盾。我不把它當作「乾淨通過」，而是**修完這 2 條再跑第四輪**，
+> 避免用一句制式結語掩蓋實際發現。
+
+| # | 等級 | 問題（第三輪新發現）| 處置 | 鎖住它的測試 |
+| --- | --- | --- | --- | --- |
+| R4-1 | P2 | `/wake?ms=+5`（未編碼）被當成 5ms——「只收十進位整數字串」有 URL 編碼破口：格式檢查**先 trim**，而 query 裡的 `+` 就是空白；且原本測試用 `encodeURIComponent` 把 `+` 編成 `%2B`，**測不到原始 URL** | 已修：格式檢查改看**原字串**（不 trim；只有「空／只有空白」走 `MS_REQUIRED`）；測試補未編碼 `?ms=+5` 與 `%201500` 兩案 | `meeting-do.test.ts` ×1（內含 2 案）|
+| R4-2 | P2 | 文件數字/敘述與現實不符（第二輪 NEW-P2-3 同族**第三次**復發）：deliverable 一處寫「12 個陷阱」一處寫「13 個」；「皆寫進 AC 文件」為假（AC 表只有 #1–#10）；變更清單仍寫 `do-sqlite.test.ts` 6 項／`lifecycle.test.ts` 12 項 | 已修：陷阱統一為 **14 條** 且 **AC/deliverable 兩張表同步**；變更清單測試數改為現值 | —（文件）|
+
+#### 第三輪 checker 原文引用（verdict + 2 條新發現；以 `…` 標示精簡處）
+
+> **Verdict**：**0 P0 / 0 P1 / 2 P2（本輪新發現）**
+> Task A：第二輪 4 條新發現**全部確實修好**（僅 A-2 有 1 個表單編碼破口，列為新 P2），
+> 所有新測試經「對 800063d / 42f7466 舊碼重跑」證明**真會紅**。
+>
+> [A-1] `scope.active = false` 確實在「回呼 settle 後、平台 COMMIT 前」，順序與官方一致。
+>
+> ```text
+> [P1 success] commit-window=THREW order=["begin","callback-settled","REJECTED","commit"]
+> [P4 commit-fail] rejected=platform COMMIT failed handle-after=inactive
+> [P5 rollback-fail] isAggregate=true order=["callback failed","rollback failed"]
+> [P6 nested-tx] race=[null,"nested-done"] order=["begin","sql:NESTED","commit","begin","sql:OUTER","commit"]
+> ```
+>
+> [A-2] `0.5`／`0x1f`／`1e3`／`" 1500x"`／`-0`／`Infinity`／`NaN`／`1e309`／20 位數／`9007199254740992`／
+> `١٢٣` → 全部 400 `MS_INVALID`；`0`／`0001500`／`" 1500"` → 200；**沒有任何 500 / NaN 路徑**。
+> 但 **`+5`（未編碼）→ 200**（見 NEW-3-1）；`%2B5` → 400。
+> AC-3 目前文字仍只列「缺漏／空字串／空白／非有限／負數」，**未明文寫出「0 是刻意放行」**。
+>
+> [A-3] 表頭（12／14）與逐 AC 對帳（9+5+14+2+1+11+12 = 54）**與實際 `it(` 數完全對得上**；
+> 舊數字只出現在「歷史紅綠燈／第二輪原文引用」內（合理保留）；backlog 的 `54 單元 + 19 冒煙` 正確。
+> 但 deliverable 的**變更清單**（非引用段）仍留舊數，且同一份文件「12 個／13 個陷阱」自相矛盾。
+>
+> [A-4] 真紅測試證明：`/tmp/oldworker`（800063d）→ `Tests 14 failed | 12 passed (26)`；
+> （42f7466）→ `Tests 2 failed | 24 passed (26)`。「探針打到真 `MeetingDurableObject`，
+> deferred 分支由 `current()` 同步設 `#opening` 觸發，非時間相關 flake」。
+>
+> ### NEW-3-1（P2）`/wake?ms=+5`（未編碼）被當成 5ms 接受——「只收十進位整數字串」有 URL 編碼破口
+>
+> - **檔案**：`worker/src/meeting-do.ts:101-105`（`raw.trim()` 先於 `/^\d+$/`）；
+>   測試 `worker/test/meeting-do.test.ts:150-152` 用 `encodeURIComponent(raw)` 把 `+` 編成 `%2B`，
+>   **測不到原始 URL 的 `+`**。
+> - **實際輸出**：
+>
+>   ```text
+>   [/wake?ms=+5] 200 {"scheduled":true,"at":1791424711921,"previous":null} alarms=[1791424711921]
+>   [/wake?ms=%2B5] 400 {"error":"MS_INVALID","value":"+5"} alarms=[]
+>   ```
+>
+>   （`new URL("https://x/wake?ms=+5").searchParams.get("ms")` → `" 5"`；`+` 在 query 是空白，trim 後變合法 `"5"`。）
+> - **影響**：低—中。這是本輪要關的「參數退化／忙迴圈家族」殘餘：呼叫端打 `/wake?ms=+5`
+>   會得到 5ms 的近似立即 alarm；且測試宣稱 `+5 → 400` 只在 percent-encoded 形式成立，
+>   形成「測試假通過」的同族盲點。
+> - **建議修法**：二選一——(a) 文件與測試明說「前後空白被容忍，故 query 中的 `+` 等價空白」；
+>   或 (b) 不再 trim、要求整個原字串精確符合 `^[0-9]+$`（則 `" 1500"` 也一併拒絕）。
+>   無論哪個，測試都應加「未編碼 raw query」一案。→ **本專案採 (b)（fail-loud）**。
+>
+> ### NEW-3-2（P2）文件數字/敘述與現實不符（第二輪 NEW-P2-3 的同族第三次復發）
+>
+> - **檔案**：deliverable `:41-43, 379`、`docs/ac/TECH-004.md:99-110`
+> - **實際輸出**：
+>
+>   ```text
+>   deliverable:43  ... 6 條 BDD AC + 介面契約 + 12 個實測陷阱（含第二輪）
+>   deliverable:379 ## 本輪實測抓到的 13 個陷阱（已修，皆寫進 AC 文件）
+>   AC 文件陷阱表實際只有 10 列（#1–#10）
+>   ```
+>
+> - **影響**：低（純文件），但與第二輪 NEW-P2-3 同類，且「皆寫進 AC 文件」是可被讀者當事實的錯誤敘述。
+> - **處置**：陷阱統一 14 條（#1–#14 兩處同步）、變更清單數字改現值。
+>
+> #### 第三輪「沒驗到 / 無法驗證」＋ verdict 矛盾（原文）
+>
+> - 真 workerd 平台行為未驗（依只讀紀律未起 dev server）：19 項冒煙未執行，僅以
+>   `grep -c '^check('` = **19** 證實數量與文件相符。
+> - 歷史紅燈 `16 failed | 49 passed (65)` 無法重現（test set 已不同）——**未驗**。
+> - `/wake` 的 `MS_REQUIRED/MS_INVALID/MS_TOO_LARGE` 不在 §5.2 的 10 碼表，
+>   但 `/wake` 是 DO 維運端點、非裝置 WS 協定，**不計為新 P2**。
+> - 已知殘留複核：與文件描述一致，**未發現比文件更嚴重**。
+> - `/wake?ms=0` 忙迴圈：刻意保留，**未驗**「呼叫端連續打 0 是否真的造成 open/close 風暴」。
+> - 最後一行寫「沒找到更多問題」，但同一份報告列了 2 條 P2——**兩者矛盾，故本專案不視為通過**。

@@ -88,6 +88,9 @@ export class MeetingDurableObject {
           // `Number("0.5")` 會被平台存成小數時間戳、`Number("1e3")` 是 1000，
           // 都不是呼叫端想表達的「毫秒」；而「沒帶參數」與「帶了空字串」更不能
           // 退化成 0（獨立 reviewer 實測的忙迴圈）。
+          // 另外：**格式檢查不得先 trim**（第三輪 NEW-3-1）——query 裡的 `+` 是空白
+          // （`?ms=+5` → `" 5"`），trim 下去就等於放行 5ms 的近似立即 alarm；
+          // 只有「空／只有空白」這種「等於沒給」的情況才走 `MS_REQUIRED`。
           if (raw === null || raw.trim() === "") {
             return json(
               {
@@ -98,11 +101,10 @@ export class MeetingDurableObject {
               400,
             );
           }
-          const normalized = raw.trim();
-          if (!/^\d+$/.test(normalized)) {
+          if (!/^\d+$/.test(raw)) {
             return json({ error: "MS_INVALID", value: raw }, 400);
           }
-          const delayMs = Number(normalized);
+          const delayMs = Number(raw);
           if (!Number.isSafeInteger(delayMs)) {
             return json({ error: "MS_INVALID", value: raw }, 400);
           }
