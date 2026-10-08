@@ -108,6 +108,7 @@ export function verdict(row) {
  * `0` ＝全部通過（可以安心進 webview 實測）。
  */
 export function exitCodeFor(rows) {
+  if (rows.length === 0) return 2; // 沒有來源可測（reviewer P2-5）：不可給 0，那會被讀成「全過」
   if (rows.some((row) => verdict(row) === "unreachable")) return 2;
   return rows.every((row) => verdict(row).startsWith("allowed")) ? 0 : 1;
 }
@@ -123,6 +124,7 @@ export function exitCodeFor(rows) {
  * 若你用了 `ALLOWED_ORIGINS`，請用 `--origin` 指定實際來源」。
  */
 export function hint(rows) {
+  if (rows.length === 0) return "沒有來源可測——先確認清單來源（--origin 或 src/cors.ts）。";
   if (rows.some((row) => row.error !== null && row.error !== undefined)) {
     return "提示：先確認 wrangler dev 有起來，且 --base 的埠與 wrangler 一致。";
   }

@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DRIFTED_ORIGIN,
+  USAGE,
   devOrigins,
   exitCodeFor,
   hint,
@@ -65,6 +66,9 @@ describe("M01-TECH-010 cors-probe 的判斷邏輯", () => {
     ).toBe(1);
     // 沒開旗標的兩種結果也要算對（否則 dev 現場會拿到 0＝「可以進 webview 實測了」）。
     expect(exitCodeFor([row({ preflight: { status: 204, allowOrigin: null, allowed: null } })])).toBe(1);
+    // reviewer P2-5：空輸入目前不可達（resolveOrigins 保證 ≥1 筆），但純函式不該給「綠」的方向。
+    expect(exitCodeFor([])).toBe(2);
+    expect(hint([])).toContain("沒有來源");
   });
 
   it("M01-TECH-010-Given 預設參數 When 解析 Then base 去尾斜線、meeting 有預設、不帶 --origin 時清單為空", () => {
@@ -91,6 +95,8 @@ describe("M01-TECH-010 cors-probe 的判斷邏輯", () => {
     expect(parseArgs(["--base"]).error).toContain("--base 缺少值");
     expect(parseArgs(["--origin", "--json"]).error).toContain("--origin 缺少值");
     expect(parseArgs(["--help"]).help).toBe(true);
+    // reviewer P2-4：`USAGE` 的註解說「測試才能斷言它非空」，那就真的斷言。
+    expect(USAGE).toContain("--base");
   });
 
   it("M01-TECH-010-Given 沒開旗標且有來源被擋 When 給提示 Then 說明「無法分辨漂移與 ALLOWED_ORIGINS 覆寫」", () => {
