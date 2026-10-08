@@ -74,6 +74,13 @@ export const MAX_TEXT_CHARS = 2000;
  */
 export const MAX_SPEAKER_ID = 63;
 
+/**
+ * 一頁最多回幾列（TECH-013 D3）。預設就是這個值——**沒有「無上限」選項**：
+ * 一個「可能回 1 MB 也可能不回」的預設值比有上限的預設值更難預期。
+ * 截斷一定看得見（`hasMore` / `total`），所以它是分頁而不是丟資料。
+ */
+export const SEGMENT_PAGE_LIMIT_MAX = 500;
+
 const CREATE_SEGMENTS = `CREATE TABLE IF NOT EXISTS transcript_segments (
   seq INTEGER PRIMARY KEY,
   idempotency_key TEXT NOT NULL,
@@ -97,6 +104,12 @@ const SELECT_COUNT = `SELECT COUNT(*) AS count FROM transcript_segments`;
 
 const SELECT_ALL = `SELECT seq, idempotency_key, speaker_id, text, start_ms, end_ms, overlap_ms, created_ms
   FROM transcript_segments ORDER BY seq ASC`;
+
+const SELECT_PAGE = `SELECT seq, idempotency_key, speaker_id, text, start_ms, end_ms, overlap_ms, created_ms
+  FROM transcript_segments ORDER BY seq ASC LIMIT ?`;
+
+const SELECT_PAGE_SINCE = `SELECT seq, idempotency_key, speaker_id, text, start_ms, end_ms, overlap_ms, created_ms
+  FROM transcript_segments WHERE seq > ? ORDER BY seq ASC LIMIT ?`;
 
 const SELECT_BY_KEY = `SELECT seq, idempotency_key, speaker_id, text, start_ms, end_ms, overlap_ms, created_ms
   FROM transcript_segments WHERE idempotency_key = ?`;
@@ -123,6 +136,25 @@ export class TranscriptLedger {
   list(): TranscriptSegmentRecord[] {
     this.#ensure();
     return this.#sql.exec(SELECT_ALL).toArray().map(toSegment);
+  }
+
+  /**
+   * 一頁逐字稿（TECH-013 D1 / D2）。
+   *
+   * - `since` 是**排他**下界（`seq > since`）；`null` ＝ 不設下界（從第一列）。
+   *   排他是因為呼叫端的語意是「我已經有 N 了」——做成包含式，每個消費端都得自己 +1。
+   * - 固定多抓一列（`limit + 1`）判斷還有沒有下一頁：一次查詢同時得到「本頁」與 `hasMore`，
+   *   不必再掃一次 `COUNT(*) WHERE seq > ?`。
+   */
+  listPage(since: number | null, limit: number): { rows: TranscriptSegmentRecord[]; hasMore: boolean } {
+    this.#ensure();
+    const probe = limit + 1;
+    const raw =
+      since === null
+        ? this.#sql.exec(SELECT_PAGE, probe).toArray()
+        : this.#sql.exec(SELECT_PAGE_SINCE, since, probe).toArray();
+    const rows = raw.map(toSegment);
+    return { rows: rows.slice(0, limit), hasMore: rows.length > limit };
   }
 
   /**

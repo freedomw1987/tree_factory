@@ -50,6 +50,7 @@ import {
 } from "./storage/gap-store.js";
 import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
 import {
+  SEGMENT_PAGE_LIMIT_MAX,
   TRANSCRIPT_SKEW_TOLERANCE_MS,
   TranscriptInvalidError,
   TranscriptLedger,
@@ -79,6 +80,12 @@ export interface MeetingDurableObjectContext {
    * 這樣「兩小時後」是立刻可驗的，不必真的等兩小時、也不必動系統時鐘。
    */
   now?: () => number;
+  /**
+   * 逐字稿讀取一頁的上限（TECH-013）。正式環境＝`SEGMENT_PAGE_LIMIT_MAX`（500）；
+   * 測試注入小值，這樣「不帶參數時真的在上限截斷」只要寫 51 列就能驗，
+   * 不必在單元測試裡湊到 501 列才看得出差別。
+   */
+  pageLimitMax?: number;
 }
 
 /** 一次 alarm 醒來最多再往前排多久（避免無限接力）。 */
@@ -86,6 +93,34 @@ export const MAX_ALARM_DELAY_MS = 5 * 60 * 1000;
 
 /** 讓 DO 類別在沒有 workerd 型別時也能被測試引用。 */
 type DurableObjectState = MeetingDurableObjectContext;
+
+/**
+ * 讀一個分頁參數（TECH-013 D4）。
+ *
+ * 不合法就 `400 TRANSCRIPT_INVALID` 並指名欄位，**不靜默夾住**：
+ * `?limit=0` 若默默變成上限 500，呼叫端以為「我只要 0 列」卻收到 500 列，
+ * 而且永遠不會知道自己在說謊。同一個立場也用在這條路由的其他守門（US-103）。
+ *
+ * 重複帶同一參數＝錯誤：`?limit=1&limit=2` 沒有唯一合理的解讀方式，
+ * 猜一個等於替呼叫端決定它沒說的事。
+ */
+function readPageParam(params: URLSearchParams, field: "since" | "limit", max: number): number | null {
+  const values = params.getAll(field);
+  if (values.length === 0) return null;
+  if (values.length > 1) {
+    throw new TranscriptInvalidError(`${field} 不得重複`);
+  }
+  const raw = values[0] as string;
+  const message =
+    field === "since" ? "since 必須是 ≥ 0 的整數" : `limit 必須是 1~${max} 的整數`;
+  // 只收十進位整數字串：`/^\d+$/` 擋掉負號、小數、`1e3`、`0x1f` 與空字串。
+  if (!/^\d+$/.test(raw)) throw new TranscriptInvalidError(message);
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) throw new TranscriptInvalidError(message);
+  if (field === "since") return value;
+  if (value < 1 || value > max) throw new TranscriptInvalidError(message);
+  return value;
+}
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(body, null, 2) + "\n", {
@@ -303,6 +338,11 @@ export class MeetingDurableObject {
     return new TranscriptChunkLedger(this.#chunkSql());
   }
 
+  /** 逐字稿一頁的上限：正式＝`SEGMENT_PAGE_LIMIT_MAX`，可由測試注入縮小（TECH-013）。 */
+  #pageLimitMax(): number {
+    return this.#ctx.pageLimitMax ?? SEGMENT_PAGE_LIMIT_MAX;
+  }
+
   /** M01-US-103 的逐字稿帳本（唯一存放逐字稿文字的地方）。 */
   #segmentLedger(): TranscriptLedger {
     return new TranscriptLedger(this.#chunkSql());
@@ -465,8 +505,26 @@ export class MeetingDurableObject {
       return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
     }
     if (request.method === "GET" || request.method === "HEAD") {
-      const segments = this.#segmentLedger().list();
-      return json({ meetingId: snapshot.session.meetingId, count: segments.length, segments });
+      // TECH-013：讀取改成可以「只拿新的」與「分頁」。
+      // 不帶參數＝第一頁（最多 `SEGMENT_PAGE_LIMIT_MAX` 列）——這是有意的行為改變：
+      // 整場一次回傳在 2 小時會議約 2000 列（真跡段長換算約 0.4 MB），而截斷在此是**看得見**的（`hasMore` / `total`）。
+      const params = new URL(request.url).searchParams;
+      const max = this.#pageLimitMax();
+      const since = readPageParam(params, "since", max);
+      const limit = readPageParam(params, "limit", max) ?? max;
+      const ledger = this.#segmentLedger();
+      const page = ledger.listPage(since, limit);
+      const last = page.rows[page.rows.length - 1];
+      return json({
+        meetingId: snapshot.session.meetingId,
+        count: page.rows.length,
+        // `count` 是「這一頁幾列」（原本的語意不變）；`total` 是整場幾列。
+        total: ledger.count(),
+        segments: page.rows,
+        hasMore: page.hasMore,
+        // 空頁回 `null`：呼叫端用同一個 `since` 再問一次仍會是空頁，不會有前進的假象。
+        nextSince: last === undefined ? null : last.seq,
+      });
     }
     if (request.method !== "POST") {
       // 帳本是 append-only，連 HTTP 動詞都不給「改」與「刪」：
@@ -497,13 +555,19 @@ export class MeetingDurableObject {
     const accepted: RecordSegmentOutcome[] = [];
     const duplicates: RecordSegmentOutcome[] = [];
     const conflicts: { existing: unknown; incoming: unknown }[] = [];
-    for (const field of fields) {
-      const outcome = ledger.record({ ...field, ...context });
-      if (outcome.accepted) accepted.push(outcome);
-      else if (outcome.duplicate) duplicates.push(outcome);
-      else conflicts.push({ existing: outcome.existing, incoming: outcome.incoming });
-    }
-    return json(this.#transcriptWriteResult(snapshot, accepted.length, duplicates.length, conflicts));
+    // 「壞一個就整批不寫」不是靠 try，是靠**先驗完再寫**（`fields` 整批 `validateSegment` 過才進迴圈，
+    // US-103 的既有測試釘著）——所以這裡的 try 擋的不是**邏輯性**壞資料，
+    // 而是**儲存層**錯誤（`record()` 內 INSERT / 讀回失敗；第二輪獨立審查用探針證明這條路真的存在：
+    // 讓第 2 個 INSERT 拋 → 帳本 1 列、計數 0）。同一個差額補記也包在 `#writeWithCatchUp` 裡。
+    this.#writeWithCatchUp(ledger, () => {
+      for (const field of fields) {
+        const outcome = ledger.record({ ...field, ...context });
+        if (outcome.accepted) accepted.push(outcome);
+        else if (outcome.duplicate) duplicates.push(outcome);
+        else conflicts.push({ existing: outcome.existing, incoming: outcome.incoming });
+      }
+    });
+    return json(this.#transcriptWriteResult(accepted.length, duplicates.length, conflicts));
   }
 
   /**
@@ -538,16 +602,25 @@ export class MeetingDurableObject {
     }
     const context = this.#transcriptWriteContext(snapshot);
     // 這裡先建 stream：`meetingOffsetMs` 不合法會在建構時就拋（不得默默當 0）。
+    const ledger = this.#segmentLedger();
     const stream = new TranscriptStream({
-      sink: this.#segmentLedger(),
+      sink: ledger,
       meetingOffsetMs: body.meetingOffsetMs as number,
     });
-    const report: IngestReport = stream.ingest(body.messages, context);
-    if (body.finalize === true) {
-      this.#mergeIngestReport(report, stream.finalize(context));
-    }
+    // 兩條帳本寫入路徑都走 `#writeWithCatchUp` 的差額補記（TECH-013 D5）：
+    // 串流是**邊收邊落地**，中途一句落在未來時間窗就 400，但前面的句子已經在帳本裡；
+    // 批次路徑的邏輯性壞資料靠「先驗完再寫」擋住，儲存層錯誤（INSERT／讀回失敗）則同樣靠補記。
+    // `finalize()` 也可能拋（收尾那一句才是壞的），所以補記要包住兩者。
+    const report: IngestReport = { appended: [], duplicates: [], conflicts: [], pending: null };
+    const messages = body.messages as unknown[];
+    this.#writeWithCatchUp(ledger, () => {
+      this.#mergeIngestReport(report, stream.ingest(messages, context));
+      if (body.finalize === true) {
+        this.#mergeIngestReport(report, stream.finalize(context));
+      }
+    });
     return json({
-      ...this.#transcriptWriteResult(snapshot, report.appended.length, report.duplicates.length, report.conflicts),
+      ...this.#transcriptWriteResult(report.appended.length, report.duplicates.length, report.conflicts),
       appended: report.appended,
       pending: report.pending,
     });
@@ -595,17 +668,57 @@ export class MeetingDurableObject {
   }
 
   /** 只有**新增**的句子才算一次寫入（重送與衝突不得讓計數膨脹）。 */
-  #transcriptWriteResult(
-    snapshot: SessionSnapshot,
-    accepted: number,
-    duplicates: number,
-    conflicts: unknown[],
-  ): Record<string, unknown> {
-    const transcriptWrites = snapshot.transcriptWrites + accepted;
-    if (accepted > 0) {
-      this.#sessionStore().write({ session: snapshot.session, transcriptWrites });
+  #transcriptWriteResult(accepted: number, duplicates: number, conflicts: unknown[]): Record<string, unknown> {
+    return { accepted, duplicates, conflicts, transcriptWrites: this.#addTranscriptWrites(accepted) };
+  }
+
+  /**
+   * 把「這次真的新增的句數」加到 session 的計數上（TECH-013 D5），回傳加完後的值。
+   *
+   * 關鍵是**寫入當下重新讀**，而不是用請求開頭的快照當基底：
+   * `await request.json()` 會讓出執行權，別的請求可能已經落地並更新過計數；
+   * 拿舊快照覆蓋就是少算（AC-4 的競爭）。
+   *
+   * 為什麼這樣就夠：DO 是單執行緒，`#readSession` 與 `write` 之間**沒有 await**，
+   * 所以「讀-加-寫」在物件內是不可分割的——不需要鎖，也不需要稅。
+   *
+   * `delta === 0` 時仍要回傳**現在**的值（不是舊值）：呼叫端可能會把它寫進回應。
+   */
+  #addTranscriptWrites(delta: number): number {
+    const fresh = this.#readSession(this.#sessionStore());
+    if (fresh === null) {
+      // 到不了這裡：三條寫入路徑都在入口驗過 session 了。
+      // 大聲一點比編一個數字好——若真的發生，帳本已經有列而計數會永遠落後。
+      throw new Error("session 不存在，無法更新 transcriptWrites");
     }
-    return { accepted, duplicates, conflicts, transcriptWrites };
+    const transcriptWrites = fresh.transcriptWrites + delta;
+    if (delta !== 0) {
+      // `{ ...fresh, ... }` 而非只挑兩個欄位：`SessionSnapshot` 以後若長出第三個欄位，
+      // 只挑欄位的寫法會**靜默**把它丟掉（第二輪審查 P2 nit）。
+      this.#sessionStore().write({ ...fresh, transcriptWrites });
+    }
+    return transcriptWrites;
+  }
+
+  /**
+   * TECH-013 D5 的另一半：**部分寫入**的差額補記（兩條帳本寫入路徑共用，避免下次又漂移）。
+   *
+   * 邊落地邊失敗時，前面已經寫進帳本的列不會回滾——計數不能停在舊值。
+   * 做法是進入前量一次帳本列數，`catch` 裡把「實際多了幾列」補記上去，然後**原樣 rethrow**
+   * （錯誤碼與訊息不得被這次補記改變）。
+   *
+   * 兩個已知的殘餘風險（設計 §6 有寫）：
+   *   * 這裡的 `count()` 若本身失敗，補記就失敗（機率極低，但發生時計數會落後）；
+   *   * 補記用的 `#addTranscriptWrites` 若失敗會蓋掉原始錯誤。兩者都是「大聲壞掉」而非靜默，故可接受。
+   */
+  #writeWithCatchUp(ledger: TranscriptLedger, run: () => void): void {
+    const before = ledger.count();
+    try {
+      run();
+    } catch (error) {
+      this.#addTranscriptWrites(ledger.count() - before);
+      throw error;
+    }
   }
 
   #mergeIngestReport(report: IngestReport, tail: IngestReport): void {
@@ -724,16 +837,16 @@ export class MeetingDurableObject {
         transcriptWrites: current.transcriptWrites,
       });
     }
-    const next: SessionSnapshot = {
-      session: current.session,
-      transcriptWrites: current.transcriptWrites + 1,
-    };
-    store.write(next);
+    // 這條路徑（US-101 的文字逐字稿）也是**寫入**，所以計數要走同一個「寫入當下重讀」。
+    // 第二輪獨立審查用探針證明：用進場快照 `current.transcriptWrites + 1` 時，
+    // 只要在 `await request.json()` 期間有 `/transcript/segments` 落地（2 列），
+    // 就會寫回 1 → 帳本 2 列、計數 1（D6-1 的全稱句不成立）。
+    // 循序呼叫的回值不變（`#addTranscriptWrites` 加完回傳現在的值）。
     return json({
       accepted: true,
       duplicate: false,
       chunkSeq: chunkSeq ?? null,
-      transcriptWrites: next.transcriptWrites,
+      transcriptWrites: this.#addTranscriptWrites(1),
       note: "逐字稿內容的落地由 M01-US-103 接上；這裡只驗證寫入守門員與分段冪等。",
     });
   }

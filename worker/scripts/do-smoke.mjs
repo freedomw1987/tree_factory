@@ -355,5 +355,129 @@ check(
   `transcriptWrites=${ledSession.body.transcriptWrites}`,
 );
 
+console.log("--- 9. TECH-013：分頁／增量 + 部分寫入的計數 ---");
+const pageId = mid("meeting-page");
+await post(`/m/${pageId}/session/start`, {});
+for (let i = 0; i < 5; i += 1) {
+  const written = await post(`/m/${pageId}/transcript/segments`, {
+    idempotencyKey: `seg:0:${i * 1000}`,
+    speakerId: 0,
+    text: `第 ${i + 1} 句`,
+    startMs: i * 1000,
+    endMs: i * 1000 + 500,
+  });
+  check(
+    `人工補登第 ${i + 1} 句：計數跟上（transcriptWrites=${i + 1}）`,
+    written.status === 200 && written.body.transcriptWrites === i + 1,
+    JSON.stringify(written.body),
+  );
+}
+const firstPage = await get(`/m/${pageId}/transcript/segments?limit=2`);
+check(
+  "?limit=2 → 2 列、hasMore=true、nextSince=2、total=5",
+  firstPage.body.count === 2 && firstPage.body.hasMore === true && firstPage.body.nextSince === 2 && firstPage.body.total === 5,
+  JSON.stringify({
+    count: firstPage.body.count,
+    hasMore: firstPage.body.hasMore,
+    nextSince: firstPage.body.nextSince,
+    total: firstPage.body.total,
+  }),
+);
+const secondPage = await get(`/m/${pageId}/transcript/segments?since=2&limit=2`);
+check(
+  "?since=2 是排他下界 → 續抓 seq 3,4（不漏不重）",
+  secondPage.body.segments.map((row) => row.seq).join(",") === "3,4",
+  JSON.stringify(secondPage.body.segments.map((row) => row.seq)),
+);
+const thirdPage = await get(`/m/${pageId}/transcript/segments?since=4`);
+check(
+  "續抓到最後一頁：1 列、hasMore=false、nextSince=5",
+  thirdPage.body.count === 1 && thirdPage.body.hasMore === false && thirdPage.body.nextSince === 5,
+  JSON.stringify(thirdPage.body),
+);
+const emptyPage = await get(`/m/${pageId}/transcript/segments?since=5`);
+check(
+  "since 超過最後一列 → 空頁（200、nextSince=null），不是 404",
+  emptyPage.status === 200 && emptyPage.body.count === 0 && emptyPage.body.nextSince === null,
+  JSON.stringify(emptyPage.body),
+);
+const badParams = [
+  ["limit=0", "limit"],
+  ["limit=501", "limit"],
+  ["limit=1.5", "limit"],
+  ["since=-1", "since"],
+  ["since=abc", "since"],
+  ["limit=1&limit=2", "limit"],
+];
+for (const [query, field] of badParams) {
+  const bad = await get(`/m/${pageId}/transcript/segments?${query}`);
+  check(
+    `?${query} → 400 且訊息指名 ${field}`,
+    bad.status === 400 && String(bad.body.message).includes(field),
+    JSON.stringify(bad.body),
+  );
+}
+const pageRows = await get(`/m/${pageId}/transcript/segments`);
+const pageSession = await get(`/m/${pageId}/session`);
+check(
+  "讀取（含六次壞參數）不動帳本也不動計數：5 列、transcriptWrites=5",
+  pageRows.body.total === 5 && pageSession.body.transcriptWrites === 5,
+  `total=${pageRows.body.total} writes=${pageSession.body.transcriptWrites}`,
+);
+// 部分寫入：第 1 則只是餵緩衝、第 2 則切段讓第 1 段落 0~1 秒、第 3 則切段時落地的是 70 秒那段 → 落在未來時間窗。
+const partialId = mid("meeting-partial");
+await post(`/m/${partialId}/session/start`, {});
+const partial = await post(`/m/${partialId}/transcript/stream`, {
+  meetingOffsetMs: 0,
+  messages: [
+    resultsMsg([w("第一句", 0, 1, 0)]),
+    resultsMsg([w("第二句", 70, 71, 1)]),
+    resultsMsg([w("第三句", 80, 81, 0)]),
+  ],
+});
+check("串流中途 400（第 3 則切段時落地的那段落在未來時間窗）", partial.status === 400, JSON.stringify(partial.body));
+const partialRows = await get(`/m/${partialId}/transcript/segments`);
+const partialSession = await get(`/m/${partialId}/session`);
+check(
+  "部分寫入：已落地的 1 列留著（不回滾），且 transcriptWrites 追到 1",
+  partialRows.body.total === 1 && partialSession.body.transcriptWrites === 1,
+  `rows=${partialRows.body.total} writes=${partialSession.body.transcriptWrites}`,
+);
+// 併發：兩個請求同時打。真 workerd 不保證一定交錯（單元測試才是保證），這裡是壓力測試。
+const raceId = mid("meeting-race");
+await post(`/m/${raceId}/session/start`, {});
+const [raceA, raceB] = await Promise.all([
+  post(`/m/${raceId}/transcript/segments`, {
+    idempotencyKey: "seg:0:0",
+    speakerId: 0,
+    text: "同時 A",
+    startMs: 0,
+    endMs: 1000,
+  }),
+  post(`/m/${raceId}/transcript/segments`, {
+    idempotencyKey: "seg:0:1",
+    speakerId: 0,
+    text: "同時 B",
+    startMs: 0,
+    endMs: 1000,
+  }),
+]);
+const raceRows = await get(`/m/${raceId}/transcript/segments`);
+const raceSession = await get(`/m/${raceId}/session`);
+check(
+  "同時兩筆：兩列都在（帳本 2）且計數＝2，不得少算",
+  raceA.status === 200 &&
+    raceB.status === 200 &&
+    raceRows.body.total === 2 &&
+    raceRows.body.segments.map((row) => row.seq).join(",") === "1,2" &&
+    raceSession.body.transcriptWrites === 2,
+  JSON.stringify({
+    a: raceA.body.transcriptWrites,
+    b: raceB.body.transcriptWrites,
+    total: raceRows.body.total,
+    writes: raceSession.body.transcriptWrites,
+  }),
+);
+
 console.log(`\nDO smoke：${failures === 0 ? "全部通過 ✅" : `${failures} 項失敗 ❌`}`);
 process.exit(failures === 0 ? 0 : 1);
