@@ -526,3 +526,73 @@ M5 的斷言剛好與突變值撞在同一個數字（`0 accepted + 1 duplicate 
 與前一輪逐行比對僅時間戳／run id／DO 雜湊不同）、UI E2E **35 passed (41.1s)**；
 交付文 §2（AC-5 DoD）、§3（指令與輸出）、§4（突變表＋兩列新誠實聲明）、backlog 的 US-103 列與 v2.8 列全部同步。
 **理由**：數字漂移是交付文最容易被抓到的地方，改一次就全改。**可推翻**：❌
+
+## 2026-10-09 04:45 — TECH-013（逐字稿分頁／增量 + 串流部分寫入的計數一致）設計凍結與執行
+
+**任務**：US-103 的 Gate 4 第二輪開出的 P2-4／F5（P2、2 SP、worker-only）。US-103 已 commit（`14520df` / `f4fe5e6`）。
+
+**決策（先凍結設計再寫測試，D1~D6 全部附「可證偽」條件寫進 `docs/design/TECH-013-transcript-read-paging.md`）**：
+- **D1**：`?since` 是**排他**下界（`seq > since`），因為呼叫端的語意是「我已經有到 N」；沒有 `since` → 無下界。
+- **D2**：`listPage` 用 `limit + 1` 探測（一趟查詢同時得到本頁與 `hasMore`，不再多一次 `COUNT`）；`total` 仍由 `count()` 給。
+- **D3**：不帶參數＝最多 500 列（`SEGMENT_PAGE_LIMIT_MAX = 500`），**沒有**「不限」選項；這是本票**唯一**的對外行為改變，
+  且不靜默（`hasMore` + `total` 讓截斷看得見），已在設計與交付文 §2/§4 揭露。可推翻條件：若真實會議少於 500 列且無人需要續抓，這個上限就沒意義。
+- **D4**：不合法／重複參數 → 400 `TRANSCRIPT_INVALID` 且訊息**指名欄位**，**不得靜默夾住**；未知參數忽略（沒承諾的參數不該讓請求變脆）；
+  守門順序＝session（409）→ 參數（400）。
+- **D5**：計數改成「**寫入當下重讀 session**」（`#addTranscriptWrites`）。原子性的唯一理由是 `#readSession()` 與 `write()` 之間**沒有 `await`**；
+  這句話寫進設計，因為下一個人只要在中間插一個 `await` 就會壞。
+- **D6**：三條不變式（新落地一列 ⇒ 計數恰好 +1；GET 不改狀態；用 `nextSince` 續抓不漏不重）。
+
+**決策（批次路徑**不**加部分寫入 try/catch，只包串流路徑）**：批次路由是「先整批 `validateSegment` 再進寫入迴圈」，
+所以迴圈內不可能拋；若有 try/catch 會是**永遠不會被執行**的死碼（且我也不會有證據說它對）。
+改成寫一段註解說明「壞一個就整批不寫」是由**前置驗證**保證的（已有 US-103 的測試釘住）。**可推翻**：✅（若未來批次改成邊驗邊寫，就必須補回）。
+
+**決策（突變一定要先確認「驗證工具自己是活的」）**：第一次跑 12 條突變時，M1 報「突變套用失敗」、其餘 11 條「通過」。
+我一度只盯著 M1 的錨點找問題；真正的原因是整支腳本被 `sed -i` 改壞（macOS + 含中文的腳本）。改寫整支腳本後
+**M1~M12 全部讓測試由綠轉紅**（log：`/tmp/tech13-mutations.log`；還原後 `Tests 9 passed`）。
+**理由**：驗證工具壞掉會回報「假的好消息」，比測試寫得少更危險。**可推翻**：❌
+
+**證據（全部重跑、不留舊值）**：Gate 1 紅 `8 failed | 1 passed (9)`（log `/tmp/tech13-gate1-red.log`）→ 綠 `9 passed`；
+`tsc --noEmit` 無輸出；markdownlint **61 檔 0 issues**；worker 全量 **243 passed (20 檔)**；M01 回歸 `passed=194`；
+UI 單元 188（`153 passed | 35 skipped`）、E2E **35 passed (41.2s)**（`--output=/tmp/pw-tech13`）；
+真 workerd 冒煙（port 8801、`HARNESS_PROVIDER:faux`）**67 ✅ / 0 ❌**（新增 §9 共 19 項，含「串流中途 400 後計數追到 1」與「同時兩筆 → 2」）。
+
+**決策（誠實聲明寫進交付文 §4）**：真 workerd 的併發**不保證**交錯（單元測試的插隊是注入出來的，冒煙的 `Promise.all` 只是壓力測試）；
+500 是判斷不是量測；沒有真 STT／真兩小時會議；原子性論證只在同一 DO 同一 thread 成立；游標會因未來的刪除功能而壞。
+**可推翻**：❌
+
+## 2026-10-09 04:57 — TECH-013：Gate 4 結果與第二輪修正（F1~F6 全數處置）
+
+**任務**：Gate 4（reviewer + oracle 兩條獨立通道）回來後的續辦。
+
+**審查結論**：兩條通道都是「**需修正後合併**」。
+- reviewer（run `5c7cec81-3d62-4345-9692-f6ccba11d02f`／child `41a06c39…`）：code/tests **無 P0/P1**，P2 全在文件與流程
+  （設計 D5 與實作不同步、測試檔頭誇大「紅的條數」、backlog 當時還沒真的改、冒煙數 67→66 數錯）。
+- oracle（child `96860bcb…`，是會執行的對手）：P1×3 / P2×3，其中兩條 P1 是**真程式缺陷**：
+  - **F2**：批次路徑也會中途失敗——oracle 用假 sqlite 讓第 2 個 `INSERT` 丟錯，拿到 `{"status":500,"ledger":1,"transcriptWrites":0}`。
+    我原本在設計裡寫「批次先整批驗過，所以不需要 catch」——**被推翻**（驗證通過 ≠ 儲存層不會丟錯）。
+  - **F4**：舊路徑 `/transcript`（US-101）也在同一個競態裡（`current.transcriptWrites + 1` 寫回整份 session，會蓋掉別的請求的增量）。
+
+**決策（修法收斂成一個共用函式，而不是各修各的）**：新增 `#writeWithCatchUp(ledger, run)`——寫入前記 `ledger.count()`，
+catch 裡補記差額後**原樣 rethrow**；批次與串流都走它。舊路徑改走 `#addTranscriptWrites(1)`。
+另有兩處順手加固：`#addTranscriptWrites` 寫回 `{ ...fresh, transcriptWrites }`（避免未來 `SessionSnapshot` 加欄位被靜默丟掉）、
+`readPageParam(params, field, max)`＋可注入 `pageLimitMax`（測試才能用 50，而不是真的塞 501 列）。
+**理由**：同一個不變式（計數＝帳本列數）在**三條寫入路徑**上都必須成立，只在兩條上成立等於沒成立。**可推翻**：❌
+
+**決策（不再開第二輪獨立審查）**：F1~F6 的修正發生在凍結快照 `/tmp/tech13-review.patch` 之後，
+所以那兩份結論**不涵蓋**修正後的程式碼。我用「重跑全部 gates ＋ 每條新測試都配一條突變」補償，
+但**沒有**再請第三方複審，並把這件事明列為本票最大殘餘風險（交付文 §5「凍結之後才動的」）。
+**理由**：距 deadline 約 2 小時、修正集中兩支檔案且每條都有突變釘住；**可推翻**：✅（下一次動到這兩支檔案時，請第三方複審）。
+
+**證據（第二輪修正後全部重跑，不留舊值）**：新檔 **13 passed**（第二輪追加 4 條）；worker 全量 **247 passed (20 檔)**；
+`tsc --noEmit` exit 0；markdownlint **62 檔 0 issues**；
+M01 回歸 `passed=198 failed=0`、`npx vitest run -t M01` → `198 passed | 49 skipped`；
+UI 回歸 `153 passed | 35 skipped`（188）；E2E **35 passed (41.1s)**（`--output=/tmp/pw-tech13b`）；
+真 workerd 冒煙（port 8803、`HARNESS_PROVIDER:faux`）**66 ✅ / 0 ❌、exit 0**（log `/tmp/tech13-smoke2.raw`）；
+**突變 16 條全數讓測試由綠轉紅**（M13~M16 對應新補的 4 條測試；log `/tmp/tech13-mutations.log`；還原後 `Tests 13 passed`）。
+
+**踩坑（同一個坑第二次）**：補 M13~M16 時 M16 報「錨點找不到」。這次我先對錨點與檔案做**字元級 diff**，
+才看出真因是**錨點裡少抄了兩行註解**（不是編碼、不是我原本以為的 `＝`／`：` 全形半形）。
+連同第一次的 `sed -i` 事故，兩次的共同教訓：**錯誤訊息指的位置，不一定是我最後必須改的位置**；先驗工具，再改標的。
+
+**決策（文件與數字一次到位，不留舊值）**：交付文 §2/§3/§4/§6/§7 與 `docs/backlog.md`（TECH-013 → DONE、changelog v2.9）
+全部以第二輪重跑的數字覆寫；突變表補到 16 條並附實際死亡數。**可推翻**：❌
