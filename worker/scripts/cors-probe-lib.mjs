@@ -111,3 +111,33 @@ export function exitCodeFor(rows) {
   if (rows.some((row) => verdict(row) === "unreachable")) return 2;
   return rows.every((row) => verdict(row).startsWith("allowed")) ? 0 : 1;
 }
+
+/**
+ * 給人看的收尾提示。
+ *
+ * 為什麼要分支（第二輪 oracle P2-2）：第一版對「有被擋」一律印
+ * 「若是 dev 埠漂移，請設定 `ALLOWED_ORIGINS`」——但如果 worker 其實**已經**用
+ * `ALLOWED_ORIGINS=tauri://localhost` 覆寫，預設清單的六個 dev 來源就全紅，
+ * 而提示卻叫開發者去追一個**不存在**的埠漂移。
+ * 真正該說的是：「這顆 worker 沒開 `DEBUG_ORIGINS`，無法分辨漂移與覆寫；
+ * 若你用了 `ALLOWED_ORIGINS`，請用 `--origin` 指定實際來源」。
+ */
+export function hint(rows) {
+  if (rows.some((row) => row.error !== null && row.error !== undefined)) {
+    return "提示：先確認 wrangler dev 有起來，且 --base 的埠與 wrangler 一致。";
+  }
+  if (rows.every((row) => verdict(row).startsWith("allowed"))) {
+    return "全部來源都在白名單內——可以進 webview 實測了。";
+  }
+  // 有任何一列的診斷標頭可用嗎？沒有＝`DEBUG_ORIGINS` 沒開，成因無法分辨。
+  const flagged = rows.some((row) => (row.preflight?.allowed ?? null) !== null);
+  if (!flagged) {
+    return (
+      "有來源被擋，但這顆 worker 沒開 DEBUG_ORIGINS（看不到 x-cors-allowed）：" +
+      "無法分辨「埠漂移」與「ALLOWED_ORIGINS 覆寫」。" +
+      "若你用了 ALLOWED_ORIGINS，請用 --origin 指定實際來源；" +
+      "若懷疑漂移，請帶 --var DEBUG_ORIGINS:1 重啟 worker 再看一次。"
+    );
+  }
+  return "有來源被擋：若是 dev 埠漂移，請設定／更新 ALLOWED_ORIGINS（見 docs/design/TECH-010-*.md）。";
+}

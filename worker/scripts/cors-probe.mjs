@@ -25,7 +25,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { USAGE, devOrigins, exitCodeFor, parseArgs, resolveOrigins, verdict } from "./cors-probe-lib.mjs";
+import {
+  USAGE,
+  devOrigins,
+  exitCodeFor,
+  hint,
+  parseArgs,
+  resolveOrigins,
+  verdict,
+} from "./cors-probe-lib.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
@@ -98,13 +106,7 @@ if (json) {
         ` → ${verdict(row)}`,
     );
   }
-  if (rows.some((row) => row.error !== null)) {
-    console.log("提示：先確認 wrangler dev 有起來，且 --base 的埠與 wrangler 一致。");
-  } else if (rows.every((row) => verdict(row).startsWith("allowed"))) {
-    console.log("全部來源都在白名單內——可以進 webview 實測了。");
-  } else {
-    console.log("有來源被擋：若是 dev 埠漂移，請設定 ALLOWED_ORIGINS（見 docs/design/TECH-010-*.md）。");
-  }
+  console.log(hint(rows));
 }
 
 process.exit(exitCodeFor(rows));

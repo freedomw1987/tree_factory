@@ -12,6 +12,7 @@ import {
   DRIFTED_ORIGIN,
   devOrigins,
   exitCodeFor,
+  hint,
   parseArgs,
   resolveOrigins,
   verdict,
@@ -90,6 +91,25 @@ describe("M01-TECH-010 cors-probe 的判斷邏輯", () => {
     expect(parseArgs(["--base"]).error).toContain("--base 缺少值");
     expect(parseArgs(["--origin", "--json"]).error).toContain("--origin 缺少值");
     expect(parseArgs(["--help"]).help).toBe(true);
+  });
+
+  it("M01-TECH-010-Given 沒開旗標且有來源被擋 When 給提示 Then 說明「無法分辨漂移與 ALLOWED_ORIGINS 覆寫」", () => {
+    // 第二輪 oracle P2-2：worker 已用 ALLOWED_ORIGINS 覆寫時，預設清單全紅，
+    // 舊提示卻叫人「請設定 ALLOWED_ORIGINS」——把人送去追不存在的埠漂移。
+    const rows = [row({ preflight: { status: 204, allowOrigin: null, allowed: null } })];
+    const text = hint(rows);
+    expect(text).toContain("ALLOWED_ORIGINS");
+    expect(text).toContain("--origin");
+    expect(text).not.toContain("請設定／更新 ALLOWED_ORIGINS");
+  });
+
+  it("M01-TECH-010-Given 開了旗標且有來源被擋 When 給提示 Then 才指向埠漂移；全綠／打不到另有提示", () => {
+    const blocked = [row({ preflight: { status: 204, allowOrigin: null, allowed: "false" } })];
+    expect(hint(blocked)).toContain("埠漂移");
+    expect(hint([row({ preflight: { status: 204, allowOrigin: "http://x.test", allowed: "true" } })])).toContain(
+      "可以進 webview 實測了",
+    );
+    expect(hint([row({ error: "fetch failed" })])).toContain("wrangler dev 有起來");
   });
 
   it("M01-TECH-010-Given src/cors.ts 的內容 When 解析 Then 取雙引號清單；找不到區塊回 null", () => {
