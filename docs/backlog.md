@@ -163,19 +163,19 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TECH-001 | TECH | — | 環境前置：rustup + iOS target + simulator runtime + **CocoaPods** + wrangler 登入 | — | P0 | 2 | DONE（見 `docs/env-setup.md`）| — |
 | SPIKE-001 | Spike | M01 | 驗證 `withVoiceInput` 是否支援 nova-3 `diarize`、串流 diarization 是否成立 | — | P0 | 3 | DONE（`docs/spike/SPIKE-001.md`）| TECH-001 |
-| SPIKE-002b | Spike | M01 | **原生錄音 plugin（AVAudioEngine）能否在背景/鎖屏續錄**（時間盒 0.5 天）| — | P0 | 2 | PENDING | SPIKE-002 |
+| SPIKE-002b | Spike | M01 | **原生錄音 plugin（AVAudioEngine）能否在背景/鎖屏續錄**（時間盒 0.5 天）| — | P0 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-002 |
 | SPIKE-002 | Spike | M01 | 驗證 Tauri 2 iOS webview `getUserMedia` 收音與鎖屏/背景行為 | — | P0 | 3 | DONE（`docs/spike/SPIKE-002.md`）| TECH-001 |
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | DONE（`docs/spike/SPIKE-003.md`）| SPIKE-001 |
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
-| SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING | SPIKE-004 |
+| SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
 | M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 5 | PENDING | SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
 | M01-US-105 | US | M01 | 會後統一命名：把「發言者 2」改成「阿明」（決策 D1）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
-| **M01-US-106** | US | M01 | **原生錄音層**：Tauri plugin（`AVAudioEngine`）取代 webview `MediaRecorder`，支援背景/鎖屏續錄（決策 **D14**）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-002b |
-| **M01-US-107** | US | M01 | **背景/鎖屏缺口標記**：`visibilitychange → hidden` 即標 `TRANSCRIPT_GAP`，逐字稿明示「此段未錄到」（失敗模式 F22）| 3 條 BDD | P0 | 3 | PENDING | M01-US-101 |
-| **M01-US-108** | US | M01 | 錄音續航：`WakeLock` 防關屏 + 會議中提示「請保持畫面開啟」| 2 條 BDD | P1 | 2 | PENDING | M01-US-101 |
+| **M01-US-106** | US | M01 | **原生錄音層**：Tauri plugin（`AVAudioEngine`）取代 webview `MediaRecorder`，支援背景/鎖屏續錄（決策 **D14**）| 4 條 BDD | P0 | 8 | PENDING（✅ 已確認：照計畫走） | SPIKE-002b |
+| **M01-US-107** | US | M01 | **背景/鎖屏缺口標記**：`visibilitychange → hidden` 即標 `TRANSCRIPT_GAP`，逐字稿明示「此段未錄到」（失敗模式 F22）| 3 條 BDD | P0 | 3 | PENDING（✅ 已確認：照計畫走） | M01-US-101 |
+| **M01-US-108** | US | M01 | 錄音續航：`WakeLock` 防關屏 + 會議中提示「請保持畫面開啟」| 2 條 BDD | P1 | 2 | PENDING（✅ 已確認：照計畫走） | M01-US-101 |
 | **M01-US-109** | US | M01 | `DiarizingNova3Transcriber` 聚段規則純函式 + 單元測試（**本專案第一個 TDD 標的**）| 4 條 BDD | P0 | 3 | DONE（17 測試全綠，`worker/src/segmentation.ts`）| SPIKE-001 |
 | INT-M01-M02-01 | US | INT | 端到端：開始會議 → 講話 → 螢幕即時逐字稿 → 中斷 → 恢復續接 | 3 條 BDD | P0 | 5 | PENDING | M01-US-101, M01-US-103, M02-US-201 |
 | M02-US-201 | US | M02 | 逐字稿持久化到 Durable Object，重開 app 續接、不重複不遺失 | 4 條 BDD | P0 | 8 | PENDING | SPIKE-003 |
@@ -183,8 +183,8 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | M02-US-203 | US | M02 | 會後產出三層記錄（逐字稿 + 摘要 + 待辦）| 4 條 BDD | P0 | 8 | PENDING | M02-US-202, M01-US-105 |
 | M02-US-204 | US | M02 | 匯出 / 分享會議記錄 | 3 條 BDD | P2 | 3 | PENDING | M02-US-203 |
 | M02-US-205 | US | M02 | 單場語音追問（**呼叫 M03 引擎**，`scope = meeting_id`；withVoice + TTS）| 3 條 BDD | P1 | 3 | PENDING | M02-US-203, M03-US-301 |
-| **M02-US-218** | US | M02 | 上下文壓縮政策顯式設定（**24k 窗口**）並驗證壓縮後筆記仍正確（決策 **D15** / F23）| 3 條 BDD | P0 | 3 | PENDING | M02-US-203 |
-| **M02-US-219** | US | M02 | 分階段模型：即時逐字稿 8b、會後筆記 70b（可設定）（決策 **D15**）| 2 條 BDD | P0 | 3 | PENDING | M02-US-203 |
+| **M02-US-218** | US | M02 | 上下文壓縮政策顯式設定（**24k 窗口**）並驗證壓縮後筆記仍正確（決策 **D15** / F23）| 3 條 BDD | P0 | 3 | PENDING（✅ 已確認：照計畫走） | M02-US-203 |
+| **M02-US-219** | US | M02 | 分階段模型：即時逐字稿 8b、會後筆記 70b（可設定）（決策 **D15**）| 2 條 BDD | P0 | 3 | PENDING（✅ 已確認：照計畫走） | M02-US-203 |
 | SPIKE-005 | Spike | M03 | 跨會議檢索方式實測（語意檢索 vs 全文比對：命中率、成本、延遲）| — | P0 | 3 | PENDING | M02-US-203 |
 | M03-US-301 | US | M03 | 對話框為首頁與基本問答（決策 D9）| 4 條 BDD | P0 | 5 | PENDING | M02-US-203 |
 | M03-US-302 | US | M03 | 回答附來源並可回溯原句 | 4 條 BDD | P0 | 5 | PENDING | M03-US-301 |
@@ -194,7 +194,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | M03-US-306 | US | M03 | 回答中斷與重試（不重複計帳）| 3 條 BDD | P1 | 2 | PENDING | M03-US-301 |
 | M03-US-307 | US | M03 | 從會議進入對話（範圍鎖定 scope）| 3 條 BDD | P1 | 3 | PENDING | M03-US-301 |
 | M03-US-308 | US | M03 | 對話框語音輸入（辨識後先填入、確認才送出，決策 D11）| 3 條 BDD | P1 | 2 | PENDING | M03-US-301 |
-| **M03-US-319** | US | M03 | 成本看板：讀 `pi.usage` 顯示單場費用（SPIKE-004 證實內建逐模型記帳）| 2 條 BDD | P1 | 2 | PENDING | M02-US-203 |
+| **M03-US-319** | US | M03 | 成本看板：讀 `pi.usage` 顯示單場費用（SPIKE-004 證實內建逐模型記帳）| 2 條 BDD | P1 | 2 | PENDING（✅ 已確認：照計畫走） | M02-US-203 |
 | INT-M02-M03-01 | US | INT | M02 單場追問 ↔ M03 引擎的介面（共用引擎、不重複檢索）| 3 條 BDD | P1 | 3 | PENDING | M03-US-301, M02-US-205 |
 | M04-US-401 | US | M04 | 逐字稿可編輯（含 STT 錯字修正，決策 D7）| 4 條 BDD | P0 | 5 | PENDING | M04-US-402 |
 | M04-US-402 | US | M04 | 編輯旗標與 agent 引用提醒（決策 D8）| 3 條 BDD | P0 | 3 | PENDING | M02-US-203 |
@@ -218,6 +218,11 @@ P1 = 37 SP、P2 = 12 SP｜三階段：A **104 SP** / B **39 SP** / C 27 SP（由
 > **SPIKE-002 / 004 造成的計畫變動**：新增 12 項 / 34 SP（含反思轉出的 2 項），其中 8 項是 P0
 > —— 因為兩個 spike 各揭露一個「原本以為沒問題、其實不成立」的前提
 > （背景可錄音、上下文塞得下一場會議），必須補票才不會在 M01/M02 開工後才發現。
+
+> 📝 2026-10-08 ask-me Q1：v1 前景版 + 原生票同步做（C）。SPIKE-002b / M01-US-106 / 107 / 108 全 ✅ 已確認。
+> 📝 2026-10-08 ask-me Q2：分階段模型（A：即時 8b / 會後 70b）。M02-US-219 / M03-US-319 ✅ 已確認。
+> 📝 2026-10-08 ask-me Q3：24k 窗口壓縮政策（A）。M02-US-218 ✅ 已確認。
+> 📝 2026-10-08 ask-me Q4：兩張 Spike 都做、002b 先（A）。SPIKE-002b / SPIKE-004b ✅ 已確認。
 
 ### 2.1 三階段交付對照（決策 D9）
 
