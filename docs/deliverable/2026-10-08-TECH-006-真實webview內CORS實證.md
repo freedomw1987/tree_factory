@@ -112,6 +112,12 @@
 | 探針／實測流程仍為手動（build app → 開 app → 讀 log／OCR）| P2 | 同上（TECH-010）|
 | `TECH-006` 的 TDD「先紅後綠」只有對話與本檔記錄，repo 內**沒有**紅燈階段的提交 | P2 | 本檔「誠實揭露」（獨立稽核者已指出無法從 artifact 回溯）|
 
+**後續補充（2026-10-08 當日，iOS 驗收準備）**：上面第 1 列（iOS 未實測）已**部分解除**——
+在 **iPhone 18 Pro 模擬器（真 WKWebView）**內實測，worker log 同樣是
+`origin="tauri://localhost" allowed=true`（4 行，meeting `03a0851c-…`），且 iOS 上 M01 的 Svelte UI 正常渲染。
+**仍未驗**：iPhone **真機**（需簽章 Team ID + 開發者模式）。真機指令與判讀表見
+`docs/ac/TECH-006.md` §「真機驗收程序」；收音能力不重測（已在 `docs/spike/SPIKE-002.md` §3.2 實測）。
+
 ## 6. 下一步建議
 
 ### 6.1 立即可做（建議優先）

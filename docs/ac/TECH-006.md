@@ -65,6 +65,7 @@ E2E 跑的來源是 `http://localhost:1420`，但**正式 app 在 Tauri webview 
 ### AC-3 實測結果（本票真正的產出）
 
 - **Given** 真實 Tauri 桌面 webview（與 iOS 同一套 Origin 機制）
+  （**2026-10-08 補充**：iOS 模擬器亦已實測，同值 `tauri://localhost`，見「iOS 模擬器實測」）
 - **When** 依「實測紀錄」小節的步驟啟動
 - **Then** 三層證據一致：webview 的 `location.origin` ＝ worker 收到的 `Origin` ＝ `ACAO` 值，
   且該值在 `DEV_ORIGINS` 內
@@ -81,8 +82,10 @@ E2E 跑的來源是 `http://localhost:1420`，但**正式 app 在 Tauri webview 
 
 ## 已知邊界（誠實記載）
 
-1. 桌面 webview 與 iOS webview 走**同一套** Origin 機制（WKWebView 的自訂 scheme），
-   但**不是同一個裝置**——iOS 上的真機驗收仍屬 M01-US-101 的 DoD，本票不取代它。
+1. 桌面 webview 與 iOS webview 走**同一套** Origin 機制（WKWebView 的自訂 scheme）。
+   **2026-10-08 更新**：iOS **模擬器**已實測（同樣 `tauri://localhost` → `allowed=true`，見
+   「iOS 模擬器實測」）；仍待確認的是 **iPhone 真機**（簽章 + 開發者模式，需用戶）。
+   iOS 上的真機驗收仍屬 M01-US-101 的 DoD，本票不取代它。
 2. 本票只證明「來源在白名單內、請求能被 webview 接受」；**不**證明收音品質、背景錄音
    （那是 SPIKE-002 / M01-US-106 的範圍）。
 3. 探針會在 worker 上**真的建一場會議**（id 為隨機 uuid），並在讀到 `201` 後自動 `stop`
@@ -168,6 +171,60 @@ access-control-max-age: 600
 3. **只有 `cargo tauri build` 產出的 `.app` 才有 `tauri://localhost`**（就是第 1 節那 4 行）。
 4. 因此本票的驗收程序**必須**走打包這條路；這也是把探針的 DEV 條件拔掉的理由（見 AC-2 註）。
 
+### iOS 模擬器實測（2026-10-08 補充，Agent 執行）
+
+**為什麼要做**：桌面 macOS 已證，但 M01 的目標平台是 iPhone。iOS 模擬器跑的是**真的 WKWebView**
+（與 iPhone 同一條自訂 scheme 處理路徑），先拿模擬器答案，真機就只剩「確認」而不是「探索」。
+
+**程序（可重現）**：
+
+1. worker：`npm exec -- wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux --var DEBUG_ORIGINS:1`
+2. 建置（**打包式**，不能用 `tauri dev`）：`VITE_CORS_PROBE=1 cargo tauri ios build --debug --target aarch64-sim`
+3. 安裝／啟動：`xcrun simctl boot <iPhone 18 Pro udid>` → `simctl install <udid> <DerivedData>/debug-iphonesimulator/tree-factory.app`
+   → `simctl launch <udid> com.treefactory.spike`
+4. 證據：worker log 的 `[cors]` 行 + `simctl io <udid> screenshot`（文字用 macOS Vision OCR 取出）
+
+**結果（log 原文 4 行，同一 meeting id `03a0851c-…`）**：
+
+```text
+[cors] origin="tauri://localhost" allowed=true method=OPTIONS path="/m/03a0851c-…/session/start"
+[cors] origin="tauri://localhost" allowed=true method=POST path="/m/03a0851c-…/session/start"
+[cors] origin="tauri://localhost" allowed=true method=OPTIONS path="/m/03a0851c-…/session/stop"
+[cors] origin="tauri://localhost" allowed=true method=POST path="/m/03a0851c-…/session/stop"
+```
+
+**探針面板 OCR 原文（iOS 上）**：`webview origin: tauri://localhost` / `HTTP status：201` /
+`ACAO／CORS 標頭：JS 讀不到（…）` / `webview 真的讀到回應（能回呼 stop）：是`。
+
+**收尾驗證**：`GET /m/03a0851c-…/session` → `phase="ended"`、`endedReason="aborted"`（無孤兒會議）。
+
+**附帶收穫**：iOS webview 上 M01 的 Svelte UI 正常渲染（截圖 OCR 出現「還沒有任何會議」空狀態文字）
+⇒ `frontendDist` 這條打包路徑在 iOS 也成立，不只是「請求通」。
+
+**⚠️ 本節的收音能力不重測**：iOS 模擬器的 `getUserMedia` / `MediaRecorder` / 可用 mimeType 已在
+`docs/spike/SPIKE-002.md` §3.2 實測過（`audio/webm;codecs=opus` ✅、`audio/mp4` ✅），本票不重複。
+
+### 真機驗收程序（待用戶執行；Agent 已備妥指令與判讀表）
+
+| 步驟 | 指令 / 動作 | 備註 |
+| --- | --- | --- |
+| 1 | iPhone 接 USB；**設定 → 隱私權與安全性 → 開發者模式** 開啟並重啟 | iOS 16+ 必要 |
+| 2 | Xcode 已登入 Apple ID（Xcode → Settings → Accounts）；`tauri.conf.json` 的 `bundle.iOS.developmentTeam` 填你的 Team ID | 目前**未設**（所以真機建置會失敗）；此步可由 Agent 代勞 |
+| 3 | worker 必須**聽 LAN**：`npm exec -- wrangler@4 dev --port 8787 --ip 0.0.0.0 --local --var HARNESS_PROVIDER:faux --var DEBUG_ORIGINS:1` | 只聽 `localhost` 時手機連不到 |
+| 4 | 建到真機：`VITE_CORS_PROBE=1 VITE_WORKER_BASE_URL=http://192.168.1.172:8787 cargo tauri ios build --debug --target aarch64`，再 `xcrun devicectl device install app --device <UDID> <.app>` | 本機 LAN IP 現為 `192.168.1.172`（會變動）|
+| 5 | 開 app，讀 worker log：`grep '\[cors\]' <log>` | 目標：`origin="tauri://localhost" allowed=true` |
+| 6 | 首次安裝需在 iPhone「設定 → 一般 → VPN與裝置管理」信任開發者憑證 | 免費 Apple ID 憑證 7 天到期 |
+
+> **判讀表（真機跑完看哪一種）**：
+> - 看到 `allowed=true` + 面板 `status 201` → **全通**（本票 P1 可結）
+> - 看到 `allowed=false` → 把 `origin=` 的值貼回來：**這就是票的價值**（我把值加進 `DEV_ORIGINS` 並補測試）
+> - **完全沒有 `[cors]` 行** → 手機沒連到 worker（不是 CORS 問題）：檢查 `--ip 0.0.0.0`、同 Wi-Fi、
+>   `VITE_WORKER_BASE_URL` 是否為 LAN IP；若仍不通，可能是 ATS 對「純 IP 的 http」的阻擋
+>   （目前只有 `NSAllowsLocalNetworking`，到時再補 dev 專用例外網域）
+>
+> **不要用 `tauri ios dev` 驗來源**：那條路會讓 webview 來源變成 `devUrl` 的 http 來源
+> （與「被實測推翻的假設」第 1 點同因），驗到的不是要驗的對象。
+
 ## 驗收清單（DoD）與證據
 
 | # | 項目 | 結果 | 證據 |
@@ -182,6 +239,8 @@ access-control-max-age: 600
 | 8 | Gate 2 | ✅ | `npm run lint`（worker）→ `tsc --noEmit` 0、markdownlint **47 檔 0 issues**；ui `tsc --noEmit` 0、`svelte-check` 0 errors 0 warnings |
 | 9 | Gate 3 | ✅ | worker `REGRESSION_MODULE=M01` → `passed=83 failed=0`、`✅ 通過`；ui M01 → 35 passed |
 | 10 | 是否需要修 `DEV_ORIGINS` | 不需要 | 白名單本來就含 `tauri://localhost`；實測為 `allowed=true` |
+| 11 | iOS 模擬器（真 WKWebView）也命中白名單 | ✅ | 本檔「iOS 模擬器實測」4 行原文（`origin="tauri://localhost" allowed=true`）+ 截圖 OCR + 收尾驗證 |
+| 12 | iPhone **真機**來源 | ⏳ 待用戶 | 「真機驗收程序」已備（含指令、判讀表、風險）；需要簽章 Team ID 與開發者模式 |
 
 > 全量測試數字（供對帳，跑法見各 repo 的 `npm test`）：worker **132 passed / 11 files**；ui **49 passed / 4 files**。
 > ⚠️ 這兩個數字會隨新測試漂移；本檔以「實測當下」為準，數字不符時請重新實跑而不是改字。
@@ -226,3 +285,4 @@ access-control-max-age: 600
 | 2026-10-08 | v1.1 | 實測後修正：①探針 gate 拔掉 `DEV` 條件（`tauri://localhost` 只在打包 app 出現）②補上「讀到 201 才回呼 stop」的機械證據設計 ③回填實測紀錄 / DoD / 附帶發現 | Agent（TECH-006 執行階段）|
 | 2026-10-08 | v1.2 | Gate 4 第 1 輪修正（P1×1 / P2×4）：①移除「讀 ACAO」的錯誤設計（瀏覽器不 expose CORS 內部標頭）並更正三層證據表 ②更正測試數字（worker 132 / ui 49 / markdownlint 47 檔）③`beforeBuildCommand`/`beforeDevCommand` 改為 cwd 無關 ④探針程式碼真的被 tree-shake（未設旗標時 bundle 內 grep = 0）⑤`stop` 檢查 `res.ok`、`randomUUID` 加後備、`probeIfEnabled` 不外拋 ⑥新增「已知陷阱」 | Agent（TECH-006 執行階段）|
 | 2026-10-08 | v1.3 | Gate 4 第 2 輪修正（P2×3）：①更正 v1.2 自己寫錯的數字（ui 45 → 49）②探針顯式 `mode:"cors"`，並把「拿得到 status ⇒ CORS 通過」的斷言補上模式前提 ③cwd 修法改為 `app/package.json` 轉發（回到跨平台的 `npm run build`，不採 POSIX-only 的 `if [ -d ]`）| Agent（TECH-006 執行階段）|
+| 2026-10-08 | v1.4 | 結案後補強：①新增「iOS 模擬器實測」（真 WKWebView：`tauri://localhost` allowed=true，含可重現程序）②新增「真機驗收程序」＋判讀表（含 `--ip 0.0.0.0`、`VITE_WORKER_BASE_URL`、ATS 風險）③明確不重測收音能力（指向 SPIKE-002 §3.2）| Agent（TECH-006 iOS 驗收準備）|

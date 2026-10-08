@@ -168,7 +168,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | DONE（`docs/spike/SPIKE-003.md`）| SPIKE-001 |
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
-| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | IN PROGRESS（程式與自動化驗收完成：UI 35 + worker 83 探針、6 項 E2E、31 項 workerd 冒煙全綠（可重複跑）；Gate 4 兩輪獨立稽核後經用戶裁決通過（第 2 輪 0 P0 / 0 P1）；**iOS 真機驗收待用戶**，4 項後續缺口已轉票 TECH-006 ~ 009；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
+| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | IN PROGRESS（程式與自動化驗收完成：UI 35 + worker 83 探針、6 項 E2E、31 項 workerd 冒煙全綠（可重複跑）；Gate 4 兩輪獨立稽核後經用戶裁決通過（第 2 輪 0 P0 / 0 P1）；**iOS 模擬器已驗**（webview 來源 `tauri://localhost` allowed=true、UI 正常渲染）、**iPhone 真機驗收待用戶**；4 項後續缺口已轉票 TECH-006 ~ 009 + TECH-010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
@@ -207,7 +207,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-003** | TECH | — | `@cloudflare/voice` 已棄用 → 改依 `agents/voice`；`DiarizingNova3Transcriber` 落點 | — | P0 | 2 | PENDING | SPIKE-001 |
 | **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | DONE（55 單元測試 + 19 項 workerd 冒煙全綠；Gate 4 七輪獨立稽核：0 P0 / 0 P1 / 26 條 P2 全修（程式面自第二輪起零新缺陷），2026-10-08 經用戶裁決通過；文件見 `docs/ac/TECH-004.md`）| SPIKE-003 |
 | **TECH-005** | TECH | — | Spike 探針退場：正式收音層取代後刪除 `app/src/index.html` 探針與 collector | — | P2 | 1 | PENDING | M01-US-106 |
-| **TECH-006** | TECH | — | Tauri webview 來源（`tauri://localhost`）在**真實 webview 內**實證 CORS 與收音（§2.4 反思維度 6 轉票）| — | P1 | 1 | DONE（打包 `.app` 內實測 `origin="tauri://localhost" allowed=true`（OPTIONS+POST × start/stop），並推翻 3 個文件假設；Gate 4 兩輪獨立稽核後經用戶裁決通過（累計 0 P0 / 1 P1 / 7 P2 全修）；**iOS 真機來源待用戶驗收**；交付文見 `docs/deliverable/2026-10-08-TECH-006-真實webview內CORS實證.md`）| M01-US-101 |
+| **TECH-006** | TECH | — | Tauri webview 來源（`tauri://localhost`）在**真實 webview 內**實證 CORS 與收音（§2.4 反思維度 6 轉票）| — | P1 | 1 | DONE（打包 `.app` 內實測 `origin="tauri://localhost" allowed=true`（OPTIONS+POST × start/stop），並推翻 3 個文件假設；**iOS 模擬器（真 WKWebView）亦已實測同值 + UI 正常渲染**；Gate 4 兩輪獨立稽核後經用戶裁決通過（累計 0 P0 / 1 P1 / 7 P2 全修）；**iPhone 真機程序已備待用戶**；交付文見 `docs/deliverable/2026-10-08-TECH-006-真實webview內CORS實證.md`）| M01-US-101 |
 | **TECH-010** | TECH | — | dev 模式來源埠漂移的診斷（`allowed=false` 不再與正式被擋同症狀）＋ webview 實測流程腳本化（§2.4 反思維度 3/5 轉票）| — | P2 | 1 | PENDING | TECH-006 |
 | **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
 | **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
