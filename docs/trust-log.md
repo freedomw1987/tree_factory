@@ -601,3 +601,65 @@ sha256 `503f504d1d99ae83f5c08df861e1c407ba86f5d4ceb521bd6720c5545b120cb7`；工�
 
 **決策（文件與數字一次到位，不留舊值）**：交付文 §2/§3/§4/§6/§7 與 `docs/backlog.md`（TECH-013 → DONE、changelog v2.9）
 全部以第二輪重跑的數字覆寫；突變表補到 16 條並附實際死亡數。**可推翻**：❌
+
+## 2026-10-09 05:30 — TECH-008（session 讀取帶入「現在時間」）trust mode 收官（含 Gate 4 兩輪）
+
+**背景**：US-101 的 `meeting_session` 讀取層只驗**差值**（`ends_at_ms === started_at_ms + MEETING_MAX_MS`）
+—— 兩欄一起平移，差值不變、2 小時上限被無聲延長。TECH-008（P2 / 1 SP / worker-only）把「現在時間」帶進讀取驗證。
+
+**決策（自動代答，勿打斷）**：在 TECH-012（3 SP／P1／真 DO 狀態重構）與 TECH-008（1 SP）之間選了後者。
+**理由**：距 07:00 只剩約 2 小時，TECH-012 有「收尾時樹上留下半成品」的風險；TECH-008 是純函式 + 一處呼叫點。
+**可推翻**：✅（若還有 3 小時以上，TECH-012 才是 US-104 的真正前置）。
+
+**決策（檢查放讀取層、`nowMs` 必填）**：不把時間塞進 SQL、也不做成可選參數。
+**理由**：可選參數的失敗模式是「新呼叫端忘了帶 → 這條防線靜默消失」；必填＝編譯錯誤（`Test-L3` 的教訓）。
+**可推翻**：✅（未來若出現「沒有可信時鐘」的離線讀取者，改可選並在該處註明不做時間檢查）。
+
+**決策（只驗位置的上界，不驗下界）**：往過去的平移與真實歷史在 DB 裡無法區分（沒有可信錨點），
+硬訂下界只會誤擋合法歷史查詢。**可推翻**：✅（TECH-014 若找到 DO 外的錨點就能補雙邊）。
+
+**第一輪 Gate 4（reviewer 靜態 + oracle 對抗式並行）**：reviewer「可合併（含注意事項，0 P0 / 0 P1）」；
+**oracle「需修正後合併」——關鍵 F1：我的宣稱過大**。真正的不變式是 `違規 ⟺ Δ > elapsed + 60s`，
+所以我在 AC 裡寫的動機情境（「已錄 1 小時後再推 1 小時 → 上限變 3h」）**根本沒被擋下**：
+oracle 在真 workerd 上實測 `200 / recording / remainingMs = 7,200,000`，另在真 tampered DO SQLite 上
+測到「同量平移 +63,426ms 被放行」。根因是我 7 條竄改測試**全跑在 `elapsed = 0` 的退化點**
+（`nowMs = STARTED`），綠燈給出的是**假保證**。
+
+**決策（不重做程式，校正宣稱 + 釘樁 + 另立票）**：oracle 自己也建議這個選項（真錨點需要 DO 外的受信來源）。
+① AC 目標段／背景表改成可驗證的 `Δ > elapsed + TOL`；② 設計 D3 保留「校正前（錯的）／校正後（對的）」痕跡
+（**宣稱過大本身就是缺陷，留痕比抹掉誠實**）；③ 新增 **AC-6 釘樁群 6 條**（放行 2 + 真邊界 1 + 回跳代價 1 + 壞時鐘 1 + alarm 1）；
+④ 真正補法另立 **TECH-014（P1 / 3 SP）**，並在設計 D7 記明三個候選錨點都不可行——尤其 **DO alarm 不行**：
+平移後 alarm 一時還是舊值，但到點後 `#rearmSessionAlarm()` 會跟著**被改的 `ends_at`** 重排（oracle F6 實測）。
+**理由**：程式碼本身沒有錯，錯的是「我以為它擋住了什麼」。**可推翻**：✅（若用戶認為「只擋一半不如不做」，本票可整支回退）。
+
+**其他發現處置**：F2 壞 `nowMs`（`NaN`/`Infinity` 讓兩個 `>` 全 `false` ＝ 整條防線靜默關掉）
+→ `read()` 加 `Number.isFinite` 並以 **M9** 釘住；F3 回跳容忍量同為 `elapsed + TOL`（會議開頭回跳 61s 就 500）
+→ 寫進 AC-2 與交付文 §4 列為待決產品風險；F4 UI 未消費 `recoverable`、F5/P2-5 rule2 不可達、
+F6 alarm 不能當錨點、F7/P2-3「沒有非 SELECT 語句」措辭過度、F8 其他欄位寬鬆（既有）、F9 檔數 64→65
+→ 逐條寫進 AC／設計／交付文（**不假裝已修**）；P2-1 alarm 也會拋 → 補測試 + 設計 D4 記明「沒有補償、log 查不到」。
+
+**第二輪（只讀複驗，reviewer）**：程式與三份主文件**逐字等價**（`違規 ⟺ Δ > elapsed + TOL` 有代數推導、
+rule2 不可達有證明、兩條釘樁斷言值推導成立、`alarm()` 沿途無 try/catch 確認會拋）；
+判 **OK with notes**（0 P0），剩 F-1~F-3 是**它讀到我修正前的 backlog**（我當時尚未落盤）
+＋ F-4 trust-log 未寫、F-5 呼叫端數字三處不一致（實際 13 處：`meeting-do.ts` 1 + `session-store.test.ts` 7
+＋ `session-clock.test.ts` 5）、F-6 測試註解誤指設計 D6（應為 D7）、F-7 US-101 舊文仍寫「擋同量平移」。
+**全部在 commit 前補齊**。
+
+**突變（10 條全死）**：M1=5、M2=8、M3=1、M4=1、M5=4、M6=1、M7=2、M8=2、M9=1、M10=1；還原後 `Tests 16 passed`。
+其中兩次**突變改變思考**：M6 第一版「把同一份壞資料寫回去」**存活** → 改成觀察「非 SELECT 語句計數」才殺掉；
+M10 第一版（alarm 吞錯）**存活**（因為 `#rearmSessionAlarm()` 也會讀 session，仍會拋）→ 改成「alarm 提早返回」
+才真正釘住那條測試。**M8（偷偷補上下界）**證明釘樁群不是空的：補了下界 → 釘樁群立刻紅。
+
+**證據（全部重跑，不留舊值）**：新檔 **16 passed**（實作前 7 紅 3 綠護欄）；worker 全量 **263 passed（21 檔）**；
+`tsc --noEmit` exit 0；markdownlint **65 檔 0 issues**；M01 回歸 `passed=214 failed=0`；
+UI 回歸 **188 passed**；Playwright **35 passed（41.2s）**（`--output=/tmp/pw-tech08b`）；
+真 workerd 冒煙（port 8806、`HARNESS_PROVIDER:faux`）**66 項 0 失敗、exit 0**（log `/tmp/tech08-smoke2.raw`）。
+
+**誠實聲明（寫進交付文 §4，不留在對話）**：本票**擋不住**「`Δ ≤ elapsed + 60s`」的平移
+（含「已錄 1h 後再推 1h」與「已過期會議被搬回現在」）；裝置端沒消費 `recoverable`；
+壞資料 DO 會被平台反覆喚醒且伺服器端查不到 log；真兩小時會議與生產環境時鐘回退頻率**沒有實測資料**。
+
+**產出**：`docs/ac/TECH-008.md`、`docs/design/TECH-008-session-clock-validation.md`、
+`docs/deliverable/2026-10-09-TECH-008-session讀取帶now時間.md`、`worker/test/session-clock.test.ts`（新）
+＋ `session.ts` / `session-store.ts` / `meeting-do.ts` / `session-store.test.ts`；
+`docs/backlog.md`（TECH-008 → DONE、新增 TECH-014、changelog v2.10/v2.11）；本檔。
