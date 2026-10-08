@@ -12,7 +12,9 @@ import { expect, test, type Page } from "@playwright/test";
  *    真機行為仍待 iOS 真機驗收（DoD 已列）。
  */
 
-test.describe.configure({ mode: "serial" });
+// 刻意「不」用 `mode: "serial"`：序列模式一旦有一條失敗，後面全部 skipped，
+// 反而讓證據變少（稽核時只看得到第一條）。這裡靠 `workers: 1` + 每個測試清 localStorage
+// 保持隔離，失敗時其餘測試照跑，一次看完全部問題。
 
 /** 每個測試都從乾淨的本機列表開始（同一顆瀏覽器、同一個 origin）。 */
 test.beforeEach(async ({ page }) => {
@@ -27,13 +29,18 @@ async function submitStart(page: Page, title: string): Promise<number> {
   await page.getByTestId("input-title").fill(title);
   const clickedAt = Date.now();
   await page.getByTestId("btn-start-confirm").click();
-  return Date.now() - clickedAt;
+  return clickedAt;
 }
 
+/**
+ * 按下確認 → 必須在 3 秒內真的看到「會議中」畫面。
+ * `toBeVisible({ timeout: 3_000 })` 就是 AC-1 的斷言本體（超時即失敗）；
+ * 回傳的 elapsed 是同一段時間的實際值，只是把它印出來讓人看得見。
+ */
 async function startMeeting(page: Page, title: string): Promise<number> {
-  const elapsed = await submitStart(page, title);
-  await expect(page.getByTestId("meeting-screen")).toBeVisible();
-  return elapsed;
+  const clickedAt = await submitStart(page, title);
+  await expect(page.getByTestId("meeting-screen")).toBeVisible({ timeout: 3_000 });
+  return Date.now() - clickedAt;
 }
 
 async function setHidden(page: Page, hidden: boolean): Promise<void> {
@@ -55,16 +62,15 @@ test("首頁：空狀態 + 兩分頁容器都存在（階段 A 就要有 tab bar
 
 test("AC-1：按開始後 3 秒內進入「錄音中」，紅燈亮、計時器在跑", async ({ page }) => {
   const elapsed = await startMeeting(page, "E2E 週會");
-  expect(elapsed).toBeLessThan(3_000);
+  expect(elapsed, `${elapsed}ms`).toBeLessThan(3_000);
 
   await expect(page.getByTestId("rec-state-label")).toHaveText("錄音中");
   await expect(page.getByTestId("rec-light")).toHaveClass(/rec/);
   await expect(page.getByTestId("transcript-waiting")).toBeVisible();
 
-  const first = await page.getByTestId("timer").textContent();
-  await page.waitForTimeout(1_600);
-  const second = await page.getByTestId("timer").textContent();
-  expect(second).not.toBe(first);
+  // 計時器必須會動。顯示是每秒量化一次（setInterval 1s，不是從 session 開始對齊），
+  // 所以不能用「睡 1600ms 後期望不同」這種相位敏感的寫法——改用會自己重試的斷言。
+  await expect(page.getByTestId("timer")).not.toHaveText("00:00", { timeout: 4_000 });
 });
 
 test("AC-4：切到背景後計時器凍結、紅燈熄、明說中斷時間；回來後可續錄", async ({ page }) => {

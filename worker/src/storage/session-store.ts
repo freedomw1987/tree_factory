@@ -8,7 +8,12 @@
  * 或（更糟）上限歸零而可以無限錄。落地 + 驗證不變式才能保證「權威時間軸」真的權威。
  */
 
-import { MEETING_MAX_MS, type MeetingSession, type SessionEndedReason } from "../session.js";
+import {
+  MEETING_MAX_MS,
+  SESSION_ENDED_REASONS,
+  type MeetingSession,
+  type SessionEndedReason,
+} from "../session.js";
 
 /** DO cursor 的最小形狀（與 do-sqlite.ts 保持同樣的鬆綁策略）。 */
 export interface SessionCursorLike {
@@ -35,6 +40,11 @@ export class SessionCorruptError extends Error {
   }
 }
 
+// CHECK 由 `SESSION_ENDED_REASONS` 推導，不手寫清單：新增一個結束原因時，
+// SQL 層、型別層、讀取驗證層就不會有其中一層忘了改（P0：曾經漏了讀取層，
+// 導致寫得進去、讀不出來）。
+const REASONS_SQL = SESSION_ENDED_REASONS.map((reason) => `'${reason}'`).join(", ");
+
 const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS meeting_session (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   meeting_id TEXT NOT NULL,
@@ -42,7 +52,7 @@ const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS meeting_session (
   ends_at_ms INTEGER NOT NULL,
   state TEXT NOT NULL CHECK (state IN ('recording', 'ended')),
   ended_at_ms INTEGER,
-  ended_reason TEXT CHECK (ended_reason IN ('user', 'limit', 'aborted') OR ended_reason IS NULL),
+  ended_reason TEXT CHECK (ended_reason IN (${REASONS_SQL}) OR ended_reason IS NULL),
   transcript_writes INTEGER NOT NULL DEFAULT 0
 )`;
 
@@ -110,7 +120,7 @@ function toSnapshot(row: Record<string, unknown>): SessionSnapshot {
   if (state !== "recording" && state !== "ended") {
     throw new SessionCorruptError(`state=${JSON.stringify(state)}`);
   }
-  if (reason !== null && reason !== undefined && reason !== "user" && reason !== "limit") {
+  if (reason !== null && reason !== undefined && !isEndedReason(reason)) {
     throw new SessionCorruptError(`ended_reason=${JSON.stringify(reason)}`);
   }
   const startedAtMs = requireSafeInteger(row.started_at_ms, "started_at_ms");
@@ -133,6 +143,10 @@ function toSnapshot(row: Record<string, unknown>): SessionSnapshot {
     },
     transcriptWrites: requireSafeInteger(row.transcript_writes ?? 0, "transcript_writes"),
   };
+}
+
+function isEndedReason(value: unknown): value is SessionEndedReason {
+  return (SESSION_ENDED_REASONS as readonly unknown[]).includes(value);
 }
 
 function requireSafeInteger(value: unknown, field: string): number {

@@ -19,6 +19,10 @@ interface Harness {
   durable: MeetingDurableObject;
   alarms: number[];
   setNow: (ms: number) => void;
+  /** 模擬「別的用途先排了一個更早的 alarm」（例如 harness 接力）。 */
+  setCurrentAlarm: (atMs: number | null) => void;
+  /** 模擬真實 DO：alarm 醒來時 slot 已被消費（getAlarm() = null）再跑 handler。 */
+  fireAlarm: () => Promise<void>;
 }
 
 function makeHarness(nowMs = 1_700_000_000_000): Harness {
@@ -65,6 +69,14 @@ function makeHarness(nowMs = 1_700_000_000_000): Harness {
     alarms,
     setNow: (ms: number) => {
       now = ms;
+    },
+    setCurrentAlarm: (atMs: number | null) => {
+      currentAlarm = atMs;
+    },
+    fireAlarm: async () => {
+      // 真實 DO 的行為：alarm 觸發時該 slot 已經被拿走了（不會再被 getAlarm 讀到）。
+      currentAlarm = null;
+      await durable.alarm();
     },
   };
 }
@@ -169,7 +181,7 @@ describe("M01-US-101 session 路由（設備端真正的路）", () => {
     expect(write.body.error).toBe("SESSION_ENDED");
   });
 
-  it("M01-Given 裝置端開始失敗 When POST /session/stop {reason:'aborted'} Then 收掉 session（不得留孤兒 session 到 alarm 才被當成錄到上限）", async () => {
+  it("M01-Given 裝置端開始失敗 When POST /session/stop {reason:'aborted'} Then 收掉 session，且之後讀得出來（不得寫得進、讀不出）", async () => {
     const harness = makeHarness(STARTED);
     await call(harness, "/session/start", { method: "POST" });
     const { status, body } = await call(harness, "/session/stop", {
@@ -179,6 +191,21 @@ describe("M01-US-101 session 路由（設備端真正的路）", () => {
     expect(status).toBe(200);
     expect(body.phase).toBe("ended");
     expect(body.endedReason).toBe("aborted");
+
+    // 回歸探針（checker P0）：只斷言 stop 的回應是不夠的——實際的壞法是
+    // 寫入層接受 aborted、但讀取層的白名單沒收，於是任何後續讀取都 500，
+    // 該 meeting id 永久毀損（連重試錄音都不行）。
+    const read = await call(harness, "/session");
+    expect(read.status).toBe(200);
+    expect(read.body.phase).toBe("ended");
+    expect(read.body.endedReason).toBe("aborted");
+
+    // 同一 meeting id 不得因為「再按一次開始」而復活（那等於繞過 2 小時上限）。
+    // 裝置端真正的「再錄一場」是換一個新的 meeting id（= 新的 DO），所以這裡就是不動。
+    const restart = await call(harness, "/session/start", { method: "POST" });
+    expect(restart.status).toBe(201);
+    expect(restart.body.phase).toBe("ended");
+    expect(restart.body.endsAtMs).toBe(body.endsAtMs);
   });
 
   it("M01-Given stop 帶了非法 reason When POST /session/stop Then 400 REASON_INVALID（不得默默當 user）", async () => {
@@ -236,6 +263,29 @@ describe("M01-US-101 session 路由（設備端真正的路）", () => {
     const { status, body } = await call(harness, "/transcript", { method: "POST", body: { text: "   " } });
     expect(status).toBe(400);
     expect(body.error).toBe("EMPTY_CONTENT");
+  });
+
+  it("M01-Given 別人的 alarm 比 session 到點更早 When 它醒來 Then session 的到點 alarm 必須被補排（不得被餓死）", async () => {
+    const harness = makeHarness(STARTED);
+    // 先排一個更早的 alarm（等同 harness 接力搶到 slot），再開始會議。
+    harness.setCurrentAlarm(STARTED + 60_000);
+    await call(harness, "/session/start", { method: "POST" });
+    const endsAt = STARTED + 7_200_000;
+    expect(harness.alarms).not.toContain(endsAt); // earliest-wins 不會覆蓋既有的早 alarm
+
+    await harness.fireAlarm();
+
+    // 舊行為（checker P2-3）：早 alarm 醒來後 slot 被清走，session 到點 alarm 永遠不會被排。
+    expect(harness.alarms).toContain(endsAt);
+  });
+
+  it("M01-Given session 已結束 When 之後的 alarm 醒來 Then 不得再補排到點 alarm（避免無限接力）", async () => {
+    const harness = makeHarness(STARTED);
+    await call(harness, "/session/start", { method: "POST" });
+    await call(harness, "/session/stop", { method: "POST", body: { reason: "user" } });
+    harness.alarms.length = 0;
+    await harness.fireAlarm();
+    expect(harness.alarms).not.toContain(STARTED + 7_200_000);
   });
 
   it("M01-Given alarm 在到點後醒來 When alarm() Then session 落地成 ended/limit（結束時間是 ends_at 不是醒來時間）", async () => {

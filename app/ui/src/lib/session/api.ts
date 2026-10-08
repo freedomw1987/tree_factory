@@ -4,7 +4,10 @@
  * 契約（與 worker/src/meeting-do.ts 的 session 路由一致）：
  * - `POST /m/:meetingId/session/start` → 會議開始，回權威 `endsAtMs`
  * - `GET  /m/:meetingId/session`       → 目前狀態（回到前景時校正用）
- * - `POST /m/:meetingId/session/stop`  → 結束（`reason`: user / limit）
+ * - `POST /m/:meetingId/session/stop`  → 結束（`reason`: user / limit / aborted）
+ *
+ * `aborted` = 裝置端「開始」失敗（例：麥克風被拒）時把伺服端 session 收掉。
+ * 少了它，session 會掛到 alarm 到點，事後被誤認為「這場會議錄到上限」。
  *
  * 重點：**`endsAtMs` 一律以回應為準**，前端不得自己算 2 小時（裝置時鐘不可信）。
  */

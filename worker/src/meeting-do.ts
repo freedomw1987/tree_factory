@@ -24,6 +24,7 @@ import {
   type OpenMeetingResult,
 } from "./harness/meeting-harness.js";
 import {
+  SESSION_ENDED_REASONS,
   acceptsTranscriptWrites,
   expireSession,
   sessionStatus,
@@ -198,6 +199,11 @@ export class MeetingDurableObject {
     // 先收 session 再處理 harness：到點收尾不該被 harness 的失敗拖累
     // （若 harness 拋錯，錄音上限仍然已經落地，裝置端問到的會是正確答案）。
     this.#expireSessionIfReached();
+    // 接力：session 的到點 alarm 可能「一開始就沒排到」——若 start 當下已有一個更早的
+    // alarm（TECH-004 的 harness 接力 demo 就是），earliest-wins 不會覆蓋它，
+    // 而那個早 alarm 醒來後 slot 就被清空了。沒有這一行，session 到點這個 wake 永遠不會發生，
+    // 上限只能靠「下一次請求剛好進來」時惰性判定（資料最終還是對的，但少了一條防線）。
+    await this.#rearmSessionAlarm();
     const opened = await this.#lifecycle.onAlarm();
     await opened.root(); // 觸發一次讀取，確認重建後同一場會議讀得回來
     // 正常情況下 `onAlarm()` 已經開完，這裡會真的關掉；萬一延後（有別的 open 在飛），
@@ -260,6 +266,10 @@ export class MeetingDurableObject {
 
   /**
    * 開始會議：第一次寫定權威時間軸；重複呼叫**不重開**（否則裝置端重試就能無限延長會議）。
+   *
+   * 若同一個 meeting id 已經結束（含 `aborted`），這裡回的是**已結束的那筆**（phase=ended），
+   * 不會復活、不會改 `ends_at`；裝置端必須看 `phase` 而不是只看 HTTP 狀態碼。
+   * 真正「再錄一場」是由裝置端換一個新的 meeting id（= 新的 DO）達成的。
    */
   async #sessionStartRoute(request: Request): Promise<Response> {
     const store = this.#sessionStore();
@@ -282,10 +292,10 @@ export class MeetingDurableObject {
     }
     const body = (await request.json().catch(() => ({}))) as { reason?: unknown };
     const reason = body.reason;
-    // 三個合法原因：使用者結束 / 上限 / 裝置端開始失敗後收尾（見 session.ts 的說明）。
-    if (reason !== "user" && reason !== "limit" && reason !== "aborted") {
+    // 合法原因由 `SESSION_ENDED_REASONS` 單一來源決定（型別 / SQL CHECK / 這裡不得各自維護）。
+    if (!(SESSION_ENDED_REASONS as readonly unknown[]).includes(reason)) {
       return json(
-        { error: "REASON_INVALID", value: reason, allowed: ["user", "limit", "aborted"] },
+        { error: "REASON_INVALID", value: reason, allowed: [...SESSION_ENDED_REASONS] },
         400,
       );
     }
@@ -336,6 +346,16 @@ export class MeetingDurableObject {
       transcriptWrites: next.transcriptWrites,
       note: "逐字稿內容的落地由 M01-US-103 接上；這裡只驗證寫入守門員。",
     });
+  }
+
+  /**
+   * session 還在錄且它的到點 alarm 沒有排上（或已被別的 alarm 清掉）→ 補排。
+   * 已結束就不排（避免 alarm 無限接力）。
+   */
+  async #rearmSessionAlarm(): Promise<void> {
+    const snapshot = this.#readSession(this.#sessionStore());
+    if (snapshot === null || snapshot.session.state !== "recording") return;
+    await this.#armSessionAlarm(snapshot.session.endsAtMs);
   }
 
   /**

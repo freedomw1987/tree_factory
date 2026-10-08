@@ -24,7 +24,9 @@ export type SessionState = "recording" | "ended";
  * - `aborted` 裝置端「開始」失敗（例：麥克風被拒）——伺服端 session 必須被收掉，
  *   否則它會掛在那裡直到 alarm 到點，之後被錯認為「這是一場錄到上限的會議」。
  */
-export type SessionEndedReason = "user" | "limit" | "aborted";
+export const SESSION_ENDED_REASONS = ["user", "limit", "aborted"] as const;
+
+export type SessionEndedReason = (typeof SESSION_ENDED_REASONS)[number];
 
 export interface MeetingSession {
   meetingId: string;

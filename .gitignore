@@ -4,6 +4,8 @@ target/
 dist/
 src-tauri/target/
 src-tauri/gen/
+# Tauri CLI 會在 app/src-tauri/gen/ 產生 schema（cargo tauri dev/build 的副產物）
+app/src-tauri/gen/
 
 # 環境與密鑰
 .env
