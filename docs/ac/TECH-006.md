@@ -209,8 +209,9 @@ access-control-max-age: 600
 | 步驟 | 指令 / 動作 | 備註 |
 | --- | --- | --- |
 | 1 | iPhone 接 USB；**設定 → 隱私權與安全性 → 開發者模式** 開啟並重啟 | iOS 16+ 必要 |
-| 2 | Xcode 已登入 Apple ID（Xcode → Settings → Accounts）；`tauri.conf.json` 的 `bundle.iOS.developmentTeam` 填你的 Team ID | 目前**未設**（所以真機建置會失敗）；此步可由 Agent 代勞 |
-| 3 | worker 必須**聽 LAN**：`npm exec -- wrangler@4 dev --port 8787 --ip 0.0.0.0 --local --var HARNESS_PROVIDER:faux --var DEBUG_ORIGINS:1` | 只聽 `localhost` 時手機連不到 |
+| 2 | Xcode 已登入 Apple ID（Xcode → Settings → Accounts）。**不必改 repo 檔**：用環境變數 `APPLE_DEVELOPMENT_TEAM=<Team ID>` 帶著跑即可（已查 tauri-cli 原始碼：`APPLE_DEVELOPMENT_TEAM` 優先於 `tauri.conf.json` 的 `bundle.iOS.developmentTeam`）。登入後可用 `cargo tauri info` 讀出 Team ID（目前顯示 `Developer Teams: None`）| 目前**未設**（所以真機建置會失敗）；不寫進版控可避免簽章資訊入 git |
+| 2b | iPhone 連 Mac **不是 loopback**：iOS 14+ 的 Local Network Privacy 會擋，需 `NSLocalNetworkUsageDescription` | **已補進 `app/src-tauri/Info.plist`**（見已知陷阱 5）|
+| 3 | worker 必須**聽 LAN**：`npm exec -- wrangler@4 dev --port 8787 --ip 0.0.0.0 --local --var HARNESS_PROVIDER:faux --var DEBUG_ORIGINS:1`（已預檢：log 顯示 `Ready on http://0.0.0.0:8787`，從 `192.168.1.172:8787` 打 OPTIONS 得 `204` + `Access-Control-Allow-Origin: tauri://localhost`；Mac 防火牆為關閉）| 只聽 `localhost` 時手機連不到 |
 | 4 | 建到真機：`VITE_CORS_PROBE=1 VITE_WORKER_BASE_URL=http://192.168.1.172:8787 cargo tauri ios build --debug --target aarch64`，再 `xcrun devicectl device install app --device <UDID> <.app>` | 本機 LAN IP 現為 `192.168.1.172`（會變動）|
 | 5 | 開 app，讀 worker log：`grep '\[cors\]' <log>` | 目標：`origin="tauri://localhost" allowed=true` |
 | 6 | 首次安裝需在 iPhone「設定 → 一般 → VPN與裝置管理」信任開發者憑證 | 免費 Apple ID 憑證 7 天到期 |
@@ -265,6 +266,12 @@ access-control-max-age: 600
 4. **`vite` 的 `strictPort` 會讓 `cargo tauri dev` 在 1420 被佔用時直接失敗**
    （錯誤：`The "beforeDevCommand" terminated with a non-zero status code`）。
    開發時請先確認 1420 空著，或改用 `devUrl` 指向其他埠。
+5. **iOS 真機連本機 worker 會撞「兩層」不同的權限**（本票真機準備時定出）：
+   - ATS（明碼 HTTP）：已有 `NSAllowsLocalNetworking` 例外
+   - **Local Network Privacy（iOS 14+）**：連**非 loopback** 的區域網路位址（如 `192.168.x.x`）
+     需要 `NSLocalNetworkUsageDescription`，否則**不會跳權限對話框、連線直接失敗**。
+     已補進 `app/src-tauri/Info.plist`（`plutil -lint` OK）。
+   > 判別法：模擬器可以直連 Mac 的 `127.0.0.1`（loopback，不受此限），所以**這個坑只在真機出現**。
 
 ## 附帶發現（不在本票修，供決策）
 
@@ -286,3 +293,4 @@ access-control-max-age: 600
 | 2026-10-08 | v1.2 | Gate 4 第 1 輪修正（P1×1 / P2×4）：①移除「讀 ACAO」的錯誤設計（瀏覽器不 expose CORS 內部標頭）並更正三層證據表 ②更正測試數字（worker 132 / ui 49 / markdownlint 47 檔）③`beforeBuildCommand`/`beforeDevCommand` 改為 cwd 無關 ④探針程式碼真的被 tree-shake（未設旗標時 bundle 內 grep = 0）⑤`stop` 檢查 `res.ok`、`randomUUID` 加後備、`probeIfEnabled` 不外拋 ⑥新增「已知陷阱」 | Agent（TECH-006 執行階段）|
 | 2026-10-08 | v1.3 | Gate 4 第 2 輪修正（P2×3）：①更正 v1.2 自己寫錯的數字（ui 45 → 49）②探針顯式 `mode:"cors"`，並把「拿得到 status ⇒ CORS 通過」的斷言補上模式前提 ③cwd 修法改為 `app/package.json` 轉發（回到跨平台的 `npm run build`，不採 POSIX-only 的 `if [ -d ]`）| Agent（TECH-006 執行階段）|
 | 2026-10-08 | v1.4 | 結案後補強：①新增「iOS 模擬器實測」（真 WKWebView：`tauri://localhost` allowed=true，含可重現程序）②新增「真機驗收程序」＋判讀表（含 `--ip 0.0.0.0`、`VITE_WORKER_BASE_URL`、ATS 風險）③明確不重測收音能力（指向 SPIKE-002 §3.2）| Agent（TECH-006 iOS 驗收準備）|
+| 2026-10-08 | v1.5 | 真機預檢：①`NSLocalNetworkUsageDescription` 補進 Info.plist（iOS 14+ Local Network Privacy，只在真機出現的坑；新陷阱 5）②Team ID 改用 `APPLE_DEVELOPMENT_TEAM` 環境變數（不需要改 repo 檔，已查 tauri-cli 原始碼確認優先序）③LAN 可達性預檢證據（`0.0.0.0:8787` + LAN IP 回 204 + ACAO 正確 + 防火牆關閉）| Agent（TECH-006 真機準備）|

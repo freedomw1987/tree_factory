@@ -14,13 +14,20 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>本 App 需要麥克風權限，才能錄製會議內容並即時轉成逐字稿。</string>
 
+	<!-- 真機驗收（TECH-006 v1.5）：iPhone 要連 Mac 上的 worker（非 loopback，例如 http://192.168.x.x:8787），
+	     iOS 14+ 的 Local Network Privacy 會擋下這種連線，必須附說明文字才會跳權限對話框。
+	     影響範圍：僅開發階段用 LAN 連本機 worker；正式環境（公開網域）不需要 -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>開發階段需要連線到同網段的開發機（本機 worker）以完成會議錄音的驗收測試。</string>
+
 	<!-- 鎖屏 / 背景續錄實驗用（SPIKE-002 對照組）；若證實無效會移除 -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 	</array>
 	<!-- SPIKE-002：模擬器內要把證據 POST 回 Mac 的 collector（http://127.0.0.1:8765） -->
-	<!-- ATS 預設會擋明碼 HTTP；本機網路例外只在開發/spike 階段使用 -->
+	<!-- TECH-006 真機：worker 改聽 0.0.0.0，iPhone 連 http://<Mac 的 LAN IP>:8787 -->
+	<!-- ATS 預設會擋明碼 HTTP；本機/私有網段例外只在開發/spike 階段使用 -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
