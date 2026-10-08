@@ -11,6 +11,7 @@ import {
   resumeUnfinished,
   tickMeeting,
   workerBaseUrl,
+  syncPendingGaps,
 } from "./lib/app.svelte";
 import { probeIfEnabled } from "./lib/dev/cors-probe";
 
@@ -24,11 +25,17 @@ void loadMeetings();
 // M01-US-102 AC-3：掃本機分段暫存；有未完成的會議會切到恢復畫面（不自動丟棄）。
 // 刻意排在 `loadMeetings()` **之後**：恢復畫面會顯示會議標題（取自同一份清單），
 // 先掃描會在標題還沒回來時就把使用者帶到恢復畫面（畫面閃一下、標題空白）。
-void loadMeetings().then(() => initRecovery());
+// 順便（M01-US-107）把上次斷網沒送出去的缺口補送完。
+void loadMeetings()
+  .then(() => initRecovery())
+  .then(() => syncPendingGaps());
 
 // AC-2：網路恢復時把還沒送出的分段補送（ChunkQueue 內有 backoff，重複觸發安全）。
+// M01-US-107（Gate 4 第 2 輪 P2）：缺口也是「離線就會積在本機」的東西，設計 §4 把 `online`
+// 列為補送時機；只補分段會讓缺口停在「待同步」，直到使用者剛好回前景或續錄才被送出去。
 window.addEventListener("online", () => {
   void flushChunks();
+  void syncPendingGaps();
 });
 
 // AC-4：切背景 / 鎖屏必須誠實顯示中斷（webview 在背景不會繼續收音，見 SPIKE-002）。
@@ -52,6 +59,7 @@ if (import.meta.env.DEV) {
       resumeUnfinished,
       discardUnfinished,
       flushChunks,
+      syncPendingGaps,
     },
   });
 }

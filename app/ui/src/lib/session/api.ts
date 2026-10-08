@@ -51,6 +51,36 @@ export class ChunkApiError extends Error {
   }
 }
 
+/**
+ * M01-US-107：逐字稿缺口的錯誤。
+ *
+ * `GAP_CONFLICT`（409）＝同 seq 卻是**不同**的中斷起點（正常不該發生，
+ * 一旦發生就是本機 seq 被重算或換了會議）。它是永久性錯誤，重送一百次也不會好，
+ * 所以呼叫端要停止重試、並誠實標示（見 gap-tracker 的 `conflict`）。
+ *
+ * `PERMANENT`（409 SESSION_ENDED / LIMIT_REACHED / SESSION_NOT_STARTED）＝伺服端這一場
+ * 已經不會再收逐字稿了。同樣永久，但帳本上沒有這筆，所以標記不同（見 `terminal`）。
+ */
+export class TranscriptGapApiError extends Error {
+  readonly code: "GAP_CONFLICT" | "PERMANENT" | "NETWORK" | "SERVER";
+  readonly status: number;
+
+  constructor(code: "GAP_CONFLICT" | "PERMANENT" | "NETWORK" | "SERVER", message: string, status = 0) {
+    super(message);
+    this.name = "TranscriptGapApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/** 伺服端會永久拒絕這筆缺口的錯誤碼（會議狀態已定，不會再回到可寫狀態）。 */
+export const PERMANENT_GAP_ERRORS: ReadonlySet<string> = new Set([
+  "SESSION_ENDED",
+  "LIMIT_REACHED",
+  "SESSION_NOT_STARTED",
+]);
+
+
 export class SessionApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -155,6 +185,74 @@ export class HttpSessionClient implements SessionClient {
       expectedNextSeq: Number(payload.expectedNextSeq ?? 1),
       hashes,
     };
+  }
+
+  /**
+   * 寫入一筆逐字稿缺口（M01-US-107）。`toMs:null` = 這段還開著（先開後閉）。
+   * 重送同一筆（同 seq 同 fromMs）伺服端回 `duplicate:true`，**不是錯誤**。
+   */
+  async writeGap(input: { seq: number; fromMs: number; toMs: number | null }): Promise<void> {
+    const url = `${this.#baseUrl}/m/${encodeURIComponent(this.#meetingId)}/transcript/gap`;
+    let response: Response;
+    try {
+      response = await this.#fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          input.toMs === null
+            ? { seq: input.seq, fromMs: input.fromMs }
+            : { seq: input.seq, fromMs: input.fromMs, toMs: input.toMs },
+        ),
+      });
+    } catch (error) {
+      throw new TranscriptGapApiError("NETWORK", error instanceof Error ? error.message : String(error));
+    }
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (response.status === 409 && payload.error === "GAP_CONFLICT") {
+      throw new TranscriptGapApiError("GAP_CONFLICT", "同 seq 但中斷起點不同", 409);
+    }
+    if (response.status === 409 && PERMANENT_GAP_ERRORS.has(String(payload.error))) {
+      // 這一場已經結束 / 到了上限 / 根本還沒開始：永久狀態，重試再多次也不會成功。
+      // 不能當成「暫時性」——那會讓 UI 永遠掛著「待同步」承諾一件不會發生的事（Gate 4 F5）。
+      throw new TranscriptGapApiError(
+        "PERMANENT",
+        `伺服端不再接受這筆缺口（${String(payload.error)}）`,
+        409,
+      );
+    }
+    if (!response.ok) {
+      // 其他 4xx/5xx：暫時性，留著下次再試。
+      throw new TranscriptGapApiError("SERVER", `寫入缺口失敗（HTTP ${response.status}）`, response.status);
+    }
+  }
+
+  /** 讀伺服端的缺口清單（換裝置 / 本機被清掉時的權威來源）。 */
+  async listGaps(): Promise<Array<{ seq: number; fromMs: number; toMs: number | null }>> {
+    let response: Response;
+    try {
+      response = await this.#fetch(
+        `${this.#baseUrl}/m/${encodeURIComponent(this.#meetingId)}/transcript/gaps`,
+      );
+    } catch (error) {
+      throw new TranscriptGapApiError("NETWORK", error instanceof Error ? error.message : String(error));
+    }
+    if (!response.ok) {
+      throw new TranscriptGapApiError("SERVER", `讀缺口清單失敗（HTTP ${response.status}）`, response.status);
+    }
+    const payload = (await response.json()) as { gaps?: unknown };
+    const gaps = Array.isArray(payload.gaps) ? payload.gaps : [];
+    return gaps
+      .map((item) => ({
+        seq: Number((item as { seq?: unknown }).seq),
+        fromMs: Number((item as { fromMs?: unknown }).fromMs),
+        toMs: (item as { toMs?: unknown }).toMs === null ? null : Number((item as { toMs?: unknown }).toMs),
+      }))
+      .filter(
+        (gap) =>
+          Number.isSafeInteger(gap.seq) &&
+          Number.isSafeInteger(gap.fromMs) &&
+          (gap.toMs === null || Number.isSafeInteger(gap.toMs)),
+      );
   }
 
   #post(action: "start" | "stop", body?: unknown): Promise<SessionPayload> {

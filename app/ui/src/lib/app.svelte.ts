@@ -16,6 +16,7 @@ import { MediaRecorderCapture, type CaptureChunk } from "./recorder/media";
 import { RecorderStore, type RecorderSnapshot } from "./recorder/store";
 import type { UploadOutcome } from "./recorder/uploader";
 import { HttpSessionClient, SessionApiError } from "./session/api";
+import { createLocalGapStorage, GapTracker, listPendingGapMeetings, type GapRecord } from "./transcript/gap-tracker";
 
 export type View = "list" | "start" | "permission" | "meeting" | "recover";
 export type Tab = "meetings" | "chat";
@@ -55,6 +56,8 @@ export const app = $state({
   recovery: null as { durable: boolean; entries: RecoveryEntry[] } | null,
   /** 恢復動作進行中（按鈕鎖定用）。 */
   recoveryBusy: false,
+  /** M01-US-107：這一場會議的逐字稿缺口（依 seq 排序，含未同步的）。 */
+  gaps: [] as GapRecord[],
 });
 
 export const rec = $state({ snapshot: EMPTY_SNAPSHOT });
@@ -70,6 +73,7 @@ let openedStore: OpenedChunkStore | null = null;
 let storeInit: Promise<void> | null = null;
 let pipeline: ChunkPipeline | null = null;
 let recovery: ChunkRecovery | null = null;
+let gapTracker: GapTracker | null = null;
 let conflictReported = false;
 let gapReported = false;
 
@@ -81,6 +85,27 @@ export function recorderStore(): RecorderStore | null {
 /** 依會議 id 取得該場的上傳 API（恢復流程用；與即時錄音走同一條 HTTP client）。 */
 function chunkApiFor(meetingId: string) {
   return chunkUploadApi(new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }));
+}
+
+/**
+ * M01-US-107：這一場會議的缺口追蹤器。
+ *
+ * 為什麼要 `load()` 才開始：seq 一定要接著本機既有最大值往下（D3）。
+ * 從 1 重算的話，重開後的第一次中斷会被伺服端當成「同 seq 重送」而丢——
+ * 使用者會看到一段沒有任何標記的空白，那是最糟的靜默資料錯誤。
+ */
+async function startGapTracking(meetingId: string): Promise<void> {
+  gapTracker = new GapTracker({
+    api: new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }),
+    storage: createLocalGapStorage(meetingId),
+    // 牆鐘 elapsed（不是 `snapshot.elapsedMs`）：中斷時 snapshot 是凍結值，用它會把缺口
+    // 記成 0 秒——真實缺了幾分鐘卻說「長度不到 1 秒」（Gate 4 F1）。
+    elapsedMs: () => store?.wallClockElapsedMs ?? 0,
+    onChange: (gaps) => {
+      app.gaps = gaps;
+    },
+  });
+  await gapTracker.load();
 }
 
 /** 開本機分段儲存（IndexedDB；不可用時退回記憶體並記在 `durable`）。 */
@@ -105,6 +130,26 @@ export async function initRecovery(): Promise<void> {
   app.recovery = { durable: opened.durable, entries };
   if (entries.length > 0 && (app.view === "list" || app.view === "start")) {
     app.view = "recover";
+  }
+}
+
+/**
+ * M01-US-107：啟動時把「上次沒送出去的缺口」補完。
+ *
+ * 情境：`hidden` 當下斷網 → 使用者把 app 從背景滑掉。本機那筆缺口永遠躺在 localStorage，
+ * 而畫面已經跟使用者說過「這段未錄到」——沒補送就是騙人。
+ * 還沒在錄音的會議沒有 tracker 可接，所以這裡自己造一個小的跑一次（重送是幂等的）。
+ */
+export async function syncPendingGaps(): Promise<void> {
+  for (const meetingId of listPendingGapMeetings()) {
+    const tracker = new GapTracker({
+      api: new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }),
+      storage: createLocalGapStorage(meetingId),
+      elapsedMs: () => 0, // 只有已存在的缺口會被補送，不會新增
+      ...(meetingId === app.currentMeetingId ? { onChange: (gaps: GapRecord[]) => (app.gaps = gaps) } : {}),
+    });
+    await tracker.load();
+    await tracker.sync();
   }
 }
 
@@ -306,6 +351,8 @@ export async function confirmStart(rawTitle: string): Promise<void> {
   unsubscribe = store.subscribe(() => syncSnapshot());
   app.currentMeetingId = meetingId;
   app.currentTitle = title;
+  app.gaps = [];
+  await startGapTracking(meetingId);
   try {
     await store.start();
   } catch (error) {
@@ -343,9 +390,15 @@ export function backToList(): void {
 
 export async function endMeeting(): Promise<void> {
   if (store === null) return;
+  // 結束會議也是「中斷結束」：還開著的缺口要在收工前補上結束時間，不要留一個永遠未知的缺口。
+  await gapTracker?.handleVisible();
   await store.stopByUser();
   // 最後一段（`dataavailable`）剛落地，給它一次補送機會再離開畫面。
   await flushChunks();
+  await gapTracker?.sync();
+  // 這一場結束了，舊 tracker 不能再收事件：否則之後 app 進背景會憑上一個 elapsedMs
+  // 建出一筆「幽靈缺口」（會議早就結束了，逐字稿卻多一段「未錄到」）。
+  gapTracker = null;
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
   app.view = "list";
@@ -354,8 +407,12 @@ export async function endMeeting(): Promise<void> {
 export async function resumeMeeting(): Promise<void> {
   if (store === null) return;
   await store.resume();
+  // **真的開始收音了**才關缺口：mic 又被拒 / 續錄失敗時，錄音還是停的，
+  // 這一刻補結束時間會讓畫面少報中斷長度（見 gap-marking.spec.ts 的兩個 Edge 測試）。
+  if (rec.snapshot.state === "recording") await gapTracker?.handleVisible();
   syncSnapshot();
   await flushChunks();
+  await gapTracker?.sync();
 }
 
 /** 由畫面每秒呼叫（到點自動結束的驅動來源）。 */
@@ -373,6 +430,10 @@ export function tickMeeting(): void {
 
 /** 上限畫面的兩個出口（AC-6）：產生記錄 / 開新一場。 */
 export function closeLimitSession(choice: "generate" | "new"): void {
+  void gapTracker?.handleVisible(); // 上限到點也是中斷結束：不要把缺口留成「結束時間未知」
+  void gapTracker?.sync();
+  // 同 endMeeting()：這一場結束了，舊 tracker 不得再收背景事件（免得建出幽靈缺口）。
+  gapTracker = null;
   store?.closeSession();
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
@@ -386,10 +447,22 @@ export function closeLimitSession(choice: "generate" | "new"): void {
 
 /** 前景/背景切換（AC-4）：由 main.ts 綁上瀏覽器事件。 */
 export function notifyVisibility(hidden: boolean): void {
+  // M01-US-107 D-US107-2：**必須先**標缺口再切狀態。
+  // 切到 interrupted 之後計時器就凍結了，那時再讀 elapsedMs 會少算「畫面還在的前一刻」。
+  // `handleHidden()` 的前半段是同步的，所以這裡不需要 await。
+  // 只在「真的會中斷」時標：state.ts 的 `visibility_hidden` 只有在 recording 才轉成 interrupted，
+  // 非錄音中（例如已達上限、已結束、還沒開始）進背景不是「未錄到」，標了就是假的缺口。
+  const willInterrupt = hidden && rec.snapshot.state === "recording";
+  if (willInterrupt) void gapTracker?.handleHidden();
   store?.notifyVisibility(hidden);
   syncSnapshot();
   if (hidden && app.currentMeetingId !== null && rec.snapshot.state === "interrupted") {
     setStatus(app.currentMeetingId, "interrupted");
   }
-  if (!hidden) void flushChunks();
+  if (!hidden) {
+    // 回到前景**不關**缺口：`visibility_visible` 不自動續錄（見 state.ts），錄音這一刻還是停的。
+    // 缺口一律等真的續錄 / 結束會議 / 上限到點才收尾（那些點各自呼叫 handleVisible）。
+    void flushChunks();
+    void gapTracker?.sync();
+  }
 }

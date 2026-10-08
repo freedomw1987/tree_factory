@@ -105,6 +105,18 @@ export class RecorderStore {
     };
   }
 
+  /**
+   * 牆鐘 elapsed（**不受中斷凍結影響**）。
+   *
+   * M01-US-107 D7：缺口的長度 = 真的中斷了多久，所以不能讀 `snapshot.elapsedMs`
+   * （中斷時它是凍結值）。例：12 秒時進背景、3 分鐘後才按「繼續」，缺口就該是 3 分鐘，
+   * 不是 0 秒（Gate 4 F1 / F4）。
+   */
+  get wallClockElapsedMs(): number {
+    if (this.#startedAtMs === null) return 0;
+    return Math.min(Math.max(0, this.#deps.now() - this.#startedAtMs), MEETING_MAX_MS);
+  }
+
   /** 訂閱狀態變化（只在真的變化時通知，UI 不必輪詢猜狀態）。 */
   subscribe(listener: (snapshot: RecorderSnapshot) => void): () => void {
     this.#listeners.add(listener);

@@ -42,6 +42,12 @@ import {
   TranscriptChunkLedger,
   type ChunkSql,
 } from "./storage/chunk-store.js";
+import {
+  GAP_SKEW_TOLERANCE_MS,
+  GapConflictError,
+  GapInvalidError,
+  TranscriptGapLog,
+} from "./storage/gap-store.js";
 import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
 
 /** Worker 綁定（含 secret 與 vars）。 */
@@ -153,6 +159,10 @@ export class MeetingDurableObject {
           return await this.#sessionStopRoute(request);
         case "/transcript":
           return await this.#transcriptRoute(request);
+        case "/transcript/gap":
+          return await this.#transcriptGapRoute(request);
+        case "/transcript/gaps":
+          return this.#transcriptGapListRoute();
         case "/audio/chunk":
           return await this.#audioChunkRoute(request, url);
         case "/audio/chunks":
@@ -191,6 +201,13 @@ export class MeetingDurableObject {
       }
       if (error instanceof ChunkInvalidError) {
         return json({ error: error.code, message: error.message }, 400);
+      }
+      if (error instanceof GapInvalidError) {
+        return json({ error: error.code, message: error.message }, 400);
+      }
+      if (error instanceof GapConflictError) {
+        // 同 seq 不同起點 = 裝置端序號重用：不覆蓋，因為覆蓋會讓兩次中斷變成同一筆。
+        return json({ error: error.code, message: error.message, recoverable: false }, 409);
       }
       if (error instanceof UnknownProviderError || error instanceof ModelUnavailableError) {
         // 設定錯誤（provider / 模型 id）：明確講出來，不讓它變成一個含糊的 INTERNAL。
@@ -266,6 +283,10 @@ export class MeetingDurableObject {
 
   #transcriptLedger(): TranscriptChunkLedger {
     return new TranscriptChunkLedger(this.#chunkSql());
+  }
+
+  #gapLog(): TranscriptGapLog {
+    return new TranscriptGapLog(this.#chunkSql());
   }
 
   /**
@@ -404,11 +425,62 @@ export class MeetingDurableObject {
   }
 
   /**
+   * M01-US-107：逐字稿缺口標記（AC-1 / AC-3）。
+   *
+   * 為什麼允許「只開不閉」：`hidden` 當下就必須寫入（app 可能再也沒回來），
+   * 但那一刻根本還不知道中斷會多久。回前台時用**同一個 seq** 補 `toMs`，
+   * 靠 `INSERT OR IGNORE`（PK = seq）保證同一段不會變成兩筆。
+   */
+  async #transcriptGapRoute(request: Request): Promise<Response> {
+    const current = this.#readSession(this.#sessionStore());
+    if (current === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
+    }
+    const body = (await request.json().catch(() => ({}))) as {
+      seq?: unknown;
+      fromMs?: unknown;
+      toMs?: unknown;
+    };
+    if (!acceptsTranscriptWrites(current.session, this.#now())) {
+      const status = sessionStatus(current.session, this.#now());
+      return json(
+        {
+          error: status.reached ? "LIMIT_REACHED" : "SESSION_ENDED",
+          message: status.reached
+            ? "已達 2 小時上限，2:00 之後的內容不會被記錄。"
+            : "這場會議已經結束，不再接受逐字稿。",
+        },
+        409,
+      );
+    }
+    // 上限用**伺服端**的已過時間算：裝置回報的 ms 只能在這個範圍內，否則時間軸沒參考價值。
+    const elapsedMs = Math.max(0, this.#now() - current.session.startedAtMs);
+    const result = this.#gapLog().record({
+      seq: body.seq,
+      fromMs: body.fromMs,
+      toMs: body.toMs,
+      maxMs: elapsedMs + GAP_SKEW_TOLERANCE_MS,
+      nowMs: this.#now(),
+    });
+    return json(result);
+  }
+
+  /** M01-US-107：讀回缺口清單（裝置端重開後要靠它把逐字稿的缺口列長回來）。 */
+  #transcriptGapListRoute(): Response {
+    const current = this.#readSession(this.#sessionStore());
+    if (current === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
+    }
+    const gaps = this.#gapLog().list();
+    return json({ gaps, count: gaps.length });
+  }
+  /**
    * 逐字稿寫入守門員（M01-US-101）＋ 分段冪等（M01-US-102 AC-4：重送不得產生重複句）。
    *
    * 順序刻意是「先守門 → 再認領 seq」：被 2:00 上限或空內文擋下的請求，
    * 不應該先把 seq 燒掉（否則使用者補上內容後反而被當成重送）。
    */
+
   async #transcriptRoute(request: Request): Promise<Response> {
     const store = this.#sessionStore();
     const current = this.#readSession(store);

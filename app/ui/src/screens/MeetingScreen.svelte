@@ -1,6 +1,7 @@
 <script lang="ts">
   import { endMeeting, rec, resumeMeeting, closeLimitSession, app } from "../lib/app.svelte";
   import { formatClock, minutesUntilLimit } from "../lib/recorder/limit";
+  import TranscriptGapRow from "./TranscriptGapRow.svelte";
 
   const HOLD_MS = 1_000;
 
@@ -98,7 +99,19 @@
   {/if}
 
   <section class="transcript" data-testid="transcript">
-    <p class="dim" data-testid="transcript-waiting">等待第一句…（逐字稿由 M01-US-103 / US-104 接上）</p>
+    {#if app.gaps.length === 0}
+      <p class="dim" data-testid="transcript-waiting">等待第一句…（逐字稿由 M01-US-103 / US-104 接上）</p>
+    {:else}
+      <!--
+        M01-US-107 AC-2：畫面上有缺口就把空白說出來。
+        「等待第一句…」在這個時候要換掉——不然使用者會把「沒有句子」誤認為「這段話沒人說」。
+      -->
+      <ul class="gap-list" data-testid="transcript-gap-list">
+        {#each app.gaps as gap (gap.seq)}
+          <TranscriptGapRow {gap} />
+        {/each}
+      </ul>
+    {/if}
   </section>
 
   {#if limitReached}
@@ -235,6 +248,15 @@
     color: var(--text-dim);
     font-size: 14px;
     margin: 0;
+  }
+
+  .gap-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
   .limit {

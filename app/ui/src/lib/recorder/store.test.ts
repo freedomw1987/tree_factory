@@ -177,6 +177,22 @@ describe("M01-US-101 錄音 store", () => {
     expect(session.stopReasons).toContain("user");
   });
 
+  it("M01-Given 中斷（計時凍結）When 讀 wallClockElapsedMs Then 仍跟著牆鐘前進（缺口長度才不會被記成 0）", async () => {
+    // M01-US-107 D7 + Gate 4 F1：缺口長度 = 真的中斷了多久。`snapshot.elapsedMs` 中斷時凍結（刻意），
+    // 所以缺口追蹤必須讀這個「不受狀態影響」的牆鐘值：12 秒時切背景、3 分鐘後才回來，缺口就是 3 分鐘。
+    const { store, clock } = makeStore();
+    await store.start();
+    clock.t = 12_000;
+    store.notifyVisibility(true);
+    clock.t = 192_000; // 3 分鐘後回到前景（還沒按續錄）
+    expect(store.snapshot.state).toBe("interrupted");
+    expect(store.snapshot.elapsedMs).toBe(12_000); // 凍結：畫面時鐘不跳
+    expect(store.wallClockElapsedMs).toBe(192_000);
+    await store.resume();
+    expect(store.wallClockElapsedMs).toBe(192_000); // 續錄後兩者一致
+    expect(store.snapshot.elapsedMs).toBe(192_000);
+  });
+
   it("M01-Given 錄音中 When 訂閱者存在 Then 每次狀態變化都被通知（UI 不得靠輪詢猜狀態）", async () => {
     const { store, clock } = makeStore();
     const seen: string[] = [];
