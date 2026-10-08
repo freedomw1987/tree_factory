@@ -58,8 +58,9 @@ E2E 跑的來源是 `http://localhost:1420`，但**正式 app 在 Tauri webview 
 > `access-control-allow-origin` / `access-control-allow-headers`」。這是**錯的**：
 > 依 Fetch 規範，那兩個是 CORS 內部標頭，**瀏覽器不會 expose 給 JS**，`response.headers.get()`
 > 在真 webview 永遠回 `null`。初版實測畫面就印出「（無）」，極易被誤讀成「CORS 失敗」。
-> 因此改為：① 探針不讀那兩個標頭；② 以「**拿得到 `status` 就代表 CORS 已通過**（被擋時
-> `fetch` 會丟例外）」＋「worker log 的 `allowed=…`」兩者作準。
+> 因此改為：① 探針不讀那兩個標頭；② 以「**拿得到 `status` 就代表 CORS 已通過**（本探針顯式用
+> `mode:"cors"`——被擋時 `fetch` 會丟例外；`no-cors` 的 opaque response 不在此列）」＋
+> 「worker log 的 `allowed=…`」兩者作準。
 
 ### AC-3 實測結果（本票真正的產出）
 
@@ -118,7 +119,8 @@ E2E 跑的來源是 `http://localhost:1420`，但**正式 app 在 Tauri webview 
 
 > ⚠️ Gate 4 第 1 輪 P1 的更正：初版把「回應層」寫成「webview 讀到 ACAO = `tauri://localhost`」，
 > 那是**錯的**（解釋見 AC-2 差異②）。ACAO **只能在 worker 端看**（log 的 `allowed=true`
-> 或 curl），webview 端看不到；反過來，webview 端「拿得到 `status`」就已經是 CORS 通過的證明。
+> 或 curl），webview 端看不到；反過來，webview 端「拿得到 `status`」就已經是 CORS 通過的證明
+> （前提：該請求是 `mode:"cors"`；探針已顯式指定）。
 > 下方保留初版探針畫面的原文，作為這個陷阱的現場證據。
 
 **收尾驗證**（探針建的會議確實被收掉）：
@@ -192,8 +194,12 @@ access-control-max-age: 600
    - 從 `app/` 執行 → cwd = `app/ui`
    - 從 `app/src-tauri` 執行 → cwd = `app/`（沒有 `package.json` → `npm run build` 直接 ENOENT）
    實測原文（`-c` 把命令換成 `pwd` 觀測）：從 `app/` → `/…/app/ui`；從 `app/src-tauri` → `/…/app`。
-   已把兩個命令改為 `if [ -d ui ]; then npm --prefix ui …; else npm --prefix ../ui …; fi`，
-   從兩個目錄都能正確解析（實測：兩者都印出 `tree-factory-ui@0.1.0 dev` 橫幅）。
+   **修法**：在 `app/` 放一份只負責轉發的 `package.json`（`"build": "npm --prefix ui run build"`），
+   於是 `beforeBuildCommand` 回到最單純、也跨平台的 `npm run build`：
+   - cwd = `app/ui` → 用 `ui/package.json` 自己的 build ✅
+   - cwd = `app/` → 用新增的 `app/package.json` 轉發到 `ui` ✅
+   實測從 `app/`、`app/src-tauri`、repo 根三種目錄執行 `cargo tauri build --debug` **都成功**。
+   （不採用 `if [ -d ui ]; then … fi` 寫法：那在 Windows 的 `cmd` 下不是合法語法。）
 3. **`tauri dev` 的 webview 來源不是 `tauri://localhost`**（是 devUrl 的 http 來源）；
    `tauri dev` 搭 `frontendDist` 也不是自訂 scheme（Tauri 會另起臨時埠）。
    要驗正式來源**只能**用 `cargo tauri build` 產出的 `.app`。
@@ -217,4 +223,5 @@ access-control-max-age: 600
 | --- | --- | --- | --- |
 | 2026-10-08 | v1.0 | 初版（由 M01-US-101 §2.4 反思維度 6 轉票；dav-planner §2.1 精簡版）| Agent（TECH-006 執行階段）|
 | 2026-10-08 | v1.1 | 實測後修正：①探針 gate 拔掉 `DEV` 條件（`tauri://localhost` 只在打包 app 出現）②補上「讀到 201 才回呼 stop」的機械證據設計 ③回填實測紀錄 / DoD / 附帶發現 | Agent（TECH-006 執行階段）|
-| 2026-10-08 | v1.2 | Gate 4 第 1 輪修正（P1×1 / P2×4）：①移除「讀 ACAO」的錯誤設計（瀏覽器不 expose CORS 內部標頭）並更正三層證據表 ②更正測試數字（worker 132 / ui 45 / markdownlint 47 檔）③`beforeBuildCommand`/`beforeDevCommand` 改為 cwd 無關 ④探針程式碼真的被 tree-shake（未設旗標時 bundle 內 grep = 0）⑤`stop` 檢查 `res.ok`、`randomUUID` 加後備、`probeIfEnabled` 不外拋 ⑥新增「已知陷阱」 | Agent（TECH-006 執行階段）|
+| 2026-10-08 | v1.2 | Gate 4 第 1 輪修正（P1×1 / P2×4）：①移除「讀 ACAO」的錯誤設計（瀏覽器不 expose CORS 內部標頭）並更正三層證據表 ②更正測試數字（worker 132 / ui 49 / markdownlint 47 檔）③`beforeBuildCommand`/`beforeDevCommand` 改為 cwd 無關 ④探針程式碼真的被 tree-shake（未設旗標時 bundle 內 grep = 0）⑤`stop` 檢查 `res.ok`、`randomUUID` 加後備、`probeIfEnabled` 不外拋 ⑥新增「已知陷阱」 | Agent（TECH-006 執行階段）|
+| 2026-10-08 | v1.3 | Gate 4 第 2 輪修正（P2×3）：①更正 v1.2 自己寫錯的數字（ui 45 → 49）②探針顯式 `mode:"cors"`，並把「拿得到 status ⇒ CORS 通過」的斷言補上模式前提 ③cwd 修法改為 `app/package.json` 轉發（回到跨平台的 `npm run build`，不採 POSIX-only 的 `if [ -d ]`）| Agent（TECH-006 執行階段）|

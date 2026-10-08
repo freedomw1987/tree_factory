@@ -1,0 +1,12 @@
+{
+  "name": "tree-factory-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tauri 外殼（webview + 相機/麥克風權限）；UI 在 ui/，這是通往它的入口",
+  "scripts": {
+    "dev": "npm --prefix ui run dev",
+    "build": "npm --prefix ui run build",
+    "test": "npm --prefix ui run test",
+    "lint": "npm --prefix ui run lint"
+  }
+}

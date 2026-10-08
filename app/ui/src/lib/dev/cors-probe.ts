@@ -10,7 +10,8 @@
  * 在真 webview 一定回 `null`——就算伺服器明明送了。第一次實測時探針畫面就顯示
  * 「（無）」，極易被誤讀成「CORS 失敗」。
  * 因此本探針**不再讀那兩個標頭**；真正可靠的判準是：
- * ① `response.status` 讀得到 ⇒ CORS 已經通過（被擋時 `fetch` 會直接丟例外）
+ * ① `response.status` 讀得到 ⇒ CORS 已經通過（**限 `mode:"cors"`**；
+ *    被擋時 `fetch` 會直接丟例外。`no-cors` 的 opaque response 不在此列，所以本探針顯式指定 mode）
  * ② worker log 的 `[cors] allowed=true` ⇒ 伺服器端的白名單判定。
  *
  * 為什麼是 build-time 旗標：探針會在 worker 上真的開一場會議（真資料），
@@ -91,8 +92,12 @@ export async function runCorsProbe(
   const url = (path: string) => `${base}/m/${encodeURIComponent(meetingId)}/${path}`;
   let status: number | null = null;
   try {
+    // ⚠️ `mode: "cors"` 刻意寫出來（不要只靠預設值）：
+    // 「拿得到 status ⇒ CORS 已通過」這個立論**只在 cors 模式成立**——
+    // `mode: "no-cors"` 的 opaque response 不丟例外、status 永遠 0，拿得到也驗不到 CORS。
     const response = await fetchImpl(url("session/start"), {
       method: "POST",
+      mode: "cors",
       headers: { "content-type": "application/json" },
     });
     status = response.status;
@@ -110,6 +115,7 @@ export async function runCorsProbe(
     try {
       const stoppedResponse = await fetchImpl(url("session/stop"), {
         method: "POST",
+        mode: "cors",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ reason: "aborted" }),
       });
