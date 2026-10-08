@@ -868,7 +868,7 @@ Verdict：0 P0 / 0 P1 / 3 P2
 | --- | --- | --- |
 | UX/UI | — 不適用 | 純後端骨架，無使用者介面 |
 | RWD | — 不適用 | 同上 |
-| 技術債 | ⚠️ 有條件通過 | 無 TODO；14 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 七輪（11 + 4 + 2 + 3 + 2 + 3 + 3 項）全數處置（程序面零缺陷自第二輪起；第七輪 3 條為自我複驗、未經獨立複驗）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
+| 技術債 | ⚠️ 有條件通過 | 無 TODO；14 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 七輪共 28 項發現（**2 P1 + 26 P2**；逐輪 11/4/2/3/2/3/3）全數處置（程序面零缺陷自第二輪起；第七輪 3 條為自我複驗、未經獨立複驗）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
 | 可維護性 | ✅ 通過 | 分層清楚（lifecycle / storage / harness / DO 入口）；DO 入口只做平台接線；核心邏輯皆可單測 |
 | 測試覆蓋率 | ✅ 通過 | 6 條 AC 皆有對應測試（單元 55 + 冒煙 19）；另含合約測試（交易排隊、handle 失效時機、`AggregateError` 順序）與 DO HTTP 入口測試（含 `/release` 與 raw query 編碼）|
 | 需求對齊 | ✅ 通過 | 逐條對上 SPIKE-003 的三個平台事實；模型與壓縮政策對上 D15 |
