@@ -10,7 +10,9 @@ import { defineConfig, devices } from "@playwright/test";
  * 兩個刻意的設定：
  * - `--use-fake-device-for-media-stream`：給 Chromium 一個假麥克風（有聲無聲不重要，
  *   重點是 `getUserMedia()` 真的會成功），因此不必在 CI 上接真裝置。
- * - `workers: 1` + serial：worker 的 DO 狀態與 localStorage 是共用資源，序列跑才不會互相污染。
+ * - `workers: 1`：worker 的 DO 狀態與 localStorage 是共用資源，序列跑才不會互相污染。
+ *   （刻意**不**用 `mode: "serial"`：那會讓一條失敗就 skip 掉後面全部，反而少掉證據；
+ *   序列靠 `workers: 1` + 每個測試清 localStorage 就夠了。）
  */
 export default defineConfig({
   testDir: "./e2e",
