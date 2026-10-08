@@ -212,7 +212,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING（**部分已交付 2026-10-09**：`e2e/iphone-viewport.spec.ts` 已覆蓋 iPhone 390×844 + 注入安全區的 3 條（開始會議可及、結束會議可及、長逐字稿不得推走按鈕）；**仍待**：其餘畫面（會議列表 / 開始 sheet / 權限阻斷頁）在手機寬度的溢出與點擊區檢查、橫向排列）| M01-US-101 |
 | **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
 | **TECH-009** | TECH | — | worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）| — | P1 | 3 | PENDING | M01-US-101 |
-| **TECH-011** | TECH | — | app 實作對齊 `DESIGN.md` §5 規則 8：emoji icon → inline SVG `Icon` 元件（`app/ui` 5 處）| — | P2 | 2 | **DONE**（2026-10-09：5 處 emoji → `Icon`（chat/mic/ban，圖形取自原型 `IP` 表逐字元相同）；三層守門（`scripts/check-design-icons.mjs` 全檔含 `.css`＋原型同源 / `icon.test.ts`＋`emoji.ts` / `icon-component.test.ts`＋E2E）；Gate 4 獨立稽核 P0/P1=0，另 8 條 P2 經用戶裁決修 6 條；`dist` 正式 bundle 實測 0 emoji）| M01-US-101 |
+| **TECH-011** | TECH | — | app 實作對齊 `DESIGN.md` §5 規則 8：emoji icon → inline SVG `Icon` 元件（`app/ui` 5 處）| — | P2 | 2 | **DONE**（2026-10-09：5 處 emoji → `Icon`（chat/mic/ban，圖形取自原型 `IP` 表逐字元相同）；三層守門（`scripts/check-design-icons.mjs` 全檔含 `.css`＋原型同源 / `icon.test.ts`＋`emoji.ts` / `icon-component.test.ts`＋E2E）；Gate 4 獨立稽核 P0/P1=0，另 8 條 P2 經用戶裁決修 6 條；`dist` 正式 bundle 實測 0 emoji；**iPhone 12 mini 真機複驗**：tab 圖示像素級判讀兩處皆單色 SVG、零 emoji 像素（空狀態 38pt 三處因真機留有舊會議未出現，轉下次真機驗收順便看）| M01-US-101 |
 
 **合計**：**183 SP / 52 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
 P1 = 41 SP、P2 = **17 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪 +6 平移）
