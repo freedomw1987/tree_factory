@@ -205,7 +205,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-006 | Spike | M04 | 概念提取的品質與成本實測（粒度、噪音率、token）| — | P2 | 3 | PENDING | M04-US-404 |
 | TECH-002 | TECH | — | 修 `dav-planner` 「US 必產 HTML」與 SOP v2.0 禁 HTML 的文實矛盾 | — | P2 | 2 | PENDING | — |
 | **TECH-003** | TECH | — | `@cloudflare/voice` 已棄用 → 改依 `agents/voice`；`DiarizingNova3Transcriber` 落點 | — | P0 | 2 | PENDING | SPIKE-001 |
-| **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | DONE（55 單元測試 + 19 項 workerd 冒煙全綠；Gate 4 獨立稽核正跑第六輪，文件見 `docs/ac/TECH-004.md`）| SPIKE-003 |
+| **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | DONE（55 單元測試 + 19 項 workerd 冒煙全綠；Gate 4 獨立稽核正跑第七輪，文件見 `docs/ac/TECH-004.md`）| SPIKE-003 |
 | **TECH-005** | TECH | — | Spike 探針退場：正式收音層取代後刪除 `app/src/index.html` 探針與 collector | — | P2 | 1 | PENDING | M01-US-106 |
 
 **合計**：**171 SP / 46 項**｜P0 = 28 項 / 122 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
