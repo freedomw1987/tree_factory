@@ -213,6 +213,7 @@ access-control-max-age: 600
   症狀與正式 webview 被擋**一模一樣**：「按開始沒反應」。現在有了 `DEBUG_ORIGINS` 至少能看到
   `allowed=false`，但使用者（開發者）仍然要自己發現。可能的後續票：dev 時讓 worker 在 CORS
   拒絕的回應裡多帶一句提示，或讓 dev 白名單吃 `http://localhost:<任意埠>`（僅 dev，且不得是 `*`）。
+  → **已轉票 `TECH-010`**（§2.4 反思維度 3/5 轉出，含「實測流程腳本化」）。
 - **iOS 上的實際來源仍未實測**（無實體裝置）。若 iOS 的 webview 來源與 macOS 不同
   （例：`http://tauri.localhost`），`DEV_ORIGINS` 已同時列了兩種寫法；真機驗收時請把
   `DEBUG_ORIGINS=1` 打開，log 會直接給答案。
