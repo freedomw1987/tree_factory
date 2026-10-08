@@ -4,12 +4,15 @@
   "version": "0.1.0",
   "identifier": "com.treefactory.spike",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm --prefix ui run dev",
+    "beforeBuildCommand": "npm --prefix ui run build"
   },
   "app": {
     "windows": [
       {
-        "title": "收音探針 (SPIKE-002)",
+        "title": "tree-factory",
         "width": 390,
         "height": 844,
         "resizable": true

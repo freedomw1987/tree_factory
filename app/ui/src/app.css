@@ -1,0 +1,77 @@
+/* M01-US-101：DESIGN.md §2 的 token 直接落成 CSS 變數（只有一份，元件不得硬寫色碼）。 */
+:root {
+  /* §2.1 色彩（深色為預設） */
+  --bg: #0b0f14;
+  --surface: #131a22;
+  --surface-2: #1b242e;
+  --border: #28323d;
+  --text: #e8eef5;
+  --text-dim: #94a3b3;
+  --rec: #ff4d4d; /* 唯一紅色：只給「正在錄音」 */
+  --accent: #4da3ff;
+  --ok: #35c68a;
+  --warn: #f5a623;
+  --err: #ff6b6b;
+
+  /* §2.3 間距 / 圓角 / 動效 / 觸控目標 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --r-card: 16px;
+  --r-btn: 12px;
+  --r-sheet: 24px;
+  --tap: 44px;
+  --dur: 160ms;
+  --dur-sheet: 280ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "SF Pro Text", "PingFang TC", system-ui, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+.mono {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 錄音紅點 pulse 1.4s 循環（§2.3）；尊重 prefers-reduced-motion */
+@keyframes rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+.pulse {
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

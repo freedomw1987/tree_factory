@@ -108,5 +108,72 @@ check("重建後 entries 不變少（同一份 storage 讀回）", afterAlarm.bo
 console.log("--- 5. 缺憑證時回 AUTH_INVALID（唯一可阻斷） ---");
 console.log("（跳過：本輪以 HARNESS_PROVIDER=faux 啟動；AUTH_INVALID 由單元測試覆蓋）");
 
+// M01-US-101：會議時間軸在**真 workerd** 上真的落地（DO SQLite + 路由）。
+// 注意：這裡跑的是真實時間，所以「2:00 上限到點」不由這一支證明，
+// 而是由可注入時鐘的 session-routes.test.ts 證明；這一支只證明「真的平台支援這些路徑」。
+console.log("--- 6. M01-US-101 session 路由（真 workerd） ---");
+const beforeStart = await get("/m/meeting-sess/session");
+check(
+  "未開始就查 session → 404 SESSION_NOT_STARTED",
+  beforeStart.status === 404 && beforeStart.body.error === "SESSION_NOT_STARTED",
+  JSON.stringify(beforeStart.body),
+);
+const started = await post("/m/meeting-sess/session/start", {});
+check(
+  "開始會議 → 201 recording，且 ends_at - started_at = 2 小時",
+  started.status === 201 &&
+    started.body.phase === "recording" &&
+    started.body.endsAtMs - started.body.startedAtMs === 7_200_000,
+  JSON.stringify(started.body),
+);
+check("會議 id 由 header 傳進 DO（回傳的 meetingId 就是路徑上的）", started.body.meetingId === "meeting-sess");
+const restarted = await post("/m/meeting-sess/session/start", {});
+check(
+  "重複開始不重置時間軸（冪等）",
+  restarted.body.startedAtMs === started.body.startedAtMs,
+  `${restarted.body.startedAtMs} vs ${started.body.startedAtMs}`,
+);
+const write1 = await post("/m/meeting-sess/transcript", { text: "第一句" });
+const write2 = await post("/m/meeting-sess/transcript", { text: "第二句" });
+check(
+  "逐字稿寫入被接受並累計",
+  write1.body.accepted === true && write2.body.transcriptWrites === 2,
+  JSON.stringify(write2.body),
+);
+const statusBeforeStop = await get("/m/meeting-sess/session");
+check(
+  "查詢讀回同一份時間軸（transcriptWrites=2、warn=false）",
+  statusBeforeStop.body.transcriptWrites === 2 && statusBeforeStop.body.warn === false,
+  JSON.stringify(statusBeforeStop.body),
+);
+const isolated = await post("/m/meeting-sess-2/session/start", {});
+const isolatedStatus = await get("/m/meeting-sess-2/session");
+const firstStatus = await get("/m/meeting-sess/session");
+check(
+  "兩場會議的 session 互相隔離（新的 0 句、原本的 2 句）",
+  isolated.body.phase === "recording" &&
+    isolatedStatus.body.transcriptWrites === 0 &&
+    firstStatus.body.transcriptWrites === 2,
+  `other=${isolatedStatus.body.transcriptWrites}, first=${firstStatus.body.transcriptWrites}`,
+);
+const stopped = await post("/m/meeting-sess/session/stop", { reason: "user" });
+check(
+  "使用者結束 → phase=ended（reason=user）",
+  stopped.body.phase === "ended" && stopped.body.endedReason === "user",
+  JSON.stringify(stopped.body),
+);
+const afterStop = await post("/m/meeting-sess/transcript", { text: "結束後才補的句子" });
+check(
+  "結束後拒收逐字稿（409 SESSION_ENDED）",
+  afterStop.status === 409 && afterStop.body.error === "SESSION_ENDED",
+  JSON.stringify(afterStop.body),
+);
+const badReason = await post("/m/meeting-sess/session/stop", { reason: "because" });
+check(
+  "非法 reason → 400 REASON_INVALID（不默默當 user）",
+  badReason.status === 400 && badReason.body.error === "REASON_INVALID",
+  JSON.stringify(badReason.body),
+);
+
 console.log(`\nDO smoke：${failures === 0 ? "全部通過 ✅" : `${failures} 項失敗 ❌`}`);
 process.exit(failures === 0 ? 0 : 1);

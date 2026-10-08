@@ -23,6 +23,16 @@ import {
   type MeetingBindings,
   type OpenMeetingResult,
 } from "./harness/meeting-harness.js";
+import {
+  acceptsTranscriptWrites,
+  expireSession,
+  sessionStatus,
+  startSession,
+  stopSession,
+  type MeetingSession,
+  type SessionEndedReason,
+} from "./session.js";
+import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
 
 /** Worker 綁定（含 secret 與 vars）。 */
 export type MeetingEnv = MeetingBindings;
@@ -39,6 +49,11 @@ export interface MeetingDurableObjectContext {
   storage: DurableObjectStorageLike;
   /** DO id（測試與維運用；證明「一個會議 = 一個 DO 實例」）。 */
   id?: { toString(): string };
+  /**
+   * 現在時間（毫秒）。正式環境用 `Date.now()`；測試注入固定時鐘，
+   * 這樣「兩小時後」是立刻可驗的，不必真的等兩小時、也不必動系統時鐘。
+   */
+  now?: () => number;
 }
 
 /** 一次 alarm 醒來最多再往前排多久（避免無限接力）。 */
@@ -120,6 +135,14 @@ export class MeetingDurableObject {
           }
           return json(await this.#lifecycle.wakeIn(delayMs));
         }
+        case "/session":
+          return this.#sessionStatusRoute();
+        case "/session/start":
+          return await this.#sessionStartRoute(request);
+        case "/session/stop":
+          return await this.#sessionStopRoute(request);
+        case "/transcript":
+          return await this.#transcriptRoute(request);
         case "/release": {
           // 照實回報：有 open 正在飛時 release() 會延後（不把即將交出去的 harness 關掉）。
           const decision = await this.#lifecycle.release();
@@ -172,11 +195,162 @@ export class MeetingDurableObject {
    */
   async alarm(): Promise<void> {
     this.#alarmWakes += 1;
+    // 先收 session 再處理 harness：到點收尾不該被 harness 的失敗拖累
+    // （若 harness 拋錯，錄音上限仍然已經落地，裝置端問到的會是正確答案）。
+    this.#expireSessionIfReached();
     const opened = await this.#lifecycle.onAlarm();
     await opened.root(); // 觸發一次讀取，確認重建後同一場會議讀得回來
     // 正常情況下 `onAlarm()` 已經開完，這裡會真的關掉；萬一延後（有別的 open 在飛），
     // 也會計進 `stats.deferredReleases` 並在 /health 看得到，不是静默丢掉。
     await this.#lifecycle.release();
+  }
+
+  // ─────────────────────────────── M01-US-101：session ───────────────────────────────
+
+  #now(): number {
+    return (this.#ctx.now ?? Date.now)();
+  }
+
+  #sessionStore(): SessionStore {
+    return new SessionStore(this.#ctx.storage.sql as unknown as SessionSql);
+  }
+
+  /**
+   * 讀 session，並在「已經到點」時順手落地。
+   * 為什麼讀也要落地：alarm 可能沒醒、可能被延後；但上限是**時間**決定的，
+   * 所以任何一次請求都必須先把過期的 recording 收成 ended（否則狀態會被讀成還在錄）。
+   */
+  #readSession(store: SessionStore): SessionSnapshot | null {
+    const snapshot = store.read();
+    if (snapshot === null) return null;
+    const expired = expireSession(snapshot.session, this.#now());
+    if (expired === snapshot.session) return snapshot;
+    const next = { ...snapshot, session: expired };
+    store.write(next);
+    return next;
+  }
+
+  #expireSessionIfReached(): void {
+    const store = this.#sessionStore();
+    this.#readSession(store);
+  }
+
+  #payload(snapshot: SessionSnapshot): Record<string, unknown> {
+    const status = sessionStatus(snapshot.session, this.#now());
+    return {
+      meetingId: snapshot.session.meetingId,
+      phase: status.phase,
+      startedAtMs: snapshot.session.startedAtMs,
+      endsAtMs: snapshot.session.endsAtMs,
+      remainingMs: status.remainingMs,
+      warn: status.warn,
+      endedAtMs: snapshot.session.endedAtMs,
+      endedReason: snapshot.session.endedReason,
+      transcriptWrites: snapshot.transcriptWrites,
+    };
+  }
+
+  #sessionStatusRoute(): Response {
+    const snapshot = this.#readSession(this.#sessionStore());
+    if (snapshot === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "這場會議還沒開始" }, 404);
+    }
+    return json(this.#payload(snapshot));
+  }
+
+  /**
+   * 開始會議：第一次寫定權威時間軸；重複呼叫**不重開**（否則裝置端重試就能無限延長會議）。
+   */
+  async #sessionStartRoute(request: Request): Promise<Response> {
+    const store = this.#sessionStore();
+    const existing = this.#readSession(store);
+    if (existing !== null) return json(this.#payload(existing), 201);
+    const snapshot: SessionSnapshot = {
+      session: startSession(this.#meetingId(request), this.#now()),
+      transcriptWrites: 0,
+    };
+    store.write(snapshot);
+    await this.#armSessionAlarm(snapshot.session.endsAtMs);
+    return json(this.#payload(snapshot), 201);
+  }
+
+  async #sessionStopRoute(request: Request): Promise<Response> {
+    const store = this.#sessionStore();
+    const current = this.#readSession(store);
+    if (current === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "這場會議還沒開始" }, 404);
+    }
+    const body = (await request.json().catch(() => ({}))) as { reason?: unknown };
+    const reason = body.reason;
+    // 三個合法原因：使用者結束 / 上限 / 裝置端開始失敗後收尾（見 session.ts 的說明）。
+    if (reason !== "user" && reason !== "limit" && reason !== "aborted") {
+      return json(
+        { error: "REASON_INVALID", value: reason, allowed: ["user", "limit", "aborted"] },
+        400,
+      );
+    }
+    const next: SessionSnapshot = {
+      session: stopSession(current.session, this.#now(), reason as SessionEndedReason),
+      transcriptWrites: current.transcriptWrites,
+    };
+    store.write(next);
+    return json(this.#payload(next));
+  }
+
+  /**
+   * 逐字稿寫入守門員（M01-US-101 只負責「該不該收」；內容落地是 M01-US-103）。
+   * DoD 探針就鎖在這裡：2:00 之後一律拒收，且已接受的資料不被刪。
+   */
+  async #transcriptRoute(request: Request): Promise<Response> {
+    const store = this.#sessionStore();
+    const current = this.#readSession(store);
+    if (current === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
+    }
+    const body = (await request.json().catch(() => ({}))) as { text?: unknown };
+    const text = typeof body.text === "string" ? body.text : "";
+    if (text.trim() === "") {
+      return json({ error: "EMPTY_CONTENT", message: "逐字稿不得為空" }, 400);
+    }
+    if (!acceptsTranscriptWrites(current.session, this.#now())) {
+      const status = sessionStatus(current.session, this.#now());
+      return json(
+        {
+          error: status.reached ? "LIMIT_REACHED" : "SESSION_ENDED",
+          message: status.reached
+            ? "已達 2 小時上限，2:00 之後的內容不會被記錄。"
+            : "這場會議已經結束，不再接受逐字稿。",
+          accepted: false,
+          transcriptWrites: current.transcriptWrites,
+        },
+        409,
+      );
+    }
+    const next: SessionSnapshot = {
+      session: current.session,
+      transcriptWrites: current.transcriptWrites + 1,
+    };
+    store.write(next);
+    return json({
+      accepted: true,
+      transcriptWrites: next.transcriptWrites,
+      note: "逐字稿內容的落地由 M01-US-103 接上；這裡只驗證寫入守門員。",
+    });
+  }
+
+  /**
+   * 排到點 alarm：**只往前不往後**（earliest-wins）。
+   * TECH-004 的接力 demo 也用同一個 alarm slot，所以這裡不能覆蓋已存在且更早的 alarm。
+   */
+  async #armSessionAlarm(atMs: number): Promise<void> {
+    const existing = await this.#ctx.storage.getAlarm();
+    if (existing === null || atMs < existing) {
+      await this.#ctx.storage.setAlarm(atMs);
+    }
+  }
+
+  #meetingId(request: Request): string {
+    return request.headers.get("x-meeting-id") ?? this.#ctx.id?.toString() ?? "unknown";
   }
 
   async #health(): Promise<Record<string, unknown>> {
