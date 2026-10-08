@@ -1,6 +1,7 @@
 <script lang="ts">
   import { endMeeting, rec, resumeMeeting, closeLimitSession, app } from "../lib/app.svelte";
   import { formatClock, minutesUntilLimit } from "../lib/recorder/limit";
+  import { wakeLockHint } from "../lib/recorder/wake-lock";
   import TranscriptGapRow from "./TranscriptGapRow.svelte";
 
   const HOLD_MS = 1_000;
@@ -14,6 +15,11 @@
   const recording = $derived(snapshot.state === "recording");
   const interrupted = $derived(snapshot.state === "interrupted");
   const limitReached = $derived(snapshot.state === "limit_reached");
+  /**
+   * M01-US-108 AC-2：只有真的「沒有保護」時才給提示（活的敘述，不是固定 Banner）。
+   * `null` = 真的有壓住螢幕 / 根本沒在錄音 → 多說一句反而是雜訊。
+   */
+  const wakeLockNote = $derived(snapshot.state === "limit_reached" ? null : wakeLockHint(app.wakeLockState));
   /** 最後一次有在錄的時間點：中斷時畫面要誠實顯示「幾點斷的」。 */
   let interruptedAtMs = $state(0);
 
@@ -62,7 +68,12 @@
   2. 切背景時計時器必須凍結並明說中斷時間（不得假裝還在錄）；
   3. 會議中不跳頁、不彈 modal（P1）——結束會議用「長按填滿」避免誤觸（§4.1 決定 3）。
 -->
-<section class="meeting" data-testid="meeting-screen" data-rec-state={snapshot.state}>
+<section
+  class="meeting"
+  data-testid="meeting-screen"
+  data-rec-state={snapshot.state}
+  data-wakelock-state={app.wakeLockState}
+>
   <header class="top">
     <div class="ident">
       <span
@@ -96,6 +107,17 @@
         繼續這場會議？
       </button>
     </div>
+  {/if}
+
+  {#if wakeLockNote !== null}
+    <!--
+      M01-US-108 D6：喊「已防止螢幕關閉」但其實沒生效，比不講更糟——
+      使用者會把手機丟著，回來才發現整場沒錄到。所以只在「真的沒保護」時說話。
+      role="status"（禮貌通知）而非 alert：它是持續狀態，不是突發事件。
+    -->
+    <p class="banner dim-note" role="status" data-testid="wakelock-hint">
+      {wakeLockNote}
+    </p>
   {/if}
 
   <section class="transcript" data-testid="transcript">
@@ -218,6 +240,12 @@
     background: color-mix(in srgb, var(--warn) 16%, var(--surface));
     border: 1px solid var(--warn);
     color: var(--text);
+  }
+
+  .banner.dim-note {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
   }
 
   .banner button {

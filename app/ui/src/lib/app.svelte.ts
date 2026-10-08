@@ -14,6 +14,7 @@ import { openChunkStore, type OpenedChunkStore } from "./recorder/chunk-store";
 import { MEETING_MAX_MS } from "./recorder/limit";
 import { MediaRecorderCapture, type CaptureChunk } from "./recorder/media";
 import { RecorderStore, type RecorderSnapshot } from "./recorder/store";
+import { WakeLockManager, type WakeLockSentinelLike, type WakeLockState } from "./recorder/wake-lock";
 import type { UploadOutcome } from "./recorder/uploader";
 import { HttpSessionClient, SessionApiError } from "./session/api";
 import { createLocalGapStorage, GapTracker, listPendingGapMeetings, type GapRecord } from "./transcript/gap-tracker";
@@ -58,6 +59,11 @@ export const app = $state({
   recoveryBusy: false,
   /** M01-US-107：這一場會議的逐字稿缺口（依 seq 排序，含未同步的）。 */
   gaps: [] as GapRecord[],
+  /**
+   * M01-US-108：螢幕防關的現況（畫面要誠實反映，見 wake-lock.ts 的 `wakeLockHint`）。
+   * `active` = 真的壓住了；`unsupported` / `denied` / `lost` = 沒壓住，畫面必須明說「請保持畫面開啟」。
+   */
+  wakeLockState: "idle" as WakeLockState,
 });
 
 export const rec = $state({ snapshot: EMPTY_SNAPSHOT });
@@ -74,6 +80,7 @@ let storeInit: Promise<void> | null = null;
 let pipeline: ChunkPipeline | null = null;
 let recovery: ChunkRecovery | null = null;
 let gapTracker: GapTracker | null = null;
+let wakeLockManager: WakeLockManager | null = null;
 let conflictReported = false;
 let gapReported = false;
 
@@ -91,7 +98,7 @@ function chunkApiFor(meetingId: string) {
  * M01-US-107：這一場會議的缺口追蹤器。
  *
  * 為什麼要 `load()` 才開始：seq 一定要接著本機既有最大值往下（D3）。
- * 從 1 重算的話，重開後的第一次中斷会被伺服端當成「同 seq 重送」而丢——
+ * 從 1 重算的話，重開後的第一次中斷會被伺服端當成「同 seq 重送」而丟——
  * 使用者會看到一段沒有任何標記的空白，那是最糟的靜默資料錯誤。
  */
 async function startGapTracking(meetingId: string): Promise<void> {
@@ -106,6 +113,33 @@ async function startGapTracking(meetingId: string): Promise<void> {
     },
   });
   await gapTracker.load();
+}
+
+/**
+ * M01-US-108：螢幕防關的 adapter。
+ *
+ * 為什麼不直接寫 `navigator.wakeLock`：這個 API 在測試環境不存在，而真正會出錯的是狀態機
+ * （進背景後要重取、系統釋放要限量重試），注入 adapter 才能在單元測試 / E2E 驗（D2）。
+ */
+function wakeLockAdapter() {
+  const api = (
+    navigator as Navigator & { wakeLock?: { request(type: "screen"): Promise<WakeLockSentinelLike> } }
+  ).wakeLock;
+  return {
+    isSupported: () => typeof api?.request === "function",
+    request: () => api!.request("screen"),
+  };
+}
+
+/** 螢幕防關管理器（延遲建立：非瀏覽器環境 import 這個檔案時不得炸）。 */
+function wakeLock(): WakeLockManager {
+  wakeLockManager ??= new WakeLockManager({
+    adapter: wakeLockAdapter(),
+    onChange: (state) => {
+      app.wakeLockState = state;
+    },
+  });
+  return wakeLockManager;
 }
 
 /** 開本機分段儲存（IndexedDB；不可用時退回記憶體並記在 `durable`）。 */
@@ -365,6 +399,8 @@ export async function confirmStart(rawTitle: string): Promise<void> {
   syncSnapshot();
   const snapshot = store.snapshot;
   if (snapshot.state === "recording") {
+    // M01-US-108 AC-1：真的開始錄音才壓螢幕（沒錄音就沒有續航問題）。
+    void wakeLock().acquire();
     upsert({
       id: meetingId,
       title,
@@ -399,6 +435,8 @@ export async function endMeeting(): Promise<void> {
   // 這一場結束了，舊 tracker 不能再收事件：否則之後 app 進背景會憑上一個 elapsedMs
   // 建出一筆「幽靈缺口」（會議早就結束了，逐字稿卻多一段「未錄到」）。
   gapTracker = null;
+  // M01-US-108 D9：結束會議就把 sentinel 放掉（不再宣稱螢幕受保護），且不能再收 release 事件。
+  wakeLock().stop();
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
   app.view = "list";
@@ -409,7 +447,11 @@ export async function resumeMeeting(): Promise<void> {
   await store.resume();
   // **真的開始收音了**才關缺口：mic 又被拒 / 續錄失敗時，錄音還是停的，
   // 這一刻補結束時間會讓畫面少報中斷長度（見 gap-marking.spec.ts 的兩個 Edge 測試）。
-  if (rec.snapshot.state === "recording") await gapTracker?.handleVisible();
+  if (rec.snapshot.state === "recording") {
+    await gapTracker?.handleVisible();
+    // M01-US-108 D3：真的回到錄音才重新壓螢幕（中斷中取 wake lock 沒意義）。
+    void wakeLock().acquire();
+  }
   syncSnapshot();
   await flushChunks();
   await gapTracker?.sync();
@@ -425,6 +467,14 @@ export function tickMeeting(): void {
   }
   if (app.currentMeetingId !== null && rec.snapshot.state === "interrupted") {
     setStatus(app.currentMeetingId, "interrupted");
+    // M01-US-108：中斷了就不該繼續佔著 wake lock（畫面也不再宣稱受保護）。
+    // 只在「真的還握著」時才收：每秒無條件 `stop()` 會把進背景後的 `suspended` 壓成 `idle`
+    // （狀態在 tick 之間跳動），也會把 `lost` 的提示與重試預算一起清掉。
+    if (app.wakeLockState === "active") wakeLock().stop();
+  }
+  if (rec.snapshot.state === "limit_reached" && app.wakeLockState === "active") {
+    // 到上限之後不需要續航（錄音已經停了），放掉 sentinel。
+    wakeLock().stop();
   }
 }
 
@@ -434,6 +484,7 @@ export function closeLimitSession(choice: "generate" | "new"): void {
   void gapTracker?.sync();
   // 同 endMeeting()：這一場結束了，舊 tracker 不得再收背景事件（免得建出幽靈缺口）。
   gapTracker = null;
+  wakeLock().stop();
   store?.closeSession();
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
@@ -453,6 +504,9 @@ export function notifyVisibility(hidden: boolean): void {
   // 只在「真的會中斷」時標：state.ts 的 `visibility_hidden` 只有在 recording 才轉成 interrupted，
   // 非錄音中（例如已達上限、已結束、還沒開始）進背景不是「未錄到」，標了就是假的缺口。
   const willInterrupt = hidden && rec.snapshot.state === "recording";
+  // M01-US-108 D3：進背景時瀏覽器一定會收走 sentinel，主動收乾淨才不會把「系統本來就會做的事」
+  // 誤判成 lost（那會在回前景時多出一張不必要的提示）。
+  if (hidden) wakeLock().suspend();
   if (willInterrupt) void gapTracker?.handleHidden();
   store?.notifyVisibility(hidden);
   syncSnapshot();
@@ -464,5 +518,7 @@ export function notifyVisibility(hidden: boolean): void {
     // 缺口一律等真的續錄 / 結束會議 / 上限到點才收尾（那些點各自呼叫 handleVisible）。
     void flushChunks();
     void gapTracker?.sync();
+    // M01-US-108 D4：回前景且**還在錄音**才重取（visible 不自動續錄，所以中斷中不取）。
+    if (rec.snapshot.state === "recording") void wakeLock().acquire();
   }
 }
