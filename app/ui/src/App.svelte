@@ -66,13 +66,24 @@
 
 <style>
   .shell {
-    min-height: 100dvh;
+    /* 高度必須是「確定值」：只給 min-height 的話，子元素的 `flex: 1`
+       （flex-basis: 0%）對未定高度無法解析，會退回「依內容」→ 逐字稿一長就把
+       畫面往下撐，底部的「長按結束會議」被推到 3000px 以外（iPhone 真機實測）。
+       app shell 固定在視窗高，捲動交給各畫面自己處理。 */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
+    /* 真機（瀏海／狀態列）：index.html 用 viewport-fit=cover，內容會延伸到系統 UI
+       底下；不讓開的話最上面的按鈕（例：「開始會議」在 y=16~60）會落在約 50pt 高的
+       狀態列裡，點擊被 iOS 的「點狀態列回頂部」手勢吃掉。iPhone 12 mini 實測回報
+       「按不到開始會議 button」即此故；桌機瀏覽器沒有狀態列，E2E 測不出來。 */
+    padding-top: var(--safe-top);
   }
 
   .content {
     flex: 1;
+    /* 外框固定高度之後，比畫面長的內容（例：會議列表）在這裡捲，不外推外框。 */
+    overflow-y: auto;
     padding: var(--space-4);
     padding-bottom: calc(var(--tap) + var(--space-6));
   }
@@ -84,7 +95,7 @@
     grid-template-columns: 1fr 1fr;
     border-top: 1px solid var(--border);
     background: var(--surface);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
 
   .tabbar button {

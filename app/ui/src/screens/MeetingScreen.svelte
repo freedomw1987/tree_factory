@@ -138,12 +138,17 @@
 
 <style>
   .meeting {
-    min-height: 100dvh;
+    /* 會議中不顯示 tab bar，這個畫面是 .shell 的直接子元素；由外框決定視窗高度，
+       這裡只要「填滿剩下的空間」。用 100dvh 會變成「在已有頂部留白的外框裡再要一個
+       完整視窗高」→ 底部溢出、最後的「長按結束會議」被推去 Home Indicator 手勢區
+       （iPhone 12 mini 實測：使用者按不到）。 */
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     padding: var(--space-4);
-    padding-bottom: var(--space-8);
+    padding-bottom: calc(var(--space-8) + var(--safe-bottom));
   }
 
   .top {
@@ -221,6 +226,9 @@
     border-radius: var(--r-card);
     padding: var(--space-4);
     min-height: 160px;
+    /* 逐字稿長起來時自己捲，不要把下面的「長按結束會議」推出畫面
+       （同一個「按不到」家族的第三個寫法：溢出 → 使用者得先用手往下滑）。 */
+    overflow: auto;
   }
 
   .dim {

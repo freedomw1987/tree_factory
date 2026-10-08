@@ -43,8 +43,9 @@ if (import.meta.env.VITE_CORS_PROBE === "1") {
     pre.dataset.testid = "cors-probe";
     pre.textContent = `[TECH-006 CORS 探針]\n${report}`;
     pre.style.cssText =
-      "position:fixed;inset:auto 0 0 0;margin:0;padding:12px;font:12px/1.5 ui-monospace,monospace;" +
-      "background:#131A22;color:#E8EEF5;border-top:1px solid #28323D;white-space:pre-wrap;z-index:99";
+      "position:fixed;inset:0 0 auto 0;margin:0;padding:8px 12px;max-height:45%;overflow:auto;pointer-events:none;" +
+      "font:11px/1.4 ui-monospace,monospace;background:#131A22F2;color:#E8EEF5;" +
+      "border-bottom:1px solid #28323D;white-space:pre-wrap;z-index:99";
     document.body.append(pre);
   })();
 }

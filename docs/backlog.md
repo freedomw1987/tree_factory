@@ -168,7 +168,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | DONE（`docs/spike/SPIKE-003.md`）| SPIKE-001 |
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
-| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | IN PROGRESS（程式與自動化驗收完成：UI 35 + worker 83 探針、6 項 E2E、31 項 workerd 冒煙全綠（可重複跑）；Gate 4 兩輪獨立稽核後經用戶裁決通過（第 2 輪 0 P0 / 0 P1）；**iOS 模擬器已驗**（webview 來源 `tauri://localhost` allowed=true、UI 正常渲染）、**iPhone 真機驗收待用戶**；4 項後續缺口已轉票 TECH-006 ~ 009 + TECH-010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
+| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | **DONE**（2026-10-09：**iPhone 12 mini 真機驗收通過** —— webview 來源 `tauri://localhost` allowed=true、使用者實機走完「開始→錄音中→長按結束」；過程中修好 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、「`100dvh` 溢出、外框高度未定致逐字稿撐開畫面），新增 5 條不變式 + 3 條 iPhone 尺寸 E2E；現況 **E2E 9 / 單元 54 / M01 回歸 40+14 / worker 132 全綠**；Gate 4 兩輪獨立稽核後經用戶裁決通過；後續缺口已轉票 TECH-006 ~ 010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
@@ -209,7 +209,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-005** | TECH | — | Spike 探針退場：正式收音層取代後刪除 `app/src/index.html` 探針與 collector | — | P2 | 1 | PENDING | M01-US-106 |
 | **TECH-006** | TECH | — | Tauri webview 來源（`tauri://localhost`）在**真實 webview 內**實證 CORS 與收音（§2.4 反思維度 6 轉票）| — | P1 | 1 | DONE（打包 `.app` 內實測 `origin="tauri://localhost" allowed=true`（OPTIONS+POST × start/stop），並推翻 3 個文件假設；**iOS 模擬器（真 WKWebView）亦已實測同值 + UI 正常渲染**；Gate 4 兩輪獨立稽核後經用戶裁決通過（累計 0 P0 / 1 P1 / 7 P2 全修）；**iPhone 真機程序已備待用戶**；交付文見 `docs/deliverable/2026-10-08-TECH-006-真實webview內CORS實證.md`）| M01-US-101 |
 | **TECH-010** | TECH | — | dev 模式來源埠漂移的診斷（`allowed=false` 不再與正式被擋同症狀）＋ webview 實測流程腳本化（§2.4 反思維度 3/5 轉票）| — | P2 | 1 | PENDING | TECH-006 |
-| **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
+| **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING（**部分已交付 2026-10-09**：`e2e/iphone-viewport.spec.ts` 已覆蓋 iPhone 390×844 + 注入安全區的 3 條（開始會議可及、結束會議可及、長逐字稿不得推走按鈕）；**仍待**：其餘畫面（會議列表 / 開始 sheet / 權限阻斷頁）在手機寬度的溢出與點擊區檢查、橫向排列）| M01-US-101 |
 | **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
 | **TECH-009** | TECH | — | worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）| — | P1 | 3 | PENDING | M01-US-101 |
 
@@ -349,7 +349,10 @@ P1 = 41 SP、P2 = **15 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP�
   - **AC-7** (DoD): 探針 `REGRESSION_MODULE=M01` 通過
 - **依賴**: SPIKE-002
 - **驗收方式**: `REGRESSION_MODULE=M01` 全套（pipeline 腳本由 TECH-001 建立）；另加 `cd app/ui && npm run test:e2e`
-  （6 項真瀏覽器 E2E：開始 / 背景中斷 / 續錄 / 長按結束 / 上限提前到點 / 麥克風被拒）
+  （**9 項**真瀏覽器 E2E：開始 / 背景中斷 / 續錄 / 長按結束 / 上限提前到點 / 麥克風被拒 + 3 項 iPhone 390×844
+  尺寸（含注入安全區、長逐字稿不得推走結束按鈕））
+- **驗收結果（2026-10-09）**: iPhone 12 mini 真機驗收通過；真機專屬版面問題 3 項已修（見 `docs/ac/M01-US-101.md`
+  「真機驗收與『按不到』修復」）
 - **為什麼這個優先**: P0。所有其他票的入口，沒有它其他都無法驗證
 
 ### M01-US-102 本地音檔分段緩存與恢復回補
@@ -815,6 +818,7 @@ P1 = 41 SP、P2 = **15 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP�
 
 | 版本 | 日期 | 變動 | 為什麼 |
 | --- | --- | --- | --- |
+| **v2.5** | **2026-10-09** | **M01-US-101 → DONE**（iPhone 12 mini 真機驗收通過）；TECH-006 → DONE（併入同一次真機驗收）；TECH-007 標記「部分已交付」（iPhone 尺寸 E2E 3 條 + 外框高度不變式）；**SP 不變**（174 SP）| 真機驗收暴露出 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、`100dvh` 溢出、外框高度未定致逐字稿撐開畫面）；修好才算真的滿足 AC-1 / AC-2，屬原票範圍內的修正，不追加 SP |
 | **v2.4** | **2026-10-08** | M01-US-101 開工後**計畫修正**：SP 5 → **8**（原估只算「UI 一顆按鈕」，未計入 app 前端外殼、伺服端權威時間軸（DO session + alarm）、跨來源 CORS）→ 合計 171 → **174 SP**、P0 122 → **125 SP**、階段 A 104 → **107 SP**；狀態改 IN PROGRESS（真機驗收待用戶）| 依 SOP「SP 變動必留痕」：估錯要寫下來，不能默默吃掉多做的 3 SP |
 | **v2.3** | **2026-10-08** | §2.4 反思轉票：新增 **M01-US-109**（聚段規則 TDD，3 SP / P0）、**TECH-005**（探針退場，1 SP / P2）→ 合計 167 → **171 SP** | 反思維度「測試覆蓋率」「技術債」各轉出一張票（不可只寫在報告裡）|
 | **v2.2** | **2026-10-08** | **SPIKE-001 ~ 004 結案回寫**：4 個 spike 改 DONE；新增 10 項 / 30 SP（M01-US-106/107/108、M02-US-218/219、M03-US-319、SPIKE-002b/004b、TECH-003/004）；合計 137 → **167 SP**、P0 20 → **27 項**、階段 A 73 → **101 SP**；§3 新增「由 SPIKE-002 / SPIKE-004 新增的票」小節 | 兩個 spike 各揭露一個不成立的前提（背景可錄、24k 窗口塞得下 2 小時逐字稿），必須補票 |
