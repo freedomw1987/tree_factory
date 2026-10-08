@@ -263,6 +263,10 @@ verdict **0 P0 / 0 P1 / 4 P2（本輪新發現）**；Task A 複驗：第一輪 
 
 #### 第二輪 checker 原文（逐字貼回，未節錄）
 
+> **📝 全域說明（非 checker 原文）**：以下各輪「checker 原文引用」段中的**數字與行號皆為該輪稽核時點的值**，
+> 後續提交會使其變動（例：TECH-004 相關 commit 數在 `eefe848` 時為 **9**，本票結案時為 **13**）。
+
+
 ````text
 delegate:
 # 第二輪 adversarial checker 稽核報告 — TECH-004（DO 內 Harness 生命週期封裝）
