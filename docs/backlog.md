@@ -168,7 +168,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-003 | Spike | M02 | 驗證 `PiHarness`（Beta）在 Durable Object 的可用性與與 `withVoiceInput` 的整合面 | — | P0 | 5 | DONE（`docs/spike/SPIKE-003.md`）| SPIKE-001 |
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
-| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | IN PROGRESS（程式與自動化驗收完成：UI 35 + worker 83 探針、6 項 E2E（連跑 7 次全綠）、31 項 workerd 冒煙全綠（同 state 連跑 3 次）；**iOS 真機驗收待用戶**，跨 Module 的 auth / rate limit 已列待辦，見 `docs/ac/M01-US-101.md`）| SPIKE-002 |
+| M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | IN PROGRESS（程式與自動化驗收完成：UI 35 + worker 83 探針、6 項 E2E、31 項 workerd 冒煙全綠（可重複跑）；Gate 4 兩輪獨立稽核後經用戶裁決通過（第 2 輪 0 P0 / 0 P1）；**iOS 真機驗收待用戶**，4 項後續缺口已轉票 TECH-006 ~ 009；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
@@ -207,13 +207,17 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-003** | TECH | — | `@cloudflare/voice` 已棄用 → 改依 `agents/voice`；`DiarizingNova3Transcriber` 落點 | — | P0 | 2 | PENDING | SPIKE-001 |
 | **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | DONE（55 單元測試 + 19 項 workerd 冒煙全綠；Gate 4 七輪獨立稽核：0 P0 / 0 P1 / 26 條 P2 全修（程式面自第二輪起零新缺陷），2026-10-08 經用戶裁決通過；文件見 `docs/ac/TECH-004.md`）| SPIKE-003 |
 | **TECH-005** | TECH | — | Spike 探針退場：正式收音層取代後刪除 `app/src/index.html` 探針與 collector | — | P2 | 1 | PENDING | M01-US-106 |
+| **TECH-006** | TECH | — | Tauri webview 來源（`tauri://localhost`）在**真實 webview 內**實證 CORS 與收音（§2.4 反思維度 6 轉票）| — | P1 | 1 | PENDING | M01-US-101 |
+| **TECH-007** | TECH | — | E2E 補 iPhone viewport（RWD 只在 Desktop Chrome 尺寸驗過）（§2.4 反思維度 2 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
+| **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
+| **TECH-009** | TECH | — | worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）| — | P1 | 3 | PENDING | M01-US-101 |
 
-**合計**：**174 SP / 46 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
-P1 = 37 SP、P2 = 12 SP｜三階段：A **107 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪只 +3 平移）
+**合計**：**180 SP / 50 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
+P1 = 41 SP、P2 = 14 SP｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪 +6 平移）
 
 **Module 分佈實算**（含掛在該 Module 的 SPIKE）：M01 = **54 SP**（含 SPIKE-001/002/002b）、M02 = **42 SP**
-（含 SPIKE-003/004/004b）、M03 = **33 SP**（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）、INT = 8 SP、TECH = **10 SP**
-（TECH-001~005）。合計 174 SP。
+（含 SPIKE-003/004/004b）、M03 = **33 SP**（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）、INT = 8 SP、TECH = **16 SP**
+（TECH-001~009）。合計 180 SP。
 
 > **SPIKE-002 / 004 造成的計畫變動**：新增 12 項 / 34 SP（含反思轉出的 2 項），其中 8 項是 P0
 > —— 因為兩個 spike 各揭露一個「原本以為沒問題、其實不成立」的前提
