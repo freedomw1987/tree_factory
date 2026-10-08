@@ -786,3 +786,22 @@ oracle（執行對抗，`31bd2e51-…`）＝**需修正後合併**（0 P0、**1 
 **驗證（本輪實測，非宣稱）**：worker **294 passed（22 檔）**（`cors.test.ts` 32 + `cors-probe-lib.test.mjs` 13）；
 `tsc --noEmit` exit 0；markdownlint **68 檔 0 issues**；`REGRESSION_MODULE=M01` **passed=245 failed=0**。
 UI 單元 / E2E **本輪未重跑**——本輪只動 `worker/scripts/*` 與 `docs/*`，未觸及 `app/`（誠實聲明，不冒充驗過）。
+
+## 2026-10-09 06:14 — TECH-010 第三輪收尾（reviewer 靜態複驗 + P2 全修）
+
+**決策**：Gate 4 第二輪的兩條通道皆為「可合併（附註）」（reviewer `854d41af-…`、oracle `b58415b5-…`；
+0 P0／0 P1），但 reviewer 附了 5 條 P2。第三輪**不轉票**，當場修完：
+
+1. **P2-1（M5 應為 7 紅）**：reviewer 明說這是靜態推論、需要重跑才能蓋章。真跑：
+   `hint()` 補丁後基線 **45** 條；把 `verdict()` 改成一律回 `allowed` → **7 紅**
+   （原 5 紅 + `hint` 的兩條）。**推論與實測一致**，文件已更正。
+2. **P2-2**：交付文 §3 的 Gate 輸出台帳是補丁前快照 → 加時點說明（原文保留，不改寫歷史輸出）。
+3. **P2-3**：AC 每列條數改註「代表條數」。
+4. **P2-4**：`USAGE` 的註解聲稱「測試會斷言它非空」→ 真的補上斷言。
+5. **P2-5**：`exitCodeFor([])`→2、`hint([])`→「沒有來源可測」（不可達，但純函式不該給綠的方向）。
+
+**P2-4／P2-5 的斷言都塞進既有 `it()`**，所以不新增測試條數 → 不引發新一輪數字連鎖。
+
+**本輪實測**：worker **294 passed（22 檔）**；`cors.test.ts` 32 ＋ `cors-probe-lib.test.mjs` 13 = **45**；
+`tsc --noEmit` = 0；markdownlint **69 檔 0 issues**；`REGRESSION_MODULE=M01` **passed=245 failed=0**。
+UI 單元／E2E 本輪未動 `app/`，故未重跑（誠實聲明）。

@@ -39,7 +39,7 @@
 | --- | --- |
 | worker 單元測試 | **294 passed（22 檔）** |
 | `tsc --noEmit` | exit 0 |
-| markdownlint | **68 檔 0 issues** |
+| markdownlint | **69 檔 0 issues**（含本交接報告） |
 | worker 回歸（`REGRESSION_MODULE=M01`） | **passed=245 failed=0** |
 | UI 單元 | **188 passed**（TECH-010 第一輪時跑過；第二輪未動 `app/`，未重跑） |
 | E2E | **35 passed（41.1s）**（同上，未動 `app/` 故未重跑） |

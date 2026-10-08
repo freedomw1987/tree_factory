@@ -50,6 +50,9 @@ worker 的允許清單**明列**這些來源（`worker/src/cors.ts` 的 `DEV_ORI
 - **webview 實測仍需人跑。** 腳本重播的是 wire（同一個 worker、同一個 `Origin`）；
   真的 Tauri / WKWebView 的 scheme 差異（TECH-006 的產物）不是腳本能取代的。
 
+> **註（reviewer 第三輪 P2-3）**：表中「單元測試 N 條」為**代表條數**，逐條歸屬由實作判斷；
+> 檔內實測總數以 `worker/test/cors.test.ts` 32 條（其中本票 18）＋ `worker/test/cors-probe-lib.test.mjs` 13 條為準。
+
 ## 刻意不做
 
 | 不做 | 為什麼 |
