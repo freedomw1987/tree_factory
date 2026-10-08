@@ -807,3 +807,7 @@ UI 單元 / E2E **本輪未重跑**——本輪只動 `worker/scripts/*` 與 `do
 **本輪實測**：worker **294 passed（22 檔）**；`cors.test.ts` 32 ＋ `cors-probe-lib.test.mjs` 13 = **45**；
 `tsc --noEmit` = 0；markdownlint **69 檔 0 issues**；`REGRESSION_MODULE=M01` **passed=245 failed=0**。
 UI 單元／E2E 本輪未動 `app/`，故未重跑（誠實聲明）。
+
+**第三輪 patch 指紋**：`git diff 1133aa5..4e02faa`（`a4eeef0`／`99613b9`／`b0782b0`／`4e02faa` 四個 commit）
+= **7 檔、+150/−5、288 行**，`/tmp/tf-tech10-round3-diff.patch`，
+sha256 `9837df667e0a964a310878ead36453bf0bb1b0e787c93043413da425ffb19709`（不含本補記 commit）。
