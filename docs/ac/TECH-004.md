@@ -233,7 +233,8 @@ DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 #### 第二輪 checker 原文引用（verdict + Task B 四條新發現 + Task A 複驗；以 `…` 標示被我精簡掉的重複詞句）
 
 > **📝 全域說明（非 checker 原文）**：以下各輪「checker 原文引用」段中的**數字與行號皆為該輪稽核時點的值**，
-> 後續提交會使其變動（例：TECH-004 相關 commit 數在 `eefe848` 時為 **9**，本票結案時為 **13**）。
+> 後續提交會使其變動（例：TECH-004 相關 commit 數在 `eefe848` 時為 **9**；其後每輪文件修正都會再增加，
+> 故此類**會持續變動的數字不在此處寫死**，需要現值請現查 `git log --grep=TECH-004 | wc -l`）。
 >
 > **Verdict**
 >
