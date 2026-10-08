@@ -205,7 +205,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-006 | Spike | M04 | 概念提取的品質與成本實測（粒度、噪音率、token）| — | P2 | 3 | PENDING | M04-US-404 |
 | TECH-002 | TECH | — | 修 `dav-planner` 「US 必產 HTML」與 SOP v2.0 禁 HTML 的文實矛盾 | — | P2 | 2 | PENDING | — |
 | **TECH-003** | TECH | — | `@cloudflare/voice` 已棄用 → 改依 `agents/voice`；`DiarizingNova3Transcriber` 落點 | — | P0 | 2 | PENDING | SPIKE-001 |
-| **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | PENDING | SPIKE-003 |
+| **TECH-004** | TECH | — | DO 內 `Harness` 生命週期封裝：單例 + 懶初始化 + **alarms 接力** + 憑證繫結 | — | P0 | 3 | DONE（28 單元測試 + 19 項 workerd 冒煙全綠，`docs/ac/TECH-004.md`）| SPIKE-003 |
 | **TECH-005** | TECH | — | Spike 探針退場：正式收音層取代後刪除 `app/src/index.html` 探針與 collector | — | P2 | 1 | PENDING | M01-US-106 |
 
 **合計**：**171 SP / 46 項**｜P0 = 28 項 / 122 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
@@ -218,7 +218,7 @@ P1 = 37 SP、P2 = 12 SP｜三階段：A **104 SP** / B **39 SP** / C 27 SP（由
 > **SPIKE-002 / 004 造成的計畫變動**：新增 12 項 / 34 SP（含反思轉出的 2 項），其中 8 項是 P0
 > —— 因為兩個 spike 各揭露一個「原本以為沒問題、其實不成立」的前提
 > （背景可錄音、上下文塞得下一場會議），必須補票才不會在 M01/M02 開工後才發現。
-
+>
 > 📝 2026-10-08 ask-me Q1：v1 前景版 + 原生票同步做（C）。SPIKE-002b / M01-US-106 / 107 / 108 全 ✅ 已確認。
 > 📝 2026-10-08 ask-me Q2：分階段模型（A：即時 8b / 會後 70b）。M02-US-219 / M03-US-319 ✅ 已確認。
 > 📝 2026-10-08 ask-me Q3：24k 窗口壓縮政策（A）。M02-US-218 ✅ 已確認。

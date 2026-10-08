@@ -1,0 +1,20 @@
+# TECH-004：會議 Durable Object（一場會議 = 一個 DO 實例）
+name = "tree-factory-worker"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# DO 的 SQLite 儲存後端（`new_sqlite_classes` 需要 compatibility_date >= 2024-04-03）
+[[durable_objects.bindings]]
+name = "MEETING"
+class_name = "MeetingDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MeetingDurableObject"]
+
+[vars]
+# 憑證一律走 secret（`wrangler secret put CLOUDFLARE_API_KEY` / `CLOUDFLARE_ACCOUNT_ID`）；
+# 這裡只放非機密的模型設定。`HARNESS_PROVIDER = "faux"` 可完全離線跑（測試用）。
+HARNESS_PROVIDER = "cloudflare-workers-ai"
+REALTIME_MODEL_ID = "@cf/ibm-granite/granite-4.0-h-micro"
+NOTES_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it"
