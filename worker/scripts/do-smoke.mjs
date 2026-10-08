@@ -199,5 +199,161 @@ check(
   JSON.stringify(abortRead.body),
 );
 
+// M01-US-103：逐字稿帳本在**真 workerd** 上真的落地（DO SQLite + UNIQUE 索引 + 聚段管線）。
+// 單元測試的 sqlite 是 node:sqlite 的替身；「CREATE TABLE / MAX(seq)+1 / 讀回同一份」這些
+// 是**平台行為**，只有真的跑起來才算證據。
+console.log("--- 8. M01-US-103 逐字稿帳本（真 workerd） ---");
+const ledId = mid("meeting-ledger");
+const w = (word, start, end, speaker) => ({ word, punctuated_word: word, start, end, speaker });
+const resultsMsg = (words, isFinal = true) => ({
+  type: "Results",
+  channel_index: [0, 1],
+  duration: words.at(-1)?.end ?? 0,
+  start: words[0]?.start ?? 0,
+  is_final: isFinal,
+  speech_final: false,
+  channel: { alternatives: [{ transcript: words.map((x) => x.punctuated_word).join(" "), confidence: 0.9, words }] },
+});
+
+const ledNotStarted = await post(`/m/${ledId}/transcript/stream`, { meetingOffsetMs: 0, messages: [] });
+check(
+  "未開始就寫逐字稿 → 409 SESSION_NOT_STARTED",
+  ledNotStarted.status === 409 && ledNotStarted.body.error === "SESSION_NOT_STARTED",
+  JSON.stringify(ledNotStarted.body),
+);
+await post(`/m/${ledId}/session/start`, {});
+
+const firstRun = await post(`/m/${ledId}/transcript/stream`, {
+  meetingOffsetMs: 0,
+  finalize: true,
+  messages: [resultsMsg([w("我們", 0, 0.6, 0), w("開始", 0.6, 1.2, 0)])],
+});
+check(
+  "串流寫入一段（收尾）→ accepted=1、transcriptWrites=1",
+  firstRun.status === 200 && firstRun.body.accepted === 1 && firstRun.body.transcriptWrites === 1,
+  JSON.stringify(firstRun.body),
+);
+check(
+  "回傳的段落本身（不是只有計數）",
+  firstRun.body.appended?.[0]?.text === "我們 開始" && firstRun.body.appended?.[0]?.seq === 1,
+  JSON.stringify(firstRun.body.appended),
+);
+
+const readBack = await get(`/m/${ledId}/transcript/segments`);
+check(
+  "讀回帳本：1 列、speaker 0、0~1200ms（毫秒原樣存回）",
+  readBack.status === 200 &&
+    readBack.body.count === 1 &&
+    readBack.body.segments[0].speakerId === 0 &&
+    readBack.body.segments[0].startMs === 0 &&
+    readBack.body.segments[0].endMs === 1200,
+  JSON.stringify(readBack.body),
+);
+
+const replay = await post(`/m/${ledId}/transcript/stream`, {
+  meetingOffsetMs: 0,
+  finalize: true,
+  messages: [resultsMsg([w("我們", 0, 0.6, 0), w("開始", 0.6, 1.2, 0)])],
+});
+check(
+  "同一份事件重播 → accepted=0、duplicates=1（冪等鍵在真 SQLite 上生效）",
+  replay.status === 200 && replay.body.accepted === 0 && replay.body.duplicates === 1,
+  JSON.stringify(replay.body),
+);
+const afterReplay = await get(`/m/${ledId}/transcript/segments`);
+check("重播後列數不變、計數不變", afterReplay.body.count === 1 && afterReplay.body.segments.length === 1);
+
+const conflict = await post(`/m/${ledId}/transcript/stream`, {
+  meetingOffsetMs: 0,
+  finalize: true,
+  messages: [resultsMsg([w("我們", 0, 0.6, 0), w("要開始", 0.6, 1.2, 0)])],
+});
+check(
+  "同鍵不同內容 → conflicts=1 且附兩份全文（不得靜默覆寫）",
+  conflict.status === 200 &&
+    conflict.body.conflicts?.length === 1 &&
+    conflict.body.conflicts[0].existing.text === "我們 開始" &&
+    conflict.body.conflicts[0].incoming.text === "我們 要開始",
+  JSON.stringify(conflict.body.conflicts),
+);
+const afterConflict = await get(`/m/${ledId}/transcript/segments`);
+check(
+  "衝突後列數與內容都不變（append-only）",
+  afterConflict.body.count === 1 && afterConflict.body.segments[0].text === "我們 開始",
+  JSON.stringify(afterConflict.body.segments),
+);
+
+const cut = await post(`/m/${ledId}/transcript/stream`, {
+  meetingOffsetMs: 0,
+  finalize: true,
+  messages: [
+    resultsMsg([w("第一句", 2, 3, 0)]),
+    { type: "UtteranceEnd", channel_index: [0, 1], last_word_end: 3 },
+    // 第二句刻意**同一個人**（speaker 0）且只隔 1.0 秒（< 1200ms 門檻）：
+    // 這樣「切開」只能由 UtteranceEnd 造成，少了它就會被併成一段（這一格才有鑑別力）。
+    resultsMsg([w("第二句", 4, 5, 0)]),
+  ],
+});
+const cutRows = (await get(`/m/${ledId}/transcript/segments`)).body.segments;
+check(
+  "UtteranceEnd 真的切段 → 共 3 列，第二列起點 2000ms、speaker 0，第三列 4000ms、speaker 0",
+  cut.status === 200 &&
+    cutRows.length === 3 &&
+    cutRows[1].startMs === 2000 &&
+    cutRows[1].speakerId === 0 &&
+    cutRows[2].startMs === 4000 &&
+    cutRows[2].speakerId === 0,
+  JSON.stringify(cutRows.map((row) => [row.seq, row.speakerId, row.startMs, row.endMs, row.text])),
+);
+check(
+  "seq 單調配發（1,2,3）且沒有跳號",
+  cutRows.map((row) => row.seq).join(",") === "1,2,3",
+  JSON.stringify(cutRows.map((row) => row.seq)),
+);
+
+const badText = await post(`/m/${ledId}/transcript/segments`, {
+  segments: [{ idempotencyKey: "seg:0:9000", speakerId: 0, text: "   ", startMs: 9000, endMs: 9500 }],
+});
+check(
+  "空白內文 → 400 TRANSCRIPT_INVALID（真 workerd 也照擋）",
+  badText.status === 400 && badText.body.error === "TRANSCRIPT_INVALID",
+  JSON.stringify(badText.body),
+);
+const noOffset = await post(`/m/${ledId}/transcript/stream`, { messages: [] });
+check(
+  "缺 meetingOffsetMs → 400（不得默默當 0）",
+  noOffset.status === 400 && noOffset.body.error === "TRANSCRIPT_INVALID",
+  JSON.stringify(noOffset.body),
+);
+const afterBad = await get(`/m/${ledId}/transcript/segments`);
+check("被擋下的請求不得寫入任何一列", afterBad.body.count === 3, `count=${afterBad.body.count}`);
+
+const manual = await post(`/m/${ledId}/transcript/segments`, {
+  idempotencyKey: "seg:2:9000",
+  speakerId: 2,
+  text: "人工補登的一句",
+  startMs: 9000,
+  endMs: 9500,
+});
+check(
+  "另一條路徑（已分好段的句子）直接進同一本帳，seq 接續 = 4",
+  manual.status === 200 && manual.body.accepted === 1 && manual.body.transcriptWrites === 4,
+  JSON.stringify(manual.body),
+);
+const finalRead = await get(`/m/${ledId}/transcript/segments`);
+check(
+  "最後讀回：4 列、seq 1..4、speaker 依序 0,0,0,2",
+  finalRead.body.count === 4 &&
+    finalRead.body.segments.map((row) => row.seq).join(",") === "1,2,3,4" &&
+    finalRead.body.segments.map((row) => row.speakerId).join(",") === "0,0,0,2",
+  JSON.stringify(finalRead.body.segments.map((row) => [row.seq, row.speakerId, row.startMs, row.text])),
+);
+const ledSession = await get(`/m/${ledId}/session`);
+check(
+  "session 的 transcriptWrites 與帳本列數一致（4）",
+  ledSession.body.transcriptWrites === 4,
+  `transcriptWrites=${ledSession.body.transcriptWrites}`,
+);
+
 console.log(`\nDO smoke：${failures === 0 ? "全部通過 ✅" : `${failures} 項失敗 ❌`}`);
 process.exit(failures === 0 ? 0 : 1);

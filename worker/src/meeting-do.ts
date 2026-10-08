@@ -49,6 +49,15 @@ import {
   TranscriptGapLog,
 } from "./storage/gap-store.js";
 import { SessionStore, type SessionSnapshot, type SessionSql } from "./storage/session-store.js";
+import {
+  TRANSCRIPT_SKEW_TOLERANCE_MS,
+  TranscriptInvalidError,
+  TranscriptLedger,
+  validateSegment,
+  type RecordSegmentInput,
+  type RecordSegmentOutcome,
+} from "./storage/transcript-store.js";
+import { TranscriptStream, type IngestReport } from "./transcript-stream.js";
 
 /** Worker 綁定（含 secret 與 vars）。 */
 export type MeetingEnv = MeetingBindings;
@@ -78,10 +87,10 @@ export const MAX_ALARM_DELAY_MS = 5 * 60 * 1000;
 /** 讓 DO 類別在沒有 workerd 型別時也能被測試引用。 */
 type DurableObjectState = MeetingDurableObjectContext;
 
-const json = (body: unknown, status = 200): Response =>
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(body, null, 2) + "\n", {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", ...headers },
   });
 
 export class MeetingDurableObject {
@@ -159,6 +168,10 @@ export class MeetingDurableObject {
           return await this.#sessionStopRoute(request);
         case "/transcript":
           return await this.#transcriptRoute(request);
+        case "/transcript/segments":
+          return await this.#transcriptSegmentsRoute(request);
+        case "/transcript/stream":
+          return await this.#transcriptStreamRoute(request);
         case "/transcript/gap":
           return await this.#transcriptGapRoute(request);
         case "/transcript/gaps":
@@ -204,6 +217,10 @@ export class MeetingDurableObject {
       }
       if (error instanceof GapInvalidError) {
         return json({ error: error.code, message: error.message }, 400);
+      }
+      if (error instanceof TranscriptInvalidError) {
+        // 逐字稿段落不合法：明確 400 並指出欄位（整批不寫，見 #transcriptSegmentsRoute）。
+        return json({ error: error.code, message: error.message, recoverable: true }, 400);
       }
       if (error instanceof GapConflictError) {
         // 同 seq 不同起點 = 裝置端序號重用：不覆蓋，因為覆蓋會讓兩次中斷變成同一筆。
@@ -281,8 +298,14 @@ export class MeetingDurableObject {
     return new AudioChunkStore(this.#chunkSql());
   }
 
+  /** US-101 的 chunkSeq 認領表（只記「哪個 seq 來過」，不含內文）。 */
   #transcriptLedger(): TranscriptChunkLedger {
     return new TranscriptChunkLedger(this.#chunkSql());
+  }
+
+  /** M01-US-103 的逐字稿帳本（唯一存放逐字稿文字的地方）。 */
+  #segmentLedger(): TranscriptLedger {
+    return new TranscriptLedger(this.#chunkSql());
   }
 
   #gapLog(): TranscriptGapLog {
@@ -425,6 +448,174 @@ export class MeetingDurableObject {
   }
 
   /**
+   * M01-US-103：逐字稿帳本（POST 寫入多句 / GET 讀回整場）。
+   *
+   * 為什麼另開一條路，而不是把 `/transcript` 改成落地：`/transcript` 是 US-101 的
+   * 「守門 + 計數」契約（現行裝置端在用，example 的純文字沒有講者也沒有時間戳）。
+   * 把純文字塞進帳本會污染時間軸；所以舊路徑原樣保留，有結構的內容走這條。
+   *
+   * 兩個刻意的順序：
+   * 1. **守門先於驗證**：已達 2:00 或會議結束時回 409，不讓裝置端以為「內容有問題」。
+   * 2. **整批先驗證再寫**：批次裡有一個壞的，就一批都不寫——
+   *    寫一半會讓時間軸出現「有頭沒尾」的段落，比整批被擋更難救。
+   */
+  async #transcriptSegmentsRoute(request: Request): Promise<Response> {
+    const snapshot = this.#readSession(this.#sessionStore());
+    if (snapshot === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
+    }
+    if (request.method === "GET" || request.method === "HEAD") {
+      const segments = this.#segmentLedger().list();
+      return json({ meetingId: snapshot.session.meetingId, count: segments.length, segments });
+    }
+    if (request.method !== "POST") {
+      // 帳本是 append-only，連 HTTP 動詞都不給「改」與「刪」：
+      // 沒擋動詞時 `DELETE` 會被當成 POST 走完，反而**寫進一列**（獨立審查抓到）。
+      return json({ error: "METHOD_NOT_ALLOWED", message: "只支援 GET / POST" }, 405, {
+        allow: "GET, POST, HEAD",
+      });
+    }
+    const rejected = this.#transcriptWriteRejection(snapshot);
+    if (rejected !== null) return rejected;
+    const body = await this.#jsonObjectBody(request);
+    if (body.segments !== undefined && !Array.isArray(body.segments)) {
+      throw new TranscriptInvalidError("segments 必須是陣列（或整包省略＝單一句）");
+    }
+    // 單一物件與陣列都收：裝置端補單句時不必為了 API 對稱再包一層。
+    const inputs = Array.isArray(body.segments) ? body.segments : [body];
+    // 元素也要先驗型別，否則訊息會長成 `idempotencyKey=undefined`，看不出是第幾個壞掉。
+    inputs.forEach((input, index) => {
+      if (input === null || typeof input !== "object" || Array.isArray(input)) {
+        throw new TranscriptInvalidError(`segments[${index}] 必須是物件`);
+      }
+    });
+    const context = this.#transcriptWriteContext(snapshot);
+    const fields = inputs.map((input) =>
+      validateSegment({ ...(input as Record<string, unknown>), ...context }),
+    );
+    const ledger = this.#segmentLedger();
+    const accepted: RecordSegmentOutcome[] = [];
+    const duplicates: RecordSegmentOutcome[] = [];
+    const conflicts: { existing: unknown; incoming: unknown }[] = [];
+    for (const field of fields) {
+      const outcome = ledger.record({ ...field, ...context });
+      if (outcome.accepted) accepted.push(outcome);
+      else if (outcome.duplicate) duplicates.push(outcome);
+      else conflicts.push({ existing: outcome.existing, incoming: outcome.incoming });
+    }
+    return json(this.#transcriptWriteResult(snapshot, accepted.length, duplicates.length, conflicts));
+  }
+
+  /**
+   * M01-US-103：串流落地（原始 nova 訊息 → 聚段 → 帳本）。
+   *
+   * 與 `/transcript/segments` 的差別：這裡收的是**上游原始事件**，逐字稿內文由伺服端自己聚出來。
+   * 這條路的存在理由是 SPIKE-001 的發現：聚段規則（講者切換 / 停頓 / `UtteranceEnd`）
+   * 若留在裝置端，兩台裝置會對「同一段音訊該切成幾句」有不同答案；
+   * 放在伺服端，重播同一份事件串流得到的段落**逐字相同**（AC-1 的重播等價）。
+   */
+  async #transcriptStreamRoute(request: Request): Promise<Response> {
+    const snapshot = this.#readSession(this.#sessionStore());
+    if (snapshot === null) {
+      return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
+    }
+    if (request.method !== "POST") {
+      // 與 `/transcript/segments` 同一個道理，而且這條是**正式路徑**：
+      // 沒擋動詞時 `DELETE /transcript/stream` 帶合法 body 會被當 POST 走完並**寫進一列**
+      // （第二輪獨立審查實測：200 + `accepted:1`）。append-only 不能只做一半。
+      return json({ error: "METHOD_NOT_ALLOWED", message: "只支援 POST" }, 405, { allow: "POST" });
+    }
+    const rejected = this.#transcriptWriteRejection(snapshot);
+    if (rejected !== null) return rejected;
+    const body = await this.#jsonObjectBody(request);
+    if (!Array.isArray(body.messages)) {
+      throw new TranscriptInvalidError("messages 必須是陣列（原始 STT 事件）");
+    }
+    // `finalize` 只認 `true`；若送來 `"yes"` / `1` 而我們照樣收下，最後一段會留在緩衝裡
+    // **默默不落地**（與 P0-1 同一類陷阱），所以型別錯誤要當成 400，不能沉默。
+    if (body.finalize !== undefined && typeof body.finalize !== "boolean") {
+      throw new TranscriptInvalidError("finalize 必須是布林（true 才會收尾）");
+    }
+    const context = this.#transcriptWriteContext(snapshot);
+    // 這裡先建 stream：`meetingOffsetMs` 不合法會在建構時就拋（不得默默當 0）。
+    const stream = new TranscriptStream({
+      sink: this.#segmentLedger(),
+      meetingOffsetMs: body.meetingOffsetMs as number,
+    });
+    const report: IngestReport = stream.ingest(body.messages, context);
+    if (body.finalize === true) {
+      this.#mergeIngestReport(report, stream.finalize(context));
+    }
+    return json({
+      ...this.#transcriptWriteResult(snapshot, report.appended.length, report.duplicates.length, report.conflicts),
+      appended: report.appended,
+      pending: report.pending,
+    });
+  }
+
+  /**
+   * 解析 JSON 物件 body。
+   *
+   * `request.json()` 對空 body 會 reject、對字面 `null` / 陣列 / 純量則會成功——
+   * 兩種都不該變成 500（審查抓到：`POST /transcript/stream` 帶 `null` 會 500）。
+   */
+  async #jsonObjectBody(request: Request): Promise<Record<string, unknown>> {
+    const parsed: unknown = await request.json().catch(() => null);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new TranscriptInvalidError("body 必須是 JSON 物件");
+    }
+    return parsed as Record<string, unknown>;
+  }
+
+  /** 兩條寫入路徑共用的守門（US-101 的 `acceptsTranscriptWrites` 是唯一判準）。 */
+  #transcriptWriteRejection(snapshot: SessionSnapshot): Response | null {
+    if (acceptsTranscriptWrites(snapshot.session, this.#now())) return null;
+    const status = sessionStatus(snapshot.session, this.#now());
+    return json(
+      {
+        error: status.reached ? "LIMIT_REACHED" : "SESSION_ENDED",
+        message: status.reached
+          ? "已達 2 小時上限，2:00 之後的內容不會被記錄。"
+          : "這場會議已經結束，不再接受逐字稿。",
+        accepted: 0,
+        transcriptWrites: snapshot.transcriptWrites,
+      },
+      409,
+    );
+  }
+
+  /**
+   * 寫入用的權威時間窗：裝置回報的毫秒只能落在「已過時間 + 容差」內。
+   * 容差自成一常數（`TRANSCRIPT_SKEW_TOLERANCE_MS`，值與 US-107 缺口相同、但不 import 它的常數）：
+   * 兩個功能的容差日後可能各自調整，耦合會讓改一邊時誤傷另一邊。
+   */
+  #transcriptWriteContext(snapshot: SessionSnapshot): { nowMs: number; maxMs: number } {
+    const nowMs = this.#now();
+    return { nowMs, maxMs: Math.max(0, nowMs - snapshot.session.startedAtMs) + TRANSCRIPT_SKEW_TOLERANCE_MS };
+  }
+
+  /** 只有**新增**的句子才算一次寫入（重送與衝突不得讓計數膨脹）。 */
+  #transcriptWriteResult(
+    snapshot: SessionSnapshot,
+    accepted: number,
+    duplicates: number,
+    conflicts: unknown[],
+  ): Record<string, unknown> {
+    const transcriptWrites = snapshot.transcriptWrites + accepted;
+    if (accepted > 0) {
+      this.#sessionStore().write({ session: snapshot.session, transcriptWrites });
+    }
+    return { accepted, duplicates, conflicts, transcriptWrites };
+  }
+
+  #mergeIngestReport(report: IngestReport, tail: IngestReport): void {
+    report.appended.push(...tail.appended);
+    report.duplicates.push(...tail.duplicates);
+    report.conflicts.push(...tail.conflicts);
+    report.pending = tail.pending;
+  }
+
+  /**
    * M01-US-107：逐字稿缺口標記（AC-1 / AC-3）。
    *
    * 為什麼允許「只開不閉」：`hidden` 當下就必須寫入（app 可能再也沒回來），
@@ -436,11 +627,13 @@ export class MeetingDurableObject {
     if (current === null) {
       return json({ error: "SESSION_NOT_STARTED", message: "沒有進行中的會議" }, 409);
     }
+    // 合法 JSON 的 `null` 會讓 `request.json()` **成功**回 `null`（`catch` 不觸發），
+    // 接著讀 `body.seq` 就 TypeError → 500。與 US-103 修掉的同型缺陷一致（Gate 4 第二輪 P2-3）。
     const body = (await request.json().catch(() => ({}))) as {
       seq?: unknown;
       fromMs?: unknown;
       toMs?: unknown;
-    };
+    } | null;
     if (!acceptsTranscriptWrites(current.session, this.#now())) {
       const status = sessionStatus(current.session, this.#now());
       return json(
@@ -452,6 +645,11 @@ export class MeetingDurableObject {
         },
         409,
       );
+    }
+    // 型別守門放在 session 守門**之後**：會議已結束時，409 比「body 不合法」更貼近事實
+    // （與兩條逐字稿路由同一個順序原則）。
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      throw new TranscriptInvalidError("body 必須是 JSON 物件");
     }
     // 上限用**伺服端**的已過時間算：裝置回報的 ms 只能在這個範圍內，否則時間軸沒參考價值。
     const elapsedMs = Math.max(0, this.#now() - current.session.startedAtMs);

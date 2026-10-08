@@ -217,6 +217,19 @@ describe("M01-US-107 逐字稿缺口標記路由", () => {
     expect(listed.body.gaps).toEqual([{ seq: 1, fromMs: 5_000, toMs: null }]);
   });
 
+  it("M01-Gate4 P2-3：合法 JSON 的 `null`／陣列／純量 body When 打缺口路由 Then 400（不得 500）", async () => {
+    const { durable, tick } = started();
+    await call(durable, "/session/start", {});
+    tick(3_000);
+    for (const bad of [null, [], "字串", 42]) {
+      const { status, body } = await call(durable, "/transcript/gap", bad);
+      expect(status).toBe(400);
+      expect(body.error).toBe("TRANSCRIPT_INVALID");
+    }
+    const listed = await call(durable, "/transcript/gaps");
+    expect(listed.body.count).toBe(0);
+  });
+
   it("M01-Given 換一個 DO instance When 讀同一份 DB Then 缺口仍在（不是記憶體裡的 Map）", async () => {
     const { durable, ctx, tick } = started();
     await call(durable, "/session/start", {});
