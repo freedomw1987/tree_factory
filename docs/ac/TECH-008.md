@@ -49,6 +49,9 @@ US-101 把會議時間軸落地，讀取層只驗兩件事：欄位型別/列舉
 
 ### AC-2 容忍邊界（±1 毫秒要分得出來）與回調的代價
 
+> **適用範圍**：本條是 `elapsed = 0` 的切片（`started_at` 就是現在）；一般式
+> `違規 ⟺ Δ > elapsed + TOL` 見 AC-6，兩者**是同一條式子的特例與通式**，不是兩套規則。
+
 - **Given** `started_at_ms = now + SESSION_CLOCK_TOLERANCE_MS`
 - **When** 讀取 **Then** 放行（恰好在容忍內）
 - **And** `started_at_ms = now + SESSION_CLOCK_TOLERANCE_MS + 1` → 擋下
