@@ -169,7 +169,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-004 | Spike | M02 | 長會議成本實測（**2 小時上限** → token/價格/compaction 行為）| — | P1 | 2 | DONE（`docs/spike/SPIKE-004.md`）| SPIKE-003 |
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
 | M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | **DONE**（2026-10-09：**iPhone 12 mini 真機驗收通過** —— webview 來源 `tauri://localhost` allowed=true、使用者實機走完「開始→錄音中→長按結束」；過程中修好 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、「`100dvh` 溢出、外框高度未定致逐字稿撐開畫面），新增 5 條不變式 + 3 條 iPhone 尺寸 E2E；現況 **E2E 11 / 單元 75 / M01 回歸 40+35 / worker 132 全綠**；Gate 4 兩輪獨立稽核後經用戶裁決通過；後續缺口已轉票 TECH-006 ~ 010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
-| M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | PENDING | M01-US-101 |
+| M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | **DONE**（2026-10-09：30 秒一段、每段獨立可解碼、上傳成功才刪；恢復以**伺服端帳本為權威**對帳，只補缺、不重複、不覆蓋；重開 app 先詢問續傳（丟棄需二次確認）；伺服端冪等用 `INSERT OR IGNORE`（同 seq 不同 hash → 409 不覆蓋）、逐字稿以 `chunkSeq` 去重；Gate 4 read-only 稽核判 FAIL/BLOCK，7 條（1×P0 靜默丟音 + 2×P1 + 4×P2）全修並附紅→綠實測；現況 **UI 單元 132 / typecheck 0 / M01 回歸 97 / E2E 16 / lint 0；worker 158 全綠 / markdownlint 0**；交付文見 `docs/deliverable/2026-10-09-M01-US-102-本地音檔分段緩存與恢復回補.md`，設計見 `docs/design/M01-US-102-audio-chunk-idempotency.md`）| M01-US-101 |
 | M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
 | M01-US-105 | US | M01 | 會後統一命名：把「發言者 2」改成「阿明」（決策 D1）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
