@@ -225,8 +225,8 @@ verdict **0 P0 / 0 P1 / 4 P2（本輪新發現）**；Task A 複驗：第一輪 
 | NEW-P2-3 AC 文件表頭 `do-sqlite.test.ts`（10）與對帳表（11）自相矛盾（R1-8 只部分修）| P2 | ✅ 表頭改 12 + 逐 AC 對帳重算（TECH-004 自身 54、總 71）|
 | NEW-P2-4 `/release`（R1-2 的使用者介面）零測試 | P2 | ✅ 補 2 項（fresh／撞上在飛的 open）|
 
-> **Gate 4 尚未通過**：第三輪仍是「有找到更多問題」（2 P2，且結語與發現自相矛盾），
-> 故已修正並跑**第四輪**；第四輪 verdict 回來前，本票不得進入 §2.4 反省（依 gate-4 `fail_action`）。
+> **Gate 4 尚未通過**：第四輪仍是「有找到更多問題」（3 P2，全為文件數字/敘述一致性；
+> 程式面的 R4-1 已確認真的修好），故已修正並跑**第五輪**；第五輪 verdict 回來前，本票不得進入 §2.4 反省（依 gate-4 `fail_action`）。
 
 #### 第二輪 checker 原文（逐字貼回，未節錄）
 
@@ -389,14 +389,29 @@ Task A：11 條第一輪發現中 **7 條已修**、**1 條部分修（P2-7）**
 | 第三輪新發現 | 等級 | 處置 |
 | --- | --- | --- |
 | NEW-3-1 `/wake?ms=+5`（未編碼）被當成 5ms——格式檢查先 `trim`，而 query 的 `+` 就是空白；且測試用 `encodeURIComponent` 測不到 | P2 | ✅ 格式檢查改看**原字串**（不 trim）＋補未編碼 raw query 測試 |
-| NEW-3-2 deliverable 同檔「12 個／13 個陷阱」自相矛盾、宣稱「皆寫進 AC 文件」為假、變更清單測試數仍舊值（第二輪 NEW-P2-3 同族**第三次復發**）| P2 | ✅ 兩張表同步為 **14 條**；變更清單改現值（12／13／15／5／10）|
+| NEW-3-2 deliverable 同檔「12 個／13 個陷阱」自相矛盾、宣稱「皆寫進 AC 文件」為假、變更清單測試數仍舊值（第二輪 NEW-P2-3 同族，本票內**反覆復發**；清單見「已知問題 5」）| P2 | ✅ 兩張表同步為 **14 條**；變更清單改現值（12／13／15／5／10）|
 
 > ⚠️ **verdict 矛盾處理**：第三輪 checker 同時給了「2 P2」與結語「沒找到更多問題」。
 > 我不把它當作「乾淨通過」，而是**修完 2 條再跑第四輪**——避免用一句制式結語掩蓋已列在報告裡的發現。
 
-**第四輪**：進行中（同一 checker 契約）。第四輪原文一樣**只貼在此處**，不以口頭摘要代替。
+#### 第四輪新發現與處置（已補完；原文見下）
 
-#### 第三輪 checker 原文（逐字貼回，含 2 條新發現與「沒驗到」清單）
+verdict **0 P0 / 0 P1 / 3 P2**；第五輪進行中。
+
+| 第四輪新發現 | 等級 | 處置 |
+| --- | --- | --- |
+| NEW-4-1 AC 文件**前置表頭** `meeting-do.test.ts`（14）未同步（實際 15；第三輪加了一條測試卻漏改前置清單）| P2 | ✅ 前置表頭改 15 |
+| NEW-4-2 AC 與 deliverable 兩張陷阱表 **#13/#14 編號對調**（卻宣稱「同步」）| P2 | ✅ 統一同一序（#13 `--var`／#14 `+5`）|
+| NEW-4-3 同一 commit 內「第三次復發」與「四度復發」自相矛盾 | P2 | ✅ 改為「反覆復發（清單見已知問題 5，①–⑥）」——**不再寫序數**，每次復發就不必重算 |
+
+> **A-1 複驗**：第三輪 R4-1（`/wake?ms=+5`）確認**真的修好**：21/21 probe 綠——
+> `+5`／`%2B5`／`%201500`／tab／全形／nbspan → 400；`%20%20`／`%09` → `MS_REQUIRED`；
+> `0`／`0001500`／`=MAX` → 200；20 位數與 `9007199254740993` → 400，**無 500/NaN**，且**沒有修過頭**。
+> **A-2 複驗**：R4-2 **只部分修**（陷阱表、變更清單已同步；前置表頭漏改）→ 即 NEW-4-1。
+
+**第五輪**：進行中（同一 checker 契約）。第五輪原文一樣**只貼在此處**，不以口頭摘要代替。
+
+#### 第三輪 checker 原文引用（結構重排、表格精簡；判定與數字未改）
 
 ````text
 [Verdict] 0 P0 / 0 P1 / 2 P2（本輪新發現）
@@ -467,6 +482,93 @@ Task A：第二輪 4 條新發現全部確實修好（僅 A-2 有 1 個表單編
   → 注：同一份報告列了 2 條 P2，與此結語矛盾，故本專案不視為通過（已修完再跑第四輪）。
 ````
 
+#### 第四輪 checker 原文引用（結構重排、表格精簡；判定與數字未改）
+
+````text
+Verdict：0 P0 / 0 P1 / 3 P2
+（本輪只讀；所有暫存物在 /tmp，repo 未動。git status --short 乾淨。）
+
+[A-1] R4-1（/wake?ms=+5）→ 已修好（satisfied）
+  程式現況（worker/src/meeting-do.ts:88-108）：空值判斷 raw === null || raw.trim() === ""，
+  格式判斷 /^\d+$/.test(raw)（看原字串、不 trim），Number(raw) + Number.isSafeInteger。
+  實測（/tmp/tfcheck 複本，直接打真 MeetingDurableObject.fetch，raw query 用真 URL）：
+    ?ms=+5（未編碼）            400 {"error":"MS_INVALID","value":" 5"}
+    ?ms=%2B5                     400 {"error":"MS_INVALID","value":"+5"}
+    ?ms=%201500                  400 {"error":"MS_INVALID","value":" 1500"}
+    ?ms=%20%20（只有空白）        400 {"error":"MS_REQUIRED",...,"example":"/wake?ms=60000"}
+    ?ms=+（+→空白）              400 MS_REQUIRED（合理）
+    ?ms=%09%091500（tab）         400 MS_INVALID
+    ?ms=%09／%C2%A0（只有空白）    400 MS_REQUIRED
+    ?ms=0001500                  200 {"scheduled":true,...}
+    ?ms=0                        200（刻意）
+    ?ms=1500                     200（冒煙等價路徑）
+    ?ms=300000（=MAX）            200；?ms=0300000（前導零＝MAX） 200
+    ?ms=300001／0300001          400 {"error":"MS_TOO_LARGE","value":"300001","max":300000}
+    ?ms=99999999999999999999     400 MS_INVALID（無 500/NaN）
+    ?ms=9007199254740993         400 MS_INVALID（無 500/NaN）
+    ?ms=9007199254740991         400 MS_TOO_LARGE
+    全形１５００、%C2%A01500、en-space → 400 MS_INVALID
+  21/21 probe 斷言綠。?ms=1500 冒煙等價路徑仍 200（真 workerd 未起 server，見「沒驗到」）。
+  沒有修過頭；無 500/NaN 路徑。
+
+[A-2] R4-2（文件數字/敘述）→ 部分修（not-satisfied，殘留 1 項新 stale 數字）
+  AC 陷阱表列數/編號 ✓ 14 列、#1–#14 連續（docs/ac/TECH-004.md:104-118）
+  deliverable 陷阱表 ✓ 14 列；變更清單測試數 ✓ 12/13/15/5/10；大標題陷阱數 ✓ 皆 14
+  逐 AC 對帳 ✓ 9+5+15+2+1+11+12 = 55；55 = 72 − 17 ✓；backlog:208 ✓「55 單元測試 + 19 項 workerd 冒煙」
+  ✗ AC 文件前置「測試」表頭 meeting-do.test.ts（14），實際 15（AC :9）
+  ✗ AC/deliverable 兩表 #13/#14 編號對調（AC :117/#13=+5、:118/#14=wrangler；del :486/#13=wrangler、:487/#14=+5）
+  舊數字（49/54/66/71 等）僅出現在「歷史紅綠燈／各輪 checker 原文引用」段落，判為合理保留。
+
+[NEW-4-1｜P2] AC 文件前置「測試」表頭 meeting-do.test.ts（14）與現實不符（第三輪新增測試後未同步）
+  repro：grep -n 'meeting-do.test.ts' docs/ac/TECH-004.md | head -1；cd worker && npx vitest run
+  實際：文件寫（14）；vitest → ✓ test/meeting-do.test.ts (15 tests)；同檔逐 AC 對帳自身也加總為 2+1+9+1+2 = 15。
+  根因：第三輪把 meeting-do 由 14 → 15，改到變更清單與對帳式，卻漏改前置表頭。與 R1-8/R3-3/NEW-3-2 同族（同一類缺陷第四次）。
+  影響：低（純文件），但這是可被讀者當事實的數字，且 AC 文件自身前後矛盾；正是 R4-2 這條「已修」宣稱沒蓋到的殘留。
+
+[NEW-4-2｜P2] AC 與 deliverable 兩張陷阱表 #13/#14 編號對調，但 deliverable 宣稱「同步」
+  AC：#13 = /wake?ms=+5 trim 破口；#14 = wrangler --var
+  deliverable：#13 = wrangler --var；#14 = /wake?ms=+5 trim 破口
+  影響：低。兩表內容集合相同、各自編號連續，但 #13/#14 跨文件指涉不同陷阱，與「同步寫進 AC 文件陷阱表」的敘述不符；交叉引用會拿到錯的條目。
+
+[NEW-4-3｜P2] deliverable 同一 commit 內對同一類缺陷的次數自相矛盾（「第三次」vs「四度」）
+  deliverable :392（同族第三次復發）與 :513（同一類缺陷四度復發）；docs/ac/TECH-004.md:342 亦寫「第三次」
+  兩句皆由第三輪 commit ee38c94 同時加入。影響：低（純敘述一致性）。
+
+其他 Task B 檢查（無新缺陷）：
+  - raw.trim() === "" 與 /^\d+$/(原字串) 的交界："\t1500"、%09 1500、全形、\u00a01500、en-space + 數字 → 全 400 MS_INVALID；
+    純空白/tab/nbsp/+ → MS_REQUIRED。無漏洞、無 500/NaN。錯誤碼二分與註解一致。
+  - 新測試真會紅：把 HEAD 的 meeting-do.test.ts 對舊 src 重跑——f8e0c86 → Tests 1 failed | 14 passed (15)
+    （紅的正是 ?ms=+5 那條）；800063d → 9 failed | 6 passed (15)。非自我實現（對真實 MeetingDurableObject）。
+    無時間依賴（只用 fake storage + 同步斷言），不 flake。
+  - 逐 AC bucket 對 it( 數：lifecycle 13 = AC-1 7 + AC-3 6；meeting-do 15 = 2+1+9+1+2；
+    harness-persistence 10 = 4+2+4；meeting-harness 5；do-sqlite 12。每 bucket 都對得上。
+  - 已知殘留複核後與文件描述一致，未發現比文件更嚴重。
+
+[沒驗到 / 無法驗證]
+  - 真 workerd 平台行為：未起 wrangler dev。do-smoke.mjs 的 19 項未執行；
+    僅以 grep -c '^check(' = 19 證實數量與文件相符，並用單元等價驗證 ?ms=1500 → 200 scheduled:true。
+  - 歷史紅綠燈輸出（如 16 failed | 49 passed (65)）：test set 已不同，無法重現；只能確認現況 72/72。
+  - 「第三輪紅燈 1 failed | 14 passed (15)」：用 HEAD 測試對 f8e0c86 src 重跑得同數字，可佐證；
+    但無法還原當時確切 test set 時序。
+  - 冒煙的「真 alarm 醒來／at-now」平台行為：未驗。
+  - Gate 1「先紅後綠」時序：無法從最終樹回溯。
+  - 未逐一閱讀 harness-persistence.test.ts／meeting-harness.test.ts 內部以人工歸屬每個 it( 到 AC bucket；
+    只驗到逐檔總數與表格 AC 級加總相符（檔內分組未逐條語意核對）。
+
+[指令表]
+  git show --stat ee38c94 / git show ee38c94 -- src test → 確認第三輪只動 5 檔
+  cd worker && npx vitest run → 72 passed / 6 files（meeting-do 15）
+  for f in test/*.test.ts; grep -c '^\s*it(' → 12/13/15/5/10/17
+  /tmp/tfcheck probe（21 案，真 URL raw query）→ 21 passed
+  /tmp/tfold_f8e0c86 跑 HEAD 測試 → 1 failed | 14 passed (15)
+  /tmp/tfold_800063d 跑 HEAD 測試 → 9 failed | 6 passed (15)
+  npx tsc --noEmit → exit 0；markdownlint-cli2（45 檔）→ 0 issues；npm run regression → passed=72 failed=0 ✅
+  grep -c '^check(' scripts/do-smoke.mjs → 19；git status --short → 乾淨
+
+[結論] R4-1 確實修好；R4-2 只部分修（三者皆同一「文件數字與現實不符」家族）。
+  Gate 4 第四輪不建議直接判定通過，建議修完上述文件數字後即可（A-1 已無程序缺陷）。
+````
+
 ## 本輪實測抓到的 14 個陷阱（已修；#1–#10 與 R3/R4 追加同步寫進 AC 文件陷阱表）
 
 | # | 陷阱 | 症狀 | 修法 |
@@ -497,20 +599,23 @@ Task A：第二輪 4 條新發現全部確實修好（僅 A-2 有 1 個表單編
 1. **Gate 1（TDD）紅燈只補到「追加修正」那一段**：原始 TECH-004 實作在 trust mode 期間完成，
    紅燈無法回溯補齊。追加的 27 項測試（第一輪 +21、第二輪 +5、第三輪 +1）有完整紅→綠證據（見 Gate 1）。
    第二輪 checker 也誠實指出：**舊的紅燈歷史輸出無法重現**（test set 已不同），只能確認測試存在且鎖住行為。
-2. **Gate 4（reviewer）三輪均未通過，第四輪進行中**：
+2. **Gate 4（reviewer）四輪均未通過，第五輪進行中**：
    第一輪 verdict 0 P0 / 2 P1 / 9 P2；第二輪 0 P0 / 0 P1 / **4 P2（新發現）**；
-   第三輪 0 P0 / 0 P1 / **2 P2（新發現）**。三輪都「有找到更多問題」，依 `fail_action` 不得進入 §2.4；
-   三輪發現已全數處置，**第四輪 verdict 回來且為「沒找到更多問題」前，本票不視為 Gate 4 通過。**
+   第三輪 0 P0 / 0 P1 / **2 P2**；第四輪 0 P0 / 0 P1 / **3 P2**（全為文件數字/敘述一致性，程式面無新缺陷）。
+   四輪都「有找到更多問題」，依 `fail_action` 不得進入 §2.4；四輪發現已全數處置，
+   **第五輪 verdict 回來且為「沒找到更多問題」前，本票不視為 Gate 4 通過。**
    ⚠️ 第三輪的結語雖然寫了「沒找到更多問題」，但同一份報告列了 2 條 P2，**故不採計為通過**。
 3. **`worker/reports/` 已 gitignore**：回歸報告不入版控，需重跑才能重建。
 4. **冒煙需手動起 dev server**：`do-smoke.mjs` 依賴外部 `wrangler dev`（預設 8787，可用
    `DO_SMOKE_BASE` 覆寫）；未自動化進 CI。
-5. **AC 文件數字三度修正**：①冒煙「20 項」→ 實際 **19 項**；②測試對照表把
+5. **AC 文件數字反覆修正（本票內 6 處）**：①冒煙「20 項」→ 實際 **19 項**；②測試對照表把
    `lifecycle.test.ts` 記為 AC-1 11 項 / AC-3 4 項，實際為 6 / 6，且漏列 `do-sqlite.test.ts`；
    ③修成逐 AC 對帳（單元 49 + 冒煙 19），但**表頭仍留 `do-sqlite.test.ts`（10）**（實際 11）
    ——被第二輪 checker 抓為 NEW-P2-3；④第二輪再修為單元 54 + 冒煙 19 並逐項對帳；
    ⑤第三輪又抓到 deliverable 同檔「12 個／13 個陷阱」自相矛盾 + 變更清單舊數（NEW-3-2）→
-   已統一為 14 條並兩表同步。**同一類缺陷四度復發**，故「改數字必須全域搜尋」已寫進根因改善動作。
+   已統一為 14 條並兩表同步；⑥第四輪再抓到 AC 文件**前置表頭** `meeting-do.test.ts`（14）未同步（實際 15）、
+   兩張陷阱表 #13/#14 編號對調（NEW-4-1 / NEW-4-2）→ 已修。
+   **同一類缺陷在本票內反覆復發（共 6 處，見上列 ①–⑥）**，故「數字變動必須全域 `grep`（含前置清單與跨檔）」已寫進根因改善動作。
    **根因：寫 AC 時憑印象填數字；同一類錯在修正中復發。**
 6. **`regression-guard.mjs` 顯示瑕疵**：被 `-t` 篩掉的測試顯示為 `✗`（實際為 skipped），
    易誤讀為失敗。判定邏輯（`failed === 0 && passed > 0`）正確，只有**顯示**誤導。
@@ -535,7 +640,7 @@ Task A：第二輪 4 條新發現全部確實修好（僅 A-2 有 1 個表單編
   3. （選）`npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux &`
      然後 `npm run smoke:do` → 19 項全綠。
      ⚠️ `--var` 必須用**冒號**（`KEY:VALUE`）；用等號 `KEY=VALUE` 會**靜默不生效**（見陷阱 13）。
-- **風險提示**：① 四輪 reviewer 之間可能仍有殘留問題，第四輪 verdict 應併同本文件歸檔；
+- **風險提示**：① 五輪 reviewer 之間可能仍有殘留問題，第五輪 verdict 應併同本文件歸檔；
   ② `PROVIDER_UNKNOWN` 未進 §5.2 表，若要下發裝置端必須先補（見已知問題 8）；
   ③ 下一張相依票是 SPIKE-002b（原生錄音 plugin 可行性，0.5 天時間盒），
   它會決定 M01-US-106（8 SP）要不要做。
@@ -556,7 +661,7 @@ Task A：第二輪 4 條新發現全部確實修好（僅 A-2 有 1 個表單編
 | --- | --- | --- |
 | UX/UI | — 不適用 | 純後端骨架，無使用者介面 |
 | RWD | — 不適用 | 同上 |
-| 技術債 | ⚠️ 有條件通過 | 無 TODO；14 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 三輪（11 + 4 + 2 項）全數處置（第四輪進行中）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
+| 技術債 | ⚠️ 有條件通過 | 無 TODO；14 個陷阱已修且被測試鎖住；Gate 1 紅燈補到追加段；Gate 4 四輪（11 + 4 + 2 + 3 項）全數處置（第五輪進行中）。殘留：`PROVIDER_UNKNOWN` 未進 §5.2 表、faux catalog 繞過 `MODEL_UNAVAILABLE`、`FALLBACK_CONTEXT_WINDOW` 實質死路徑 |
 | 可維護性 | ✅ 通過 | 分層清楚（lifecycle / storage / harness / DO 入口）；DO 入口只做平台接線；核心邏輯皆可單測 |
 | 測試覆蓋率 | ✅ 通過 | 6 條 AC 皆有對應測試（單元 55 + 冒煙 19）；另含合約測試（交易排隊、handle 失效時機、`AggregateError` 順序）與 DO HTTP 入口測試（含 `/release` 與 raw query 編碼）|
 | 需求對齊 | ✅ 通過 | 逐條對上 SPIKE-003 的三個平台事實；模型與壓縮政策對上 D15 |

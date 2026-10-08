@@ -6,7 +6,7 @@
 - **實作**：`worker/src/storage/do-sqlite.ts`、`worker/src/harness/lifecycle.ts`、
   `worker/src/harness/meeting-harness.ts`、`worker/src/meeting-do.ts`、`worker/src/index.ts`
 - **測試**：`worker/test/do-sqlite.test.ts`（12）、`worker/test/lifecycle.test.ts`（13）、
-  `worker/test/meeting-do.test.ts`（14）、`worker/test/meeting-harness.test.ts`（5）、
+  `worker/test/meeting-do.test.ts`（15）、`worker/test/meeting-harness.test.ts`（5）、
   `worker/test/harness-persistence.test.ts`（10）；另加真 workerd 冒煙 `worker/scripts/do-smoke.mjs`
 
 ## 背景（為什麼要有這一票）
@@ -114,8 +114,8 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 | 10 | 宣告了卻沒有效果的常數／函式 | `MAX_ALARM_DELAY_MS`、`DEFAULT_ALARM_DELAY_MS`、`currentConversationId` 無人使用（讀者誤以為有防護）| `/wake` 真的套上限、範例字串用 `DEFAULT_ALARM_DELAY_MS`、刪掉 dead export |
 | 11 | 交易 handle 的失效時機比官方晚一個 commit 窗口 | 回呼結束後、`COMMIT` 前再用 handle，竟會**真的執行**下去（不丟錯）| 見 §追加驗收 **R3-1**：`scope.active = false` 移進回呼 settle 後、`COMMIT` 前（對齊官方 `node.js:117`）|
 | 12 | 自己寫的假替身測試「自我實現」 | 假 storage 把**平台自己的 tx 物件**交給探針（沒 `.exec` → 一定 throw）→ 測試假通過 | 測試必須把**我方 handle** 從回呼裡抓出來；先證明探針打到受測物件再看紅燈 |
-| 13 | `/wake?ms=` 的 `+` 是空白，trim 後放行 | 第二輪加了整數檢查，但**先 trim**；`?ms=+5` → `" 5"` → 放行成 5ms，而測試用 `encodeURIComponent` 測不到 | 見 §追加驗收 **R4-1**：格式檢查改看**原字串**（不 trim）；測試改加未編碼 raw query |
-| 14 | `wrangler dev --var KEY=VALUE` **靜默無效** | 等號形式不報錯也不生效，DO 仍讀 `wrangler.toml` 的 provider → 冒煙全線 401 `AUTH_INVALID`（看起來像程式壞了）| 用冒號 `--var HARNESS_PROVIDER:faux`（wrangler 4.148.0 實測）|
+| 13 | `wrangler dev --var KEY=VALUE` **靜默無效** | 等號形式不報錯也不生效，DO 仍讀 `wrangler.toml` 的 provider → 冒煙全線 401 `AUTH_INVALID`（看起來像程式壞了）| 用冒號 `--var HARNESS_PROVIDER:faux`（wrangler 4.148.0 實測）|
+| 14 | `/wake?ms=` 的 `+` 是空白，trim 後放行 | 第二輪加了整數檢查，但**先 trim**；`?ms=+5` → `" 5"` → 放行成 5ms，而測試用 `encodeURIComponent` 測不到 | 見 §追加驗收 **R4-1**：格式檢查改看**原字串**（不 trim）；測試改加未編碼 raw query |
 
 ## 測試與證據對照
 
@@ -324,7 +324,9 @@ DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 > **完整原文**（含 15 條指令與結果、已知殘留 4 項）見交付文件
 > `docs/deliverable/2026-10-08-TECH-004-DO-harness生命週期.md` 的「Gate 4 第二輪」段落。
 
-**第三輪已處理完畢，第四輪稽核進行中**；Gate 4 是否通過以第四輪 verdict 為準。
+**第四輪已處理完畢，第五輪稽核進行中**；Gate 4 是否通過以第五輪 verdict 為準。
+
+> **編號慣例**：`R{k}-n` 為本專案**第 k 批處理**的第 n 條發現（第一輪 = R1；第一輪未修 = R2；第二輪 = R3；第三輪 = R4；第四輪 = R5）。
 
 ### 第三輪稽核（修正後重跑）— 新發現與處置
 
@@ -339,7 +341,7 @@ DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 | # | 等級 | 問題（第三輪新發現）| 處置 | 鎖住它的測試 |
 | --- | --- | --- | --- | --- |
 | R4-1 | P2 | `/wake?ms=+5`（未編碼）被當成 5ms——「只收十進位整數字串」有 URL 編碼破口：格式檢查**先 trim**，而 query 裡的 `+` 就是空白；且原本測試用 `encodeURIComponent` 把 `+` 編成 `%2B`，**測不到原始 URL** | 已修：格式檢查改看**原字串**（不 trim；只有「空／只有空白」走 `MS_REQUIRED`）；測試補未編碼 `?ms=+5` 與 `%201500` 兩案 | `meeting-do.test.ts` ×1（內含 2 案）|
-| R4-2 | P2 | 文件數字/敘述與現實不符（第二輪 NEW-P2-3 同族**第三次**復發）：deliverable 一處寫「12 個陷阱」一處寫「13 個」；「皆寫進 AC 文件」為假（AC 表只有 #1–#10）；變更清單仍寫 `do-sqlite.test.ts` 6 項／`lifecycle.test.ts` 12 項 | 已修：陷阱統一為 **14 條** 且 **AC/deliverable 兩張表同步**；變更清單測試數改為現值 | —（文件）|
+| R4-2 | P2 | 文件數字/敘述與現實不符（第二輪 NEW-P2-3 同族，本票內**反覆復發**；清單見 deliverable「已知問題 5」）：deliverable 一處寫「12 個陷阱」一處寫「13 個」；「皆寫進 AC 文件」為假（AC 表只有 #1–#10）；變更清單仍寫 `do-sqlite.test.ts` 6 項／`lifecycle.test.ts` 12 項 | 已修：陷阱統一為 **14 條** 且 **AC/deliverable 兩張表同步**（#13 `--var` / #14 `+5`）；變更清單測試數改為現值 | —（文件）|
 
 #### 第三輪 checker 原文引用（verdict + 2 條新發現；以 `…` 標示精簡處）
 
@@ -413,3 +415,50 @@ DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 > - 已知殘留複核：與文件描述一致，**未發現比文件更嚴重**。
 > - `/wake?ms=0` 忙迴圈：刻意保留，**未驗**「呼叫端連續打 0 是否真的造成 open/close 風暴」。
 > - 最後一行寫「沒找到更多問題」，但同一份報告列了 2 條 P2——**兩者矛盾，故本專案不視為通過**。
+
+### 第四輪稽核（修正後重跑）— 新發現與處置
+
+**verdict：`0 P0 / 0 P1 / 3 P2`**；Task A 複驗：第三輪的 R4-1 **確認真的修好**（21/21 probe 綠 + 沒有修過頭）、
+R4-2 **只部分修**（陷阱表與變更清單已同步，但前置表頭漏改）→ 即 R5-1。
+**第四輪的 3 條全是文件數字/敘述一致性，程式面無新缺陷。**
+
+| # | 等級 | 發現 | 處置 | 測試 |
+| --- | --- | --- | --- | --- |
+| R5-1 | P2 | AC 文件**前置「測試」表頭** `meeting-do.test.ts`（14）未同步（實際 15；R4-1 加測試只改了變更清單與對帳式）| 已修：前置表頭 14→**15** | —（文件）|
+| R5-2 | P2 | AC 與 deliverable 兩張陷阱表 **#13/#14 編號對調**，但 deliverable 宣稱「同步」→ 交叉引用會拿到錯條目 | 已修：統一同一序（#13 = `--var`、#14 = `+5`）| —（文件）|
+| R5-3 | P2 | 同一 commit 內對同類缺陷的次數自相矛盾（「第三次復發」vs「四度復發」）| 已修：**不再寫序數**，改為「反覆復發（清單見 deliverable 已知問題 5，①–⑥）」——以後復發只需改一處 | —（文件）|
+
+> ⚠️ 第四輪 checker 這次**沒有**寫出「沒找到更多問題」（因為它列了 3 條發現），
+> 報告內部無矛盾，故本票**必須再跑第五輪**才能真正結案。
+
+#### 第四輪 checker 原文引用（結構重排、表格精簡；判定與數字未改）
+
+> **[Verdict]** `0 P0 / 0 P1 / 3 P2`（本輪只讀；暫存均存 `/tmp`，repo 未動）。
+>
+> **[A-1]** R4-1 → **已修好**：`raw === null || raw.trim() === ""`（空值）與 `/^\d+$/`（原字串、不 trim）
+> 兩段分開；21/21 probe 斷言綠：`+5`／`%2B5`／`%201500` → 400 `MS_INVALID`；`%20%20`／`%09`／`?ms=+` → 400 `MS_REQUIRED`；
+> `0001500`／`0`／`1500`／`300000`／`0300000` → 200；`300001`／`0300001` → 400 `MS_TOO_LARGE`；
+> 20 位數／`9007199254740993` → 400（**無 500/NaN**）；全形／`%C2%A0`／en-space → 400。**沒有修過頭。**
+>
+> **[A-2]** R4-2 → **部分修**：✓ 14 列 #1–#14 連續、✓ deliverable 變更清單 12/13/15/5/10、
+> ✓ 逐 AC 對帳 9+5+15+2+1+11+12 = **55** = 72 − 17、✓ backlog「55 單元 + 19 冒煙」；
+> ✗ **前置表頭 `meeting-do.test.ts`（14）**（實際 15）、✗ 兩表 #13/#14 對調。
+>
+> **[R5-1]** 根因：第三輪把 meeting-do 由 14→15，改到變更清單與對帳式，**卻漏改前置表頭**；
+> 與 R1-8 / R3-3 / NEW-3-2 同族（同類缺陷第四次）。影響：低（純文件），但這是可被讀者當事實的數字，且本文件自身前後矛盾。
+>
+> **[R5-2]** 兩表內容集合相同、各自編號連續，但 `#13/#14` 跨檔指涉不同陷阱，與「同步寫進 AC 文件陷阱表」的敘述不符。
+>
+> **[R5-3]** deliverable `:392`（第三次）與 `:513`（四度）皆由第三輪 commit 同時加入；影響：低（純敘述）。
+>
+> **[Task B 其他（無新缺陷）]** `raw.trim() === ""` 與 `/^\d+$/` 交界：tabs／全形／`\u00a0`／en-space + 數字 → 全 400 `MS_INVALID`，純空白 → `MS_REQUIRED`，
+> **無漏洞、無 500/NaN**。新測試**真會紅**：HEAD 測試對舊 src 重跑 → `f8e0c86` = `1 failed | 14 passed (15)`
+> （紅的正是 `?ms=+5`）、`800063d` = `9 failed | 6 passed (15)`；非自我實現（打真 `MeetingDurableObject`）、無時間依賴。
+> 逐 AC bucket = `lifecycle 13 = 7+6`、`meeting-do 15 = 2+1+9+1+2`、`harness-persistence 10 = 4+2+4`、
+> `meeting-harness 5`、`do-sqlite 12`——**每 bucket 都對得上**。
+>
+> **〔沒驗到〕** 真 workerd 平台行為（未起 dev server；19 項冒煙未執行，僅以 `grep -c '^check('` = 19 證實數量，
+> 並用單元等價驗證 `?ms=1500` → 200）；歷史紅綠燈無法重現；冒煙「真 alarm 醒來」未驗；Gate 1 先紅後綠時序無法從最終樹回溯；
+> 未逐一人工歸屬每個 `it(` 到 AC bucket（只驗到逐檔總數與 AC 級加總相符）。
+>
+> **[結論]** R4-1 確實修好；R4-2 只部分修。Gate 4 第四輪**不建議直接判定通過**，建議修完上述文件數字後即可（A-1 已無程序缺陷）。
