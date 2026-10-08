@@ -6,7 +6,7 @@
  * 2. 明確 demo「一個會議 = 一個 DO 實例」的尋址方式（`idFromName`，會議 id 即名字）。
  */
 
-import { preflightResponse, withCors } from "./cors.js";
+import { corsDebugLine, preflightResponse, withCors } from "./cors.js";
 import { MeetingDurableObject, type MeetingEnv } from "./meeting-do.js";
 
 export { MeetingDurableObject };
@@ -15,17 +15,35 @@ export interface Env extends MeetingEnv {
   MEETING: DurableObjectNamespace;
   /** 逗號分隔的允許來源；未設定時只允許本機開發來源（見 cors.ts）。 */
   ALLOWED_ORIGINS?: string;
+  /**
+   * TECH-006：設為 `"1"` 時，每個請求都印一行 `[cors] origin=… allowed=… path=…`。
+   *
+   * 為什麼需要這個開關：CORS 在 webview 裡被擋掉時，前端只看得到「Failed to fetch」，
+   * 伺服器端卻完全安靜。要區分「沒送到」和「送到了但沒通過白名單」，就必須有 wire 層證據。
+   * 預設關閉（每一請求都印 log 在正式環境是成本也是雜訊）。
+   * 用法：`npx wrangler dev --var DEBUG_ORIGINS:1 --var HARNESS_PROVIDER:faux`。
+   */
+  DEBUG_ORIGINS?: string;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
     const origin = request.headers.get("origin");
     const allowed = env.ALLOWED_ORIGINS;
+    // TECH-006：觀測必須**最先**做，preflight 也要看得到（被擋的往往是 preflight）。
+    const debug = corsDebugLine(
+      origin,
+      allowed,
+      env.DEBUG_ORIGINS,
+      request.method,
+      url.pathname,
+    );
+    if (debug !== null) console.log(debug);
     // CORS 在**入口**處理：DO 不該需要知道「誰在瀏覽器裡呼叫它」。
     if (request.method === "OPTIONS") {
       return preflightResponse(origin, allowed);
     }
-    const url = new URL(request.url);
     const match = /^\/m\/([^/]+)(\/.*)?$/.exec(url.pathname);
     if (match === null) {
       return withCors(

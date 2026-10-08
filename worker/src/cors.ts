@@ -60,3 +60,28 @@ export function withCors(
   for (const [key, value] of Object.entries(extra)) headers.set(key, value);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
+
+/**
+ * TECH-006：把「webview 實際送來的來源」變成可重複的觀測。
+ *
+ * 為什麼需要：CORS 被擋的症狀是「請求看起來根本沒送出去」，除非知道
+ * worker 真的收到哪個 `Origin`，否則只能猜。Tauri（macOS / iOS）是自訂 scheme，
+ * 各平台寫法不完全一樣，猜测風險很高。
+ *
+ * 為什麼必須先開旗標：這行會出現在**每一**個請求上；在正式環境刷 log 是成本也是雜訊。
+ * 因此只有 `DEBUG_ORIGINS` 正好等於 `"1"`（不 trim、不看大小寫）時才輸出。
+ *
+ * @param method HTTP 方法（`OPTIONS` ＝ preflight；CORS 卡住時最常見的現場）
+ * @returns 要印出的那一行；未開旗標時 `null`（呼叫端自行決定要不要印）。
+ */
+export function corsDebugLine(
+  origin: string | null,
+  configured: string | undefined,
+  debugFlag: string | undefined,
+  method: string,
+  path: string,
+): string | null {
+  if (debugFlag !== "1") return null;
+  const allowed = origin !== null && allowedOrigins(configured).includes(origin);
+  return `[cors] origin="${origin ?? "(none)"}" allowed=${allowed} method=${method} path="${path}"`;
+}

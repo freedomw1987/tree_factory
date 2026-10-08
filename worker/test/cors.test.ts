@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEV_ORIGINS,
   allowedOrigins,
+  corsDebugLine,
   corsHeaders,
   preflightResponse,
   withCors,
@@ -65,5 +66,60 @@ describe("M01-US-101 worker CORS", () => {
     expect(wrapped.headers.get("content-type")).toBe("application/json");
     expect(wrapped.headers.get("access-control-allow-origin")).toBe("http://localhost:1420");
     expect(await wrapped.text()).toBe('{"ok":true}');
+  });
+});
+
+// TECH-006：把「webview 看到的 Origin 到底是什麼」變成可重複的觀測，
+describe("TECH-006 worker CORS 觀測（DEBUG_ORIGINS）", () => {
+  it("TECH006-Given 開了旗標 When 來源在清單內 Then 一行 allowed=true 且帶出實值", () => {
+    const line = corsDebugLine(
+      "tauri://localhost",
+      undefined,
+      "1",
+      "POST",
+      "/m/abc/session/start",
+    );
+    expect(line).toContain('origin="tauri://localhost"');
+    expect(line).toContain("allowed=true");
+    expect(line).toContain("method=POST");
+    expect(line).toContain('path="/m/abc/session/start"');
+  });
+
+  it("TECH006-Given 開了旗標 When preflight When 觀測 Then 分得出是 OPTIONS（CORS 卡住時最常見的現場）", () => {
+    const line = corsDebugLine(
+      "tauri://localhost",
+      undefined,
+      "1",
+      "OPTIONS",
+      "/m/abc/session/start",
+    );
+    expect(line).toContain("method=OPTIONS");
+  });
+
+  it("TECH006-Given 開了旗標 When 來源在清單外 Then allowed=false（不得寫成「沒看到」）", () => {
+    const line = corsDebugLine("https://evil.example", undefined, "1", "GET", "/m/abc/session");
+    expect(line).toContain('origin="https://evil.example"');
+    expect(line).toContain("allowed=false");
+  });
+
+  it("TECH006-Given 沒有 Origin 標頭 When 開了旗標 Then 仍然輸出一行且標為 (none)", () => {
+    const line = corsDebugLine(null, undefined, "1", "GET", "/m/abc/health");
+    expect(line).toContain('origin="(none)"');
+    expect(line).toContain("allowed=false");
+  });
+
+  it("TECH006-Given 旗標未設或不是 '1' When 呼叫 Then 完全不輸出（正式環境不刷 log）", () => {
+    for (const flag of [undefined, "", "0", "false", "TRUE", " 1", "yes"]) {
+      expect(corsDebugLine("tauri://localhost", undefined, flag, "POST", "/m/abc/session")).toBeNull();
+    }
+  });
+
+  it("TECH006-Given ALLOWED_ORIGINS 覆寫 When 觀測 Then 以覆寫後清單判斷（不是聯集）", () => {
+    expect(
+      corsDebugLine("tauri://localhost", "https://app.example", "1", "POST", "/x"),
+    ).toContain("allowed=false");
+    expect(
+      corsDebugLine("https://app.example", "https://app.example", "1", "POST", "/x"),
+    ).toContain("allowed=true");
   });
 });
