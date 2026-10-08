@@ -138,6 +138,41 @@ describe("MeetingDurableObject（TECH-004）", () => {
     expect(body).toMatchObject({ error: "AUTH_INVALID", recoverable: false });
   });
 
+  it("/wake?ms=0 是明確的「立刻接力」（與沒帶 ms 的退化不同）", async () => {
+    const { durable, alarms } = makeDurable();
+    const { status, body } = await call(durable, "/wake?ms=0");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ scheduled: true });
+    expect(alarms).toHaveLength(1);
+  });
+
+  it("/wake?ms=0.5／0x1f／1e3 → 400 MS_INVALID（只收十進位整數字串）", async () => {
+    for (const raw of ["0.5", "0x1f", "1e3", " 1500x", "+5"]) {
+      const { durable, alarms } = makeDurable();
+      const { status, body } = await call(durable, `/wake?ms=${encodeURIComponent(raw)}`);
+      expect(status).toBe(400);
+      expect(body).toMatchObject({ error: "MS_INVALID" });
+      expect(alarms).toEqual([]);
+    }
+  });
+
+  it("/release 沒東西可放 → { released:false, deferred:false } 並回報 stats", async () => {
+    const { durable } = makeDurable();
+    const { status, body } = await call(durable, "/release");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ released: false, deferred: false, deferredReleases: 0, opens: 0 });
+  });
+
+  it("/release 撞上正在交付中的 harness → deferred:true，且不關掉它", async () => {
+    const { durable } = makeDurable();
+    // 不 await：讓 open 停在 in-flight，再去 release。
+    const health = durable.fetch(new Request("https://meeting.test/health"));
+    const { status, body } = await call(durable, "/release");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ released: false, deferred: true, deferredReleases: 1 });
+    await expect(health).resolves.toBeInstanceOf(Response); // 交付照常完成（不因 release 而斷）
+  });
+
   it("未知路徑 → 404 NOT_FOUND", async () => {
     const { durable } = makeDurable();
     const { status, body } = await call(durable, "/nope");

@@ -228,7 +228,14 @@ export class DoSqliteDatabase implements SqliteDatabase {
         await this.#storage.transaction(async (transaction) => {
           try {
             result = await callback(handle);
+            // 契約第 1 條：回呼一 settle 就失效——**在平台的 COMMIT 之前**。
+            // 官方 `NodeSqliteDatabase` 就是這個順序（`node.js`：`scope.active = false`
+            // 緊接在 `await callback(...)` 之後、`COMMIT` 之前）；若拖到平台整個 promise
+            // resolve 才失效，呼叫端把 handle 存起來就能在 commit 窗口內靜默執行
+            // （第二輪 checker 實測 NEW-P2-1）。
+            scope.active = false;
           } catch (error) {
+            scope.active = false;
             failed = true;
             failure = error;
             transaction.rollback();
@@ -244,8 +251,6 @@ export class DoSqliteDatabase implements SqliteDatabase {
           [failure, platformError],
           "SQLite transaction failed and rollback failed",
         );
-      } finally {
-        scope.active = false; // 契約第 1 條：handle 在回呼 settle 後失效。
       }
       if (failed) {
         // 契約第 3 條：先 rollback（上面已做）再以同一個錯誤拒絕。

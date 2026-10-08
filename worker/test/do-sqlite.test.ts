@@ -288,6 +288,48 @@ describe("DoSqliteDatabase（M01 / TECH-004）", () => {
     await expect(db.get("select 1")).rejects.toThrow(/cursor/i);
   });
 
+  it("handle 在回呼 settle 後、COMMIT 之前就已失效（對齊官方 NodeSqliteDatabase 的順序）", async () => {
+    // 官方 `node.js` 在 `await callback(...)` 之後、「COMMIT」之前就把 scope 標成失效；
+    // 若晚到平台 transaction 整個 resolve 才失效，呼叫端把 handle 存起來就可能在 commit
+    // 窗口內靜默執行（第二輪 checker 實測 NEW-P2-1）。
+    const events: string[] = [];
+    let commitWindow = "N/A";
+    let captured: SqliteExecutor | null = null;
+    const storage: DoSqlStorageLike = {
+      sql: { exec: () => ({ toArray: () => [] }) as never },
+      async transaction<T>(callback: (tx: { rollback(): void }) => T | Promise<T>): Promise<T> {
+        events.push("begin");
+        const result = await callback({ rollback: () => {} });
+        events.push("callback-settled");
+        try {
+          // 探的是**我方**交給呼叫端的 handle，不是平台自己的 tx 物件。
+          await (captured as unknown as SqliteExecutor).exec("probe: still in commit window?");
+          events.push("executed-in-commit-window");
+          commitWindow = "EXECUTED";
+        } catch {
+          events.push("rejected-in-commit-window");
+          commitWindow = "THREW";
+        }
+        events.push("commit");
+        return result;
+      },
+    };
+    const db = new DoSqliteDatabase(storage);
+
+    await db.transaction(async (handle) => {
+      captured = handle;
+      return "ok";
+    });
+
+    expect(commitWindow).toBe("THREW");
+    expect(events).toEqual([
+      "begin",
+      "callback-settled",
+      "rejected-in-commit-window",
+      "commit",
+    ]);
+  });
+
   it("close 只標記狀態（DO 的 SQLite 由平台管理）", async () => {
     const fake = fakeStorage();
     const db = new DoSqliteDatabase(fake.storage);

@@ -84,8 +84,10 @@ export class MeetingDurableObject {
           return json(await this.#health());
         case "/wake": {
           const raw = url.searchParams.get("ms");
-          // 「沒帶參數」與「帶了空字串」絕不能退化成 0：`Number("")` 是 0，
-          // 放行的話就是一個立即 alarm 的忙迴圈（獨立 reviewer 實測）。
+          // 只收十進位整數字串（第二輪 checker 實測 NEW-P2-2）：`Number("0x1f")` 是 31、
+          // `Number("0.5")` 會被平台存成小數時間戳、`Number("1e3")` 是 1000，
+          // 都不是呼叫端想表達的「毫秒」；而「沒帶參數」與「帶了空字串」更不能
+          // 退化成 0（獨立 reviewer 實測的忙迴圈）。
           if (raw === null || raw.trim() === "") {
             return json(
               {
@@ -96,10 +98,16 @@ export class MeetingDurableObject {
               400,
             );
           }
-          const delayMs = Number(raw);
-          if (!Number.isFinite(delayMs) || delayMs < 0) {
+          const normalized = raw.trim();
+          if (!/^\d+$/.test(normalized)) {
             return json({ error: "MS_INVALID", value: raw }, 400);
           }
+          const delayMs = Number(normalized);
+          if (!Number.isSafeInteger(delayMs)) {
+            return json({ error: "MS_INVALID", value: raw }, 400);
+          }
+          // `ms=0` 是**明確**的「立刻接力」（刻意放行，與沒帶 ms 的退化不同）；
+          // 上限則是「一次 alarm 最多再往前排這麼久」。
           if (delayMs > MAX_ALARM_DELAY_MS) {
             // 一次 alarm 最多只能再往前排 5 分鐘，醒來後再接力；否則單一 alarm 可能被推到
             // 「會議已結束很久」才響，中間的收尾就斷了。
