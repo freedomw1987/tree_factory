@@ -8,10 +8,11 @@
  *    所以建立 `createModels({ authContext })` 時注入一個**由 `env` 綁定物件讀值**的實作。
  *    缺少憑證時丟 `AUTH_INVALID`（system-design §5.2 裡**唯一允許阻斷錄音**的錯誤碼）。
  *
- * 2. **模型 id 必須用 pi-ai 目錄裡的完整 id**（含 `@cf/` 前綴）。目錄檔
- *    `pi-ai/dist/providers/data/cloudflare-workers-ai.json` 是權威來源；
+ * 2. **模型 id 必須用 pi-ai 目錄裡的完整 id**（含 `@cf/` 前綴）。目錄的權威來源是**程式碼**
+ *    `pi-ai/dist/providers/cloudflare-workers-ai.models.js`（`CLOUDFLARE_WORKERS_AI_MODELS`）；
+ *    `pi-ai/dist/providers/data/cloudflare-workers-ai.json` 只有 **api** 定義、沒有模型清單。
  *    自行縮寫的名稱（例如把 `@cf/meta/llama-3.3-70b-instruct-fp8-fast` 寫成
- *    `llama-3.3-70b-fp8-fast`）在執行時會解析不到。
+ *    `llama-3.3-70b-fp8-fast`）解析不到——**解析不到就丟錯**，不靜默退回保守政策。
  *
  * 3. **分階段模型 + 顯式壓縮政策（D15）**：即時階段用便宜的小模型，會後產出用較強的模型；
  *    壓縮政策顯式設定，不依賴預設值（預設值是為長對話設計的，跟我們的 2 小時會議不同）。
@@ -66,7 +67,7 @@ export const DEFAULT_NOTES_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
 /** 會議階段：決定用哪個模型（D15）。 */
 export type MeetingPhase = "realtime" | "notes";
 
-export type MeetingPhaseErrorCode = "AUTH_INVALID" | "MODEL_UNAVAILABLE";
+export type MeetingPhaseErrorCode = "AUTH_INVALID" | "MODEL_UNAVAILABLE" | "PROVIDER_UNKNOWN";
 
 /** 缺少憑證：對應 system-design §5.2 的 `AUTH_INVALID`（可阻斷）。 */
 export class MissingCredentialError extends Error {
@@ -81,6 +82,52 @@ export class MissingCredentialError extends Error {
     this.name = "MissingCredentialError";
   }
 }
+
+/**
+ * 不支援的 provider：**不用別的 provider 頂替**，也不用它去跳過憑證檢查。
+ *
+ * ⚠️ 這是 **DO 診斷面**（`/health`、operator smoke）的碼，不在 `system-design.md` §5.2
+ * 的裝置錯誤碼表裡（那張表是裝置端協定、窮舉 10 碼）。若未來要把這個情形送到裝置，
+ * **必須先補表**（否則違反該節「新增碼必須同步更新此表」的規定）。
+ */
+export class UnknownProviderError extends Error {
+  readonly code = "PROVIDER_UNKNOWN";
+  /** 依 §5.2 的定義＝「裝置可繼續」，不是「維運可自癒」：設定錯了不該中止錄音。 */
+  readonly recoverable = true;
+
+  constructor(provider: string) {
+    super(
+      `不支援的 provider「${provider}」：本階段只有 ${SUPPORTED_PROVIDERS.join(" / ")}；` +
+        "若只是想在本機跑，請設 HARNESS_PROVIDER=faux。",
+    );
+    this.name = "UnknownProviderError";
+  }
+}
+
+/**
+ * 目錄裡查不到的模型 id：**不靜默退回保守的 24k 窗口**。
+ *
+ * 為什麼要丟錯而不是 fallback：`compactionPolicyFor()` 的輸出**取決於窗口大小**
+ * （24k 與 128k 算出來的保留量不同），一個打錯的 id 會讓壓縮政策默默變成錯的
+ * ——那是「靜默失敗族」，比一個明確的錯誤危險得多。
+ *
+ * 沿用 §5.2 既有的 `MODEL_UNAVAILABLE`（`recoverable: ✅`：錄音不中斷，只降級）。
+ */
+export class ModelUnavailableError extends Error {
+  readonly code = "MODEL_UNAVAILABLE";
+  readonly recoverable = true;
+
+  constructor(provider: string, modelId: string) {
+    super(
+      `provider「${provider}」的目錄裡找不到模型「${modelId}」：` +
+        "請確認 REALTIME_MODEL_ID / NOTES_MODEL_ID 用的是完整 id（含 `@cf/` 前綴）。",
+    );
+    this.name = "ModelUnavailableError";
+  }
+}
+
+/** 本階段支援的 provider：預設的 Workers AI 與離線／測試用的 faux。 */
+export const SUPPORTED_PROVIDERS = [DEFAULT_PROVIDER, "faux"] as const;
 
 /** 由 Worker 綁定讀值的 `AuthContext`（取代預設的 `process.env` 版本）。 */
 export function createBindingAuthContext(bindings: MeetingBindings): AuthContext {
@@ -103,20 +150,22 @@ export interface ResolvedModel {
 
 /**
  * 解析某個階段要用哪個模型，並檢查憑證。
+ * @throws UnknownProviderError 當 `HARNESS_PROVIDER` 不是支援的值時（不用別的 provider 頂替）
  * @throws MissingCredentialError 當 provider 需要憑證而綁定裡沒有時
  */
 export function resolveModel(bindings: MeetingBindings, phase: MeetingPhase): ResolvedModel {
   const provider = bindings.HARNESS_PROVIDER ?? DEFAULT_PROVIDER;
+  if (provider !== DEFAULT_PROVIDER && provider !== "faux") {
+    throw new UnknownProviderError(provider);
+  }
   if (provider === "faux") {
     return { provider, modelId: phase === "notes" ? "faux-notes" : "faux-1" };
   }
-  if (provider === DEFAULT_PROVIDER) {
-    const missing = (["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"] as const).filter(
-      (name) => typeof bindings[name] !== "string" || bindings[name] === "",
-    );
-    if (missing.length > 0) {
-      throw new MissingCredentialError(missing, provider);
-    }
+  const missing = (["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"] as const).filter(
+    (name) => typeof bindings[name] !== "string" || bindings[name] === "",
+  );
+  if (missing.length > 0) {
+    throw new MissingCredentialError(missing, provider);
   }
   const configured = phase === "realtime" ? bindings.REALTIME_MODEL_ID : bindings.NOTES_MODEL_ID;
   const fallback = phase === "realtime" ? DEFAULT_REALTIME_MODEL_ID : DEFAULT_NOTES_MODEL_ID;
@@ -150,8 +199,13 @@ export function compactionPolicyFor(contextWindowTokens: number): CompactionPoli
   };
 }
 
-/** 目錄查不到模型時的保守窗口（最小可用：llama-3.3-70b 的 24k）。 */
-export const FALLBACK_CONTEXT_WINDOW = 24_000
+/**
+ * 目錄「有這個模型、但沒標窗口」時的保守窗口（最小可用：llama-3.3-70b 的 24k）。
+ *
+ * ⚠️ 只有這一種情形會用到它；**打錯的模型 id 一律丟 `ModelUnavailableError`**，
+ * 不再靠這個保守值把錯誤吞掉。
+ */
+export const FALLBACK_CONTEXT_WINDOW = 24_000;
 
 /** 建立（或重建）一場會議的 harness 及其根對話。 */
 export interface OpenMeetingOptions {
@@ -183,6 +237,10 @@ export function createBoundModels(bindings: MeetingBindings): {
 } {
   const models = createModels({ authContext: createBindingAuthContext(bindings) });
   const provider = bindings.HARNESS_PROVIDER ?? DEFAULT_PROVIDER;
+  if (provider !== DEFAULT_PROVIDER && provider !== "faux") {
+    // 這裡也擋一次：任何呼叫端都不該因為打錯 provider 而默默建成 Cloudflare。
+    throw new UnknownProviderError(provider);
+  }
   if (provider === "faux") {
     const ids = [
       "faux-1",
@@ -213,12 +271,18 @@ export async function openMeeting(
   options: OpenMeetingOptions,
 ): Promise<OpenMeetingResult> {
   const model = options.model ?? resolveModel(options.bindings, options.phase ?? "realtime");
+  // 先驗「模型真的存在」再碰 storage（fail fast）：
+  // 打錯 id 要立刻講出來，不可以先開好 storage 再靜默退回保守的壓縮政策。
+  const { models, faux } = createBoundModels(options.bindings);
+  const definition = models.getModel(model.provider, model.modelId);
+  if (definition === undefined) {
+    throw new ModelUnavailableError(model.provider, model.modelId);
+  }
   const database = new DoSqliteDatabase(storage);
   const sqlite = await SqliteStorage.open(database);
-  const { models, faux } = createBoundModels(options.bindings);
   // D15：壓縮政策依「該模型實際的上下文窗口」推導，不用一個寫死的數字。
-  const contextWindow = models.getModel(model.provider, model.modelId)?.contextWindow;
-  const policy = options.compaction ?? compactionPolicyFor(contextWindow ?? FALLBACK_CONTEXT_WINDOW);
+  const policy =
+    options.compaction ?? compactionPolicyFor(definition.contextWindow ?? FALLBACK_CONTEXT_WINDOW);
   const harness = await Harness.open(
     sqlite,
     { models, registry: createRegistry(), settings: { compaction: policy } },
@@ -238,13 +302,4 @@ export async function openMeeting(
     root,
     ...(faux === undefined ? {} : { faux }),
   };
-}
-
-/** 取得當前會議的 `conversationId`（重建後仍相同）。 */
-export async function currentConversationId(
-  opened: OpenMeetingResult,
-  context = BACKGROUND_CONTEXT,
-): Promise<number> {
-  const conversation = await opened.harness.root(context);
-  return conversation.id;
 }

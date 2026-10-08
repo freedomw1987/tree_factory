@@ -42,7 +42,21 @@ export interface LifecycleStats {
   closes: number;
   wakes: number;
   alarmsScheduled: number;
+  /** 因為有 open 正在飛而被迫延後的 release() 次數（見 `ReleaseDecision`）。 */
+  deferredReleases: number;
   isOpen: boolean;
+}
+
+/**
+ * `release()` 的結果：**不可以只回 void**。
+ *
+ * 「開到一半就被要求關」時現在會延後，呼叫端必須知道這件事才不會谎報（見 `release()`）。
+ */
+export interface ReleaseDecision {
+  /** 這次呼叫是否真的關掉了一隻 harness。 */
+  released: boolean;
+  /** 是否因為有 open 正在飛而延後（延後的釋放要由下一次 `release()` 完成）。 */
+  deferred: boolean;
 }
 
 export class HarnessLifecycle<H> {
@@ -54,6 +68,7 @@ export class HarnessLifecycle<H> {
   #closes = 0;
   #wakes = 0;
   #alarmsScheduled = 0;
+  #deferredReleases = 0;
 
   constructor(deps: HarnessLifecycleDeps<H>) {
     this.#deps = deps;
@@ -66,6 +81,7 @@ export class HarnessLifecycle<H> {
       closes: this.#closes,
       wakes: this.#wakes,
       alarmsScheduled: this.#alarmsScheduled,
+      deferredReleases: this.#deferredReleases,
       isOpen: this.#current !== null,
     };
   }
@@ -86,6 +102,9 @@ export class HarnessLifecycle<H> {
     const opening = this.#deps.open().then(
       (harness) => {
         this.#current = harness;
+        // 開完了：清掉 in-flight，`release()` 才能走「真的關閉」那條路
+        // （若不清掉，任何一次 release() 都會永遠看到「有 open 在飛」而一直延後）。
+        this.#opening = null;
         this.#opens += 1;
         return harness;
       },
@@ -98,26 +117,28 @@ export class HarnessLifecycle<H> {
     return opening;
   }
 
-  /** 自願關閉（下次 `current()` 會重建）。DO 被回收時平台會直接切斷，不必呼叫。 */
-  async release(): Promise<void> {
-    const pending = this.#opening;
-    if (pending !== null) {
-      // 開到一半就被要求關閉：等它開完再關，避免洩漏一個沒人持有的 harness。
-      try {
-        await pending;
-      } catch {
-        this.#opening = null;
-        return;
-      }
+  /**
+   * 自願關閉（下次 `current()` 會重建）。DO 被回收時平台會直接切斷，不必呼叫。
+   *
+   * ⚠️ 競態保護（獨立 reviewer 實測到的缺陷）：如果有一次 `open()` 正在飛，**現在就等它開完
+   * 再關**會把「即將交給等待者」的那隻 harness 關掉（而且 `harness.close()` 會連 storage
+   * 一起關）——等待者拿到一隻已經死掉的 harness。所以此時**不關**，改回報
+   * `{ released: false, deferred: true }`，由下一次 `release()` 真的放掉它；
+   * 決定不靜默，呼叫端（DO 的 `/release`）能照實回報，`stats.deferredReleases` 也留紀錄。
+   */
+  async release(): Promise<ReleaseDecision> {
+    if (this.#opening !== null) {
+      this.#deferredReleases += 1;
+      return { released: false, deferred: true };
     }
     const harness = this.#current;
     if (harness === null) {
-      return;
+      return { released: false, deferred: false };
     }
     this.#current = null;
-    this.#opening = null;
     this.#closes += 1;
     await this.#deps.close(harness);
+    return { released: true, deferred: false };
   }
 
   /**

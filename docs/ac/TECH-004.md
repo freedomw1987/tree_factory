@@ -5,7 +5,8 @@
   alarms 接力、憑證繫結、重啟後同一場會議讀得回**——讓 M02 之後的票都站在同一套骨架上。
 - **實作**：`worker/src/storage/do-sqlite.ts`、`worker/src/harness/lifecycle.ts`、
   `worker/src/harness/meeting-harness.ts`、`worker/src/meeting-do.ts`、`worker/src/index.ts`
-- **測試**：`worker/test/do-sqlite.test.ts`（6）、`worker/test/lifecycle.test.ts`（12）、
+- **測試**：`worker/test/do-sqlite.test.ts`（10）、`worker/test/lifecycle.test.ts`（13）、
+  `worker/test/meeting-do.test.ts`（10）、`worker/test/meeting-harness.test.ts`（5）、
   `worker/test/harness-persistence.test.ts`（10）；另加真 workerd 冒煙 `worker/scripts/do-smoke.mjs`
 
 ## 背景（為什麼要有這一票）
@@ -30,6 +31,9 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 - **Then** 不得開啟 harness（`stats.opens === 0`）
 - **And When** 連續（含同時 5 個）呼叫 `current()`
 - **Then** 只開一次、所有呼叫拿到同一個 harness（`stats.opens === 1`）
+- **And When** 有一個 `open()` 還在飛的時候呼叫 `release()`
+- **Then** **不得**把「即將交出去」的那一隻 harness 關掉；改回 `{released: false, deferred: true}`，
+  並計入 `stats.deferredReleases`（下一次 `release()` 才真的放掉）
 
 ### AC-2 憑證繫結
 
@@ -47,7 +51,9 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 - **When** 呼叫 `wakeIn(ms)`
 - **Then** 設定 alarm 於 `now + ms`
 - **And** 若已有**更早**的 alarm，**不得**改動它（只往前不往後，避免長工作被延後）
-- **And** `ms` 缺漏／非有限／負數 → 明確報錯（**不得**退化成 0，否則會變成立即 alarm 的忙迴圈）
+- **And** `ms` 缺漏／空字串／只有空白／非有限／負數 → 明確報錯（**不得**退化成 0，
+  否則會變成立即 alarm 的忙迴圈）
+- **And** `ms > 300000`（`MAX_ALARM_DELAY_MS`）→ 400 `MS_TOO_LARGE`（一次醒來最多再往前排 5 分鐘，醒來後再接力）
 - **And When** alarm 醒來（`alarm()`）
 - **Then** 若 harness 已被釋放（等價 DO 被回收）→ 重建後仍指向**同一場會議**
 
@@ -71,17 +77,22 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 - **Then** 兩者的 id 都必須存在於 pi-ai 的 Workers AI 目錄（含 `@cf/` 前綴）
 - **And** 會後模型窗口 ≥ 128k（D15 修訂：成本與窗口問題用**模型選擇**解，不靠壓縮硬撐）
 - **And** 壓縮政策依**該模型實際窗口**推導，可用綁定或參數覆寫
+- **And** `HARNESS_PROVIDER` 不在支援清單（`cloudflare-workers-ai` / `faux`）時 → 丟 `PROVIDER_UNKNOWN`，
+  **不得**用別的 provider 頂替、也不得因此跳過憑證檢查
+- **And** 模型 id 在目錄裡查不到時 → 丟 `MODEL_UNAVAILABLE`，**不得**靜默使用 24k 保守窗口
+  （`FALLBACK_CONTEXT_WINDOW` 只保留給「目錄有這模型但沒標窗口」）
 
 ## 介面契約（重點）
 
 | 介面 | 契約 |
 | --- | --- |
-| `HarnessLifecycle.current()` | 單例；併發安全；開啟失敗可重試（不會永久壞掉） |
-| `HarnessLifecycle.release()` | 關閉並清空；未開過時是 no-op |
-| `HarnessLifecycle.wakeIn(ms)` | 只往前；回傳 `{scheduled, at, previous}` |
+| `HarnessLifecycle.current()` | 單例；併發安全；開啟失敗可重試（不會永久壞掉）；成功後清掉 in-flight 狀態 |
+| `HarnessLifecycle.release()` | 回 `{released, deferred}`；沒開過時是 no-op；**有 open 在飛時延後不關** |
+| `HarnessLifecycle.wakeIn(ms)` | 只往前；回傳 `{scheduled, at, previous}`；非有限／負數丟錯 |
 | `HarnessLifecycle.onAlarm()` | 累計 `wakes`；確保 harness 可用（必要時重建） |
-| `DoSqliteDatabase` | 官方 `SqliteDatabase` 六方法；**交易外的操作排隊**、交易回呼用**獨立 handle**、回呼失敗先 rollback |
-| `resolveModel(bindings, phase)` | 缺憑證 → `AUTH_INVALID`；faux → 免憑證 |
+| `DoSqliteDatabase` | 官方 `SqliteDatabase` 六方法；交易佔住佇列（`SerialOperationQueue`）、交易回呼用**獨立 handle 且回呼結束後失效**、回呼失敗先 rollback、**回滾也失敗時丟 `AggregateError`** |
+| `resolveModel(bindings, phase)` | 缺憑證 → `AUTH_INVALID`；未知 provider → `PROVIDER_UNKNOWN`；faux → 免憑證 |
+| `openMeeting(storage, options)` | **先驗模型存在再碰 storage**（fail fast）；查不到 → `MODEL_UNAVAILABLE` |
 
 ## 已知陷阱（本輪實測抓到，已修）
 
@@ -89,33 +100,90 @@ SPIKE-003 證明「Pi Harness 能在 DO 上跑」，但只跑了單次腳本。�
 | --- | --- | --- | --- |
 | 1 | `url.pathname` 不含 query | 轉發給 DO 時 `?ms=1500` 消失 → `Number(null) = 0` → alarm 立刻觸發 | `pathname + url.search` |
 | 2 | 缺參數退化成 0 | `wakeIn(0)` 造成立即 alarm（潛在忙迴圈） | 缺 `ms` 回 400 `MS_REQUIRED` |
-| 3 | 交易中的工作未排隊 | 交易外的 `run()` 插進交易中間（假 storage 測試抓到） | `#tail` 閘門 + 交易 handle 直通 |
+| 3 | 交易中的工作未排隊 | 交易外的 `run()` 插進交易中間（假 storage 測試抓到）| 見 §追加驗收 **R1-1**：原本的 `#tail` 閘門只擋得住「同步到達」的操作；`await` 期間到達的會被放行 → 改成移植官方 `SerialOperationQueue` |
 | 4 | pi-ai 不匯出 `AuthContext` 型別 | `import type` 深連結失敗 | 從 `createModels` 參數推導型別 |
 | 5 | 自行縮寫的模型 id | `llama-3.3-70b-fp8-fast` 解析不到 | 用目錄完整 id `@cf/meta/...` |
 | 6 | 工作區「conversationId 跨會議唯一」的假設 | 兩個會議都回 `1`（根對話 id 固定） | 比 DO 身分（`doId`），不比 conversationId |
+| 7 | `/wake?ms=` 空字串 | `Number("") === 0`，通過 `raw !== null` 檢查 → 立即 alarm（忙迴圈）| 空字串／只有空白視同缺參數，回 400 `MS_REQUIRED` |
+| 8 | `release()` 撞上「正在開」的 harness | 舊版等 `open()` 完再關 → 等待者拿到**已經關閉**的 harness（而且 storage 一起被關）| `release()` 改回 `ReleaseDecision`：此時**延後不關**；`current()` 成功後清 `#opening` |
+| 9 | 未知 provider／打錯的模型 id | 靜默換 provider、靜默用 24k 窗口算壓縮政策（**靜默失敗族**）| provider 白名單 + 先驗目錄，查不到就丟 `PROVIDER_UNKNOWN` / `MODEL_UNAVAILABLE` |
+| 10 | 宣告了卻沒有效果的常數／函式 | `MAX_ALARM_DELAY_MS`、`DEFAULT_ALARM_DELAY_MS`、`currentConversationId` 無人使用（讀者誤以為有防護）| `/wake` 真的套上限、範例字串用 `DEFAULT_ALARM_DELAY_MS`、刪掉 dead export |
 
 ## 測試與證據對照
 
 | AC | 單元 / 整合測試 | 冒煙（真 workerd）|
 | --- | --- | --- |
-| AC-1（單例與懶初始化）| `lifecycle.test.ts` 6 項（懶初始化／單例／併發／失敗重試／release 重建／release no-op）| `do-smoke.mjs` 4 項 |
-| AC-2（憑證繫結）| `harness-persistence.test.ts` 4 項（缺憑證 `AUTH_INVALID`／憑證齊全與綁定覆寫／faux 免憑證／`AuthContext` 讀綁定）| —（faux 啟動下跳過，由單元覆蓋）|
-| AC-3（alarms 接力）| `lifecycle.test.ts` 6 項（設定 alarm／只往前／拒絕非法值／onAlarm 重建／onAlarm 重用／缺 `getAlarm`）| `do-smoke.mjs` 8 項（含重建後 conversationId／entries 不變）|
+| AC-1（單例與懶初始化）| `lifecycle.test.ts` 7 項（懶初始化／單例／併發／失敗重試／release 重建／release no-op／**併發 release 不得關掉正在交付的 harness**）| `do-smoke.mjs` 4 項 |
+| AC-2（憑證繫結）| `harness-persistence.test.ts` 4 項（缺憑證 `AUTH_INVALID`／憑證齊全與綁定覆寫／faux 免憑證／`AuthContext` 讀綁定）；`meeting-do.test.ts` 1 項（DO 這一層回 401 `AUTH_INVALID`）| —（faux 啟動下跳過，由單元覆蓋）|
+| AC-3（alarms 接力）| `lifecycle.test.ts` 6 項（設定 alarm／只往前／拒絕非法值／onAlarm 重建／onAlarm 重用／缺 `getAlarm`）；`meeting-do.test.ts` 6 項（缺 `ms`／空字串／只有空白／非法值 / 超上限 `MS_TOO_LARGE`／邊界值與正常值）| `do-smoke.mjs` 8 項（含重建後 conversationId／entries 不變）|
 | AC-4（重啟後同一場會議）| `harness-persistence.test.ts` 2 項（重開同 conversation、真跑一個 turn）| `do-smoke.mjs` 3 項 |
-| AC-5（一場會議 = 一個 DO）| — | `do-smoke.mjs` 2 項（兩會議不同 DO、各自 opens=1）|
-| AC-6（模型與壓縮政策 D15）| `harness-persistence.test.ts` 4 項（模型在目錄／可覆寫／壓縮政策推導／自訂壓縮政策）| `do-smoke.mjs` 1 項 |
-| （儲存適配器契約）| `do-sqlite.test.ts` 6 項 | — |
+| AC-5（一場會議 = 一個 DO）| `meeting-do.test.ts` 1 項（未知路徑 404，DO 的 HTTP 介面契約）| `do-smoke.mjs` 2 項（兩會議不同 DO、各自 opens=1）|
+| AC-6（模型與壓縮政策 D15）| `harness-persistence.test.ts` 4 項（模型在目錄／可覆寫／壓縮政策推導／自訂壓縮政策）；`meeting-harness.test.ts` 5 項（未知 provider／支援清單／打錯 id 不碰 storage／未知 provider 不碰 storage／窗口與政策）；`meeting-do.test.ts` 2 項（`PROVIDER_UNKNOWN`／`MODEL_UNAVAILABLE`）| `do-smoke.mjs` 1 項 |
+| （儲存適配器契約）| `do-sqlite.test.ts` 11 項（繫結轉換／cursor 兩形狀／**交易排隊**／handle 失效／回滾 `AggregateError`／未知 cursor 丟錯…）| — |
 | （冒煙基礎設施）| — | `do-smoke.mjs` 1 項（Worker 活著）|
 
-**對帳**：單元 + 整合 = 6+4+6+2+4+6 = **28 項**（TECH-004 自身）；冒煙 = 4+8+3+2+1+1 = **19 項**。
+**對帳**：單元 + 整合 = 7+5+12+2+1+11+11 = **49 項**（TECH-004 自身）；冒煙 = 4+8+3+2+1+1 = **19 項**。
 
-**總計**：`worker` 測試 45 項（含 M01-US-109 的 17 項；TECH-004 自身 28 項）；
+**總計**：`worker` 測試 66 項（含 M01-US-109 的 17 項；TECH-004 自身 49 項）；
 真 workerd DO 冒煙 **19 項檢查全綠**（另 1 項 `AUTH_INVALID` 由單元測試覆蓋，
 冒煙以 faux 啟動故跳過）。
+
+### Gate 1（TDD）紅燈 → 綠燈證據
+
+追加的測試全部是**先寫紅燈、再寫實作**（另見 §追加驗收）：
+
+```text
+# 紅燈（實作前）：cd worker && npx vitest run
+Test Files  4 failed | 2 passed (6)
+     Tests  16 failed | 49 passed (65)
+
+# 綠燈（實作後）：cd worker && npx vitest run
+Test Files  6 passed (6)
+     Tests  66 passed (66)          # 含後來補的 cursor 形狀一項（紅→綠各一次）
+```
 
 ### 冒煙重跑指令（可審查）
 
 ```bash
-cd worker && npx wrangler dev --port 8791 --local --var HARNESS_PROVIDER:faux &
+cd worker && npx --yes wrangler@4 dev --port 8791 --local --var HARNESS_PROVIDER:faux &
 DO_SMOKE_BASE=http://127.0.0.1:8791 node scripts/do-smoke.mjs   # 19 項全綠
 ```
+
+> 本次稽核用 `wrangler@4`（未 pin 版本，見 §追加驗收 R2 未修）；`rm -rf .wrangler/state`
+> 可重置 DO 狀態（`--local` 會把狀態寫進 `worker/.wrangler/state`，entries 數會跨次累計）。
+
+## 追加驗收：Gate 4 獨立稽核（reviewer subagent）與修正
+
+**稽核方式**：`dev-checker-loop` 的 checker 角色——獨立 subagent、read-only、fresh context，
+對象是 `worker/src/harness/*`、`worker/src/storage/*`、`worker/src/meeting-do.ts`。
+**第一輪 verdict：0 P0 / 2 P1 / 9 P2**（原文見下方「稽核結論」）。
+
+### 已修正（全部先紅燈再實作）
+
+| # | 等級 | 問題 | 修法 | 鎖住它的測試 |
+| --- | --- | --- | --- | --- |
+| R1-1 | P1 | `do-sqlite.ts` 的 `#inTransaction` 布林會在交易 `await` 期間放行無關操作（違反官方契約第 2 條）| 移植官方 `SerialOperationQueue`；handle 回呼結束後失效；回滾失敗丟 `AggregateError` | `do-sqlite.test.ts` ×4 |
+| R1-2 | P1 | `lifecycle.ts` 的 `release()` 會關掉正在交付中的 harness；`#opening` 成功後未清（永久洩漏）| `ReleaseDecision`（延後不關）+ 成功後清 `#opening` + `stats.deferredReleases`；`/release` 照實回報 | `lifecycle.test.ts` 併發 release 1 項 |
+| R1-3 | P2→P1（jev 建議升級）| `/wake?ms=` 空字串 → `Number("") === 0` → 立即 alarm 忙迴圈 | 空字串／空白視同缺參數 → 400 `MS_REQUIRED` | `meeting-do.test.ts` ×2 |
+| R1-4 | P2→P1（jev 建議升級）| 未知 `HARNESS_PROVIDER` 靜默改用 Cloudflare、並因此跳過憑證檢查 | provider 白名單 → `UnknownProviderError`（`PROVIDER_UNKNOWN`）| `meeting-harness.test.ts` ×2、`meeting-do.test.ts` ×1 |
+| R1-5 | P2→P1（jev 建議升級）| 打錯的模型 id 靜默用 24k 窗口算壓縮政策 | `openMeeting()` 先驗目錄再碰 storage → `ModelUnavailableError`（`MODEL_UNAVAILABLE`）| `meeting-harness.test.ts` ×2、`meeting-do.test.ts` ×1 |
+| R1-6 | P2 | dead code：`MAX_ALARM_DELAY_MS`／`DEFAULT_ALARM_DELAY_MS`／`currentConversationId` 無人使用 | `/wake` 真的套上限（`MS_TOO_LARGE`）、範例字串改用 `DEFAULT_ALARM_DELAY_MS`、刪除 `currentConversationId` | `meeting-do.test.ts` ×2 |
+| R1-7 | P2 | `rows()` 遇到不認得的 cursor 形狀靜默回 `[]`（「查不到」與「讀不出來」長得一樣）| 丟錯 | `do-sqlite.test.ts` ×1 |
+| R1-8 | P2 | AC 文件兩處數字不精確（AC-1/AC-3 項數與實際不符、漏列 `do-sqlite.test.ts`）| 本文件改成逐 AC 對帳（以上表格即為結果）| —（文件）|
+
+### 未修正（記錄為已知，未在本次範圍）
+
+| # | 等級 | 問題 | 為什麼不收 |
+| --- | --- | --- | --- |
+| R2-1 | P2 | 冒煙對 alarm 的部分斷言用 `>=`（例如 `alarmWakes >= 1`）| 真 alarm 的次數與平台排程有關，寫死會 flaky；已有 `at-now=1497ms` 的嚴格斷言蓋住主要行為 |
+| R2-2 | P2 | `wrangler` 未 pin 版本（文件用 `npx wrangler`）| 不在 TECH-004 範圍；建議另開小票把它列進 devDependencies |
+| R2-3 | P2 | AC-6 只驗「模型 id 在目錄裡 + 政策依窗口推導」，沒驗「壓縮真的發生」| 屬 M02-US-219（分階段模型 / 壓縮行為）範圍 |
+
+### 稽核結論（checker subagent 原文回傳）
+
+> 第一輪：**0 P0 / 2 P1 / 9 P2**（P1-1 = 交易排隊、P1-2 = release 競態；與本節 R1-1、R1-2 對應）。
+> P1-1 的重現指令與輸出：`A order: ["begin","tx:start","sql:UNRELATED_OUTSIDE","outside-done","tx:end","sql:TX_WRITE","commit"]`、
+> `unrelated ran INSIDE transaction: true`；P1-2：`B caller got an already-closed harness: true`、`closed: [1] isOpen: false`。
+
+**第二輪**（修正後重跑）：見 `docs/deliverable/2026-10-08-TECH-004-DO-harness生命週期.md`
+的「Gate 4 第二輪」段落（含 checker 原文）。

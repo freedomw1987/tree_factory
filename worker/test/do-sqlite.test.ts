@@ -4,6 +4,7 @@
 // 這裡刻意用手寫的假 storage，而不是 node:sqlite：要驗的是「我方 facade 的契約」
 // （繫結轉換、排隊、交易回滾），真 SQLite 的整合留給 harness-persistence 測試。
 
+import type { SqliteExecutor } from "@earendil-works/pi-durable/storage/sqlite";
 import { describe, expect, it, vi } from "vitest";
 
 import { DoSqliteDatabase, type DoSqlStorageLike, type SqlBinding } from "../src/storage/do-sqlite.js";
@@ -142,6 +143,149 @@ describe("DoSqliteDatabase（M01 / TECH-004）", () => {
       }),
     ).rejects.toBe(error);
     expect(fake.rollbacks).toBe(1);
+  });
+
+  // 下面 4 個測試是 reviewer 稽核（獨立 subagent）抓到的缺口的鎖：
+  // 原本的 `#inTransaction` 布林會在交易 await 期間放行「無關操作」，與官方契約第 2 條牴觸。
+  it("契約第 2 條：交易回呼 await 期間到達的無關操作必須排隊（不可被放行進交易）", async () => {
+    const order: string[] = [];
+    let releaseTransaction!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    const storage: DoSqlStorageLike = {
+      sql: {
+        exec(sql: string) {
+          order.push(`sql:${sql}`);
+          return { toArray: () => [] };
+        },
+      },
+      async transaction<T>(callback: (tx: { rollback(): void }) => T | Promise<T>): Promise<T> {
+        order.push("begin");
+        const result = await callback({ rollback: () => order.push("rollback") });
+        order.push("commit");
+        return result;
+      },
+    };
+    const db = new DoSqliteDatabase(storage);
+
+    const inTransaction = db.transaction(async (handle) => {
+      order.push("tx:start");
+      await gate; // 交易在 await 期間對外「開著」
+      order.push("tx:end");
+      await handle.run("TX_WRITE");
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0)); // 讓交易真的進到 await gate
+    const outside = db.run("UNRELATED_OUTSIDE");
+    releaseTransaction();
+    await inTransaction;
+    await outside;
+
+    expect(order).toEqual([
+      "begin",
+      "tx:start",
+      "tx:end",
+      "sql:TX_WRITE",
+      "commit",
+      "sql:UNRELATED_OUTSIDE",
+    ]);
+  });
+
+  it("契約第 1 條：交易 handle 在回呼結束後失效（再用要丟錯，不可靜默執行）", async () => {
+    const fake = fakeStorage();
+    const db = new DoSqliteDatabase(fake.storage);
+    let handle!: SqliteExecutor;
+
+    await db.transaction(async (transaction) => {
+      handle = transaction;
+    });
+
+    await expect(handle.run("select 1")).rejects.toThrow(/已失效/);
+    await expect(handle.all("select 1")).rejects.toThrow(/已失效/);
+  });
+
+  it("契約第 1 條：在回呼裡誤用資料庫本身也必須排隊（不會繞過交易）", async () => {
+    const order: string[] = [];
+    let releaseTransaction!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    const storage: DoSqlStorageLike = {
+      sql: {
+        exec(sql: string) {
+          order.push(`sql:${sql}`);
+          return { toArray: () => [] };
+        },
+      },
+      async transaction<T>(callback: (tx: { rollback(): void }) => T | Promise<T>): Promise<T> {
+        order.push("begin");
+        const result = await callback({ rollback: () => order.push("rollback") });
+        order.push("commit");
+        return result;
+      },
+    };
+    const db = new DoSqliteDatabase(storage);
+    let misuse: Promise<void> = Promise.resolve();
+
+    const inTransaction = db.transaction(async (handle) => {
+      order.push("tx:start");
+      misuse = db.run("MISUSE").then(() => {
+        order.push("misuse-settled");
+      });
+      await gate;
+      await handle.run("TX_WRITE");
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(["begin", "tx:start"]); // 誤用的語句還沒跑
+    releaseTransaction();
+    await inTransaction;
+    await misuse;
+
+    expect(order).toEqual([
+      "begin",
+      "tx:start",
+      "sql:TX_WRITE",
+      "commit",
+      "sql:MISUSE",
+      "misuse-settled",
+    ]);
+  });
+
+  it("契約第 3 條：回滾失敗時以 AggregateError 拒絕（不可讓呼叫端誤以為已回滾）", async () => {
+    const callbackError = new Error("callback failed");
+    const rollbackError = new Error("rollback failed");
+    const storage: DoSqlStorageLike = {
+      sql: { exec: () => ({ toArray: () => [] }) },
+      async transaction<T>(callback: (tx: { rollback(): void }) => T | Promise<T>): Promise<T> {
+        await callback({ rollback: () => {} });
+        throw rollbackError; // 平台的交易在回滾階段失敗
+      },
+    };
+    const db = new DoSqliteDatabase(storage);
+
+    const rejected = await db
+      .transaction(async () => {
+        throw callbackError;
+      })
+      .catch((error: unknown) => error);
+
+    expect(rejected).toBeInstanceOf(AggregateError);
+    expect((rejected as AggregateError).errors).toEqual([callbackError, rollbackError]);
+  });
+
+  it("cursor 形狀不認得時丟錯（不可靜默回空結果）", async () => {
+    const storage: DoSqlStorageLike = {
+      sql: { exec: () => ({}) as never }, // 既沒有 toArray() 也不能 iterate
+      async transaction<T>(callback: (tx: { rollback(): void }) => T | Promise<T>): Promise<T> {
+        return callback({ rollback: () => {} });
+      },
+    };
+    const db = new DoSqliteDatabase(storage);
+
+    await expect(db.all("select 1")).rejects.toThrow(/cursor/i);
+    await expect(db.get("select 1")).rejects.toThrow(/cursor/i);
   });
 
   it("close 只標記狀態（DO 的 SQLite 由平台管理）", async () => {

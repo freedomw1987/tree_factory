@@ -11,7 +11,8 @@ interface FakeHarness {
   readonly seq: number;
 }
 
-function makeLifecycle(options: { windowTokens?: number; now?: () => number; failFirstOpen?: boolean } = {}) {
+function makeLifecycle(options: { now?: () => number; failFirstOpen?: boolean; deferredOpen?: boolean } = {}) {
+  const pendingOpens: Array<(harness: FakeHarness) => void> = [];
   const state = {
     opens: 0,
     closes: [] as number[],
@@ -19,6 +20,17 @@ function makeLifecycle(options: { windowTokens?: number; now?: () => number; fai
     alarm: null as number | null,
     opened: [] as FakeHarness[],
     failures: 0,
+    /** 交付（resolve）目前還掛著的那次 open()；給「交易/P1-2 競態」測試控制時機用。 */
+    settleOpen(): FakeHarness {
+      const resolve = pendingOpens.shift();
+      if (resolve === undefined) {
+        throw new Error("沒有掛著的 open()");
+      }
+      const harness = { seq: state.opened.length + 1 };
+      state.opened.push(harness);
+      resolve(harness);
+      return harness;
+    },
   };
   const lifecycle = new HarnessLifecycle<FakeHarness>({
     open: async () => {
@@ -28,6 +40,11 @@ function makeLifecycle(options: { windowTokens?: number; now?: () => number; fai
         throw new Error("open failed");
       }
       state.opens += 1;
+      if (options.deferredOpen === true) {
+        return new Promise<FakeHarness>((resolve) => {
+          pendingOpens.push(resolve);
+        });
+      }
       const harness = { seq: state.opened.length + 1 };
       state.opened.push(harness);
       return harness;
@@ -53,6 +70,7 @@ describe("HarnessLifecycle（TECH-004）", () => {
       closes: 0,
       wakes: 0,
       alarmsScheduled: 0,
+      deferredReleases: 0,
       isOpen: false,
     });
     expect(state.opens).toBe(0);
@@ -106,8 +124,30 @@ describe("HarnessLifecycle（TECH-004）", () => {
 
   it("release() 對沒開過的 lifecycle 是 no-op（不 throw、不計次）", async () => {
     const { lifecycle } = makeLifecycle();
-    await expect(lifecycle.release()).resolves.toBeUndefined();
+    await expect(lifecycle.release()).resolves.toEqual({ released: false, deferred: false });
     expect(lifecycle.stats.closes).toBe(0);
+    expect(lifecycle.stats.deferredReleases).toBe(0);
+  });
+
+  it("併發 release()：不會關掉一隻正在交付中的 harness（呼叫端不可拿到已關閉的 harness）", async () => {
+    const { lifecycle, state } = makeLifecycle({ deferredOpen: true });
+
+    const currentP = lifecycle.current(); // open 還在飛
+    // release() 插進來：它不能把「即將交出去」的那隻關掉，只能延後。
+    await expect(lifecycle.release()).resolves.toEqual({ released: false, deferred: true });
+    expect(state.closes).toEqual([]);
+
+    state.settleOpen(); // 交付 h1
+    const delivered = await currentP;
+    expect(state.closes).toEqual([]); // 交付的這隻是活的
+    expect(lifecycle.stats.isOpen).toBe(true);
+    expect(lifecycle.stats.deferredReleases).toBe(1);
+
+    // 下一次 release() 才真的放掉它。
+    await expect(lifecycle.release()).resolves.toEqual({ released: true, deferred: false });
+    expect(state.closes).toEqual([delivered.seq]);
+    expect(lifecycle.stats.isOpen).toBe(false);
+    expect(state.opens).toBe(1); // 沒有為了避開競態多開一隻
   });
 
   it("alarm 接力：第一次 wakeIn 會設定 alarm，且時間 = now + delay", async () => {

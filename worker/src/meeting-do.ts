@@ -17,6 +17,8 @@ import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { HarnessLifecycle, type LifecycleStats } from "./harness/lifecycle.js";
 import {
   MissingCredentialError,
+  ModelUnavailableError,
+  UnknownProviderError,
   openMeeting,
   type MeetingBindings,
   type OpenMeetingResult,
@@ -82,19 +84,37 @@ export class MeetingDurableObject {
           return json(await this.#health());
         case "/wake": {
           const raw = url.searchParams.get("ms");
-          if (raw === null) {
-            // 「沒帶參數」絕不能退化成 0（會變成忙迴圈式的立即 alarm）。
-            return json({ error: "MS_REQUIRED", message: "請帶 ?ms=<毫秒>", example: "/wake?ms=60000" }, 400);
+          // 「沒帶參數」與「帶了空字串」絕不能退化成 0：`Number("")` 是 0，
+          // 放行的話就是一個立即 alarm 的忙迴圈（獨立 reviewer 實測）。
+          if (raw === null || raw.trim() === "") {
+            return json(
+              {
+                error: "MS_REQUIRED",
+                message: "請帶 ?ms=<毫秒>",
+                example: `/wake?ms=${DEFAULT_ALARM_DELAY_MS}`,
+              },
+              400,
+            );
           }
           const delayMs = Number(raw);
           if (!Number.isFinite(delayMs) || delayMs < 0) {
             return json({ error: "MS_INVALID", value: raw }, 400);
           }
+          if (delayMs > MAX_ALARM_DELAY_MS) {
+            // 一次 alarm 最多只能再往前排 5 分鐘，醒來後再接力；否則單一 alarm 可能被推到
+            // 「會議已結束很久」才響，中間的收尾就斷了。
+            return json(
+              { error: "MS_TOO_LARGE", value: raw, max: MAX_ALARM_DELAY_MS },
+              400,
+            );
+          }
           return json(await this.#lifecycle.wakeIn(delayMs));
         }
-        case "/release":
-          await this.#lifecycle.release();
-          return json({ released: true, ...this.stats });
+        case "/release": {
+          // 照實回報：有 open 正在飛時 release() 會延後（不把即將交出去的 harness 關掉）。
+          const decision = await this.#lifecycle.release();
+          return json({ ...decision, ...this.stats });
+        }
         case "/debug/faux": {
           // 測試支援：只有 faux provider 才有作用（正式 provider 下一定回 404）。
           const opened = await this.#lifecycle.current();
@@ -118,6 +138,14 @@ export class MeetingDurableObject {
         // AUTH_INVALID 是唯一允許阻斷的錯誤（system-design §5.2）。
         return json({ error: error.code, message: error.message, recoverable: false }, 401);
       }
+      if (error instanceof UnknownProviderError || error instanceof ModelUnavailableError) {
+        // 設定錯誤（provider / 模型 id）：明確講出來，不讓它變成一個含糊的 INTERNAL。
+        // `recoverable` 依 §5.2 的定義＝「裝置可繼續」（不是「維運可自癒」）。
+        return json(
+          { error: error.code, message: error.message, recoverable: error.recoverable },
+          500,
+        );
+      }
       return json(
         { error: "INTERNAL", message: error instanceof Error ? error.message : String(error) },
         500,
@@ -136,6 +164,8 @@ export class MeetingDurableObject {
     this.#alarmWakes += 1;
     const opened = await this.#lifecycle.onAlarm();
     await opened.root(); // 觸發一次讀取，確認重建後同一場會議讀得回來
+    // 正常情況下 `onAlarm()` 已經開完，這裡會真的關掉；萬一延後（有別的 open 在飛），
+    // 也會計進 `stats.deferredReleases` 並在 /health 看得到，不是静默丢掉。
     await this.#lifecycle.release();
   }
 
