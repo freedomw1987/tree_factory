@@ -6,7 +6,13 @@
  * 2. 明確 demo「一個會議 = 一個 DO 實例」的尋址方式（`idFromName`，會議 id 即名字）。
  */
 
-import { corsDebugLine, preflightResponse, withCors } from "./cors.js";
+import {
+  corsDebugLine,
+  corsDiagnosticHeaders,
+  preflightResponse,
+  withCors,
+  withDiagnostics,
+} from "./cors.js";
 import { MeetingDurableObject, type MeetingEnv } from "./meeting-do.js";
 
 export { MeetingDurableObject };
@@ -41,12 +47,15 @@ export default {
     );
     if (debug !== null) console.log(debug);
     // CORS 在**入口**處理：DO 不該需要知道「誰在瀏覽器裡呼叫它」。
+    // TECH-010：診斷標頭（只在 DEBUG_ORIGINS=1 時非空）。被 CORS 擋掉時 body 讀不到，
+    // 只有回應標頭能讓開發者分辨「沒送到」與「送到了但白名單沒中」。
+    const diagnostic = corsDiagnosticHeaders(origin, allowed, env.DEBUG_ORIGINS);
     if (request.method === "OPTIONS") {
-      return preflightResponse(origin, allowed);
+      return withDiagnostics(preflightResponse(origin, allowed), diagnostic);
     }
     const match = /^\/m\/([^/]+)(\/.*)?$/.exec(url.pathname);
     if (match === null) {
-      return withCors(
+      return withDiagnostics(withCors(
         new Response(
           JSON.stringify({
             ok: true,
@@ -70,7 +79,7 @@ export default {
         ),
         origin,
         allowed,
-      );
+      ), diagnostic);
     }
     const meetingId = match[1] as string;
     // ⚠️ `url.pathname` **不含 query**：只取 pathname 會把 `?ms=` 這類參數吃掉
@@ -81,6 +90,6 @@ export default {
     // session 資料列的必要欄位（比用 DO id 的十六進位雜湊可讀得多）。
     const forwarded = new Request(new URL(rest, url.origin), request);
     forwarded.headers.set("x-meeting-id", meetingId);
-    return withCors(await stub.fetch(forwarded), origin, allowed);
+    return withDiagnostics(withCors(await stub.fetch(forwarded), origin, allowed), diagnostic);
   },
 } satisfies ExportedHandler<Env>;

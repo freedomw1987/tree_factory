@@ -62,6 +62,68 @@ export function withCors(
 }
 
 /**
+ * TECH-010：把「這次的 Origin 有沒有中白名單」放上**回應標頭**。
+ *
+ * 為什麼事件記錄不夠：`corsDebugLine` 只在 server log 看得到，而 CORS 被擋時
+ * 開發者盯著的是 DevTools 的 Network 面板——被擋掉的回應讀不到 body，
+ * **標頭是唯一還看得見的通道**。沒有這個，埠漂移（dev server 從 1420 變 1421）
+ * 與「正式環境真的被擋」症狀完全一樣（都只看到 `Failed to fetch`）。
+ *
+ * 為什麼只在 `DEBUG_ORIGINS=1` 時給：正式環境多送這兩個標頭等於多一個指紋欄位，
+ * 且對使用者毫無用處；預設不給，行為與 TECH-006 之前完全相同。
+ *
+ * 安全立場：只回**對方自己送的 Origin** 與 true/false，**不回白名單內容**——
+ * 否則等於免費送攻擊者一份允許清單。
+ */
+export function corsDiagnosticHeaders(
+  origin: string | null,
+  configured: string | undefined,
+  debugFlag: string | undefined,
+): Record<string, string> {
+  if (debugFlag !== "1") return {};
+  const allowed = origin !== null && allowedOrigins(configured).includes(origin);
+  return {
+    // HTTP 標頭值只能是 ASCII；Origin 本來就是 ASCII，沒帶時用 `(none)` 標明。
+    "x-cors-origin": safeHeaderOrigin(origin),
+    "x-cors-allowed": allowed ? "true" : "false",
+  };
+}
+
+/**
+ * 淨化要回顯的 Origin。
+ *
+ * 為什麼需要：`Origin` 是**對手可控**的字串，而這一票新增的行為正是「把它寫進回應標頭」。
+ * Gate 4 oracle 用 raw socket 實測：workerd 會擋掉含 CR/LF（obs-fold）與 NUL 的請求（`400`），
+ * 但**垂直 tab `0x0B` 會被原樣寫進回應標頭**——不構成 response splitting，
+ * 卻違反 RFC 9110 的 field-value 文法，且若下游有寬鬆的 parser/proxy 把 VT 當行終止，理論上可被拆行。
+ * 這裡採白名單：只放行可見 ASCII（`\x20`–`\x7e`）且長度合理者，其餘一律 `(invalid)`。
+ */
+export function safeHeaderOrigin(origin: string | null): string {
+  if (origin === null) return "(none)";
+  return /^[\x20-\x7e]{1,255}$/.test(origin) ? origin : "(invalid)";
+}
+
+/** 把診斷標頭併到回應上；空 map 時**原樣回傳**（不製造新的 Response 物件）。 */
+export function withDiagnostics(
+  response: Response,
+  headers: Record<string, string>,
+): Response {
+  if (Object.keys(headers).length === 0) return response;
+  const merged = new Headers(response.headers);
+  // oracle P2-2：診斷標頭的值隨 `Origin` 變動，回應就必須帶 `Vary: origin`——
+  // 否則共享快取（CDN / 反向代理）可能把 A 來源的 `x-cors-origin` 回給 B。
+  if (!(merged.get("vary") ?? "").toLowerCase().split(/\s*,\s*/).includes("origin")) {
+    merged.set("vary", merged.get("vary") ? `${merged.get("vary")}, origin` : "origin");
+  }
+  for (const [key, value] of Object.entries(headers)) merged.set(key, value);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: merged,
+  });
+}
+
+/**
  * TECH-006：把「webview 實際送來的來源」變成可重複的觀測。
  *
  * 為什麼需要：CORS 被擋的症狀是「請求看起來根本沒送出去」，除非知道
