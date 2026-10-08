@@ -384,6 +384,19 @@ edit_action({ action_id, field, value })     → { due_source: "user" | "model" 
 > ⚠️ 兩者作用時間不重疊（會議進行中不會有編輯 UI），因此可並存。
 > 但**任何新的寫入路徑都必須先問「這是捕捉期還是編輯期」**，這是本表存在的理由。
 
+**實作對齊（2026-10-09，M01-US-103 回寫）**：捕捉期的落地表在 DO 內叫 **`transcript_segments`**（複數），
+與上表的 `transcript_segment` 是**兩個階段**——US-103 只做「M01 產生、存進 DO 的本地帳本」，
+M02 擁有、`text` 可被 M04 編輯的那張正規表仍在未來。因此：
+
+- **沒有 `meeting_id`**：一個 DO 就是一場會議（與 `gap` 表同款，US-101 起的慣例）。
+- **沒有 `edited_at`**：那是編輯期（M04-US-401/402）的欄位。
+- **多了 `overlap_ms`**：`M01-US-103 AC-4` 的重疊留痕（值來源是帳本的同一把鍵前一列，見設計 D6）。
+- **主鍵是 `seq`**（`MAX(seq)+1` 配發，失敗與衝突**不燒號**）；去重靠 `idempotency_key` 的 **UNIQUE 索引**，
+  而不是把鍵當主鍵——因為 `seq` 是對 M02 的**穩定排序依據**。
+- 讀取介面只有 `list / count / find / previousEndMs`，**型別上沒有 update / delete**（append-only 的強制方式）。
+
+依據：`docs/design/M01-US-103-transcript-ledger.md`（D2 / D3 / D6 / D7）與 `docs/deliverable/2026-10-09-M01-US-103-多人群組即時轉譯.md`。
+
 **三個「不留舊版」的例外要說清楚**（避免被誤讀為「全部都不能留歷史」）：
 
 | 表 | 是否留舊版 | 為什麼 |
@@ -450,6 +463,7 @@ edit_action({ action_id, field, value })     → { due_source: "user" | "model" 
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：技術棧 / 部件圖 / Module 邊界 / 資料流 / 介面契約 / 儲存模型 / 失敗模式 / 部署 | Agent（dav-designer Step 3）|
 | 2026-10-07 | v1.1 | §6 `transcript_segment` 寫入規則由「永遠 append-only」改為**分捕捉期 / 編輯期兩期**（新增 `edited_at` 欄位）；理由：決策 D7 / D8 與 `M01-US-103 AC-3` 的措辭矛盾（AC v1.1 已限定範圍）| §2.1 補規劃（M04 編輯能力）|
+| 2026-10-09 | v2.3 | §6 補「實作對齊」：M01-US-103 的捕捉期落地表是 DO 本地 `transcript_segments`（複數、無 `meeting_id`、無 `edited_at`、多 `overlap_ms`、主鍵 `seq` + `idempotency_key` UNIQUE），與表中正規 `transcript_segment` 的兩階段關係明文化 | Agent（trust mode 執行階段）|
 | 2026-10-08 | v2.2 | 依 SPIKE-001~004 回寫：§1 `PiHarness`→`Harness.open`、`@cloudflare/voice`→`agents/voice`、模型改 pi-ai `cloudflare-workers-ai`（分階段 8b/70b）；新增「錄音來源」列（webview 背景不收音→原生 plugin）；§1.1 三項結案/部分結案 | Agent（trust mode 執行階段）|
 | 2026-10-07 | v2.1 | Step 4.5 簽核後落地：§1 技術棧新增「對話語音輸入」列（重用 `withVoiceInput`、不重用會議收音管線）；§5.2 錯誤碼表補 `SOURCE_UNRESOLVED` / `CONCEPT_FAILED`（共 10 碼）並明訂「查無資料不是錯誤碼」；§5.4 規則 3 依 `M03-US-302 AC-4` 改寫（來源失效的結論**不輸出**，改以查無呈現）；§4.7 明訂丟棄 0 來源的概念 | Agent（dav-designer Step 4.5 / D11）|
 | 2026-10-07 | v2.0 | 第二輪（M03 問 / M04 編）：§1 新增檢索 / 概念提取 / 對話持久化三列；§1.1 新增 SPIKE-005 / 006 與 D11 / D12；§2 部件圖補 M03 / M04 並新增「寫入權集中 / 檢索權集中」兩個邊界判準；§3 新增 M03 / M04 邊界與 2 條規則；§4.4 改為呼叫 M03 引擎、新增 §4.5 問答 / §4.6 編輯 / §4.7 概念提取；§5.3 補對話 / 概念 / 標籤讀取與 `due_source`；**新增 §5.4 `ask()` 契約（7 條規則）與 §5.5 編輯 API 契約（5 條規則）**；§6 新增 7 張表（conversation / message / message_source / concept / concept_alias / concept_source / tag / tag_ref）與「三個不留舊版的例外」；§7 新增 F13~F21 | Agent（dav-designer Step 3，第二輪）|

@@ -170,7 +170,7 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | SPIKE-004b | Spike | M02 | 真實 Workers AI provider 實測：真實 token 計數、快取命中率、每回合延遲 | — | P1 | 2 | PENDING（✅ 已確認：照計畫走） | SPIKE-004 |
 | M01-US-101 | US | M01 | 一鍵開始 / 結束會議錄音（iOS 前景，含 2 小時上限自動結束）| 6 條 BDD | P0 | 8 | **DONE**（2026-10-09：**iPhone 12 mini 真機驗收通過** —— webview 來源 `tauri://localhost` allowed=true、使用者實機走完「開始→錄音中→長按結束」；過程中修好 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、「`100dvh` 溢出、外框高度未定致逐字稿撐開畫面），新增 5 條不變式 + 3 條 iPhone 尺寸 E2E；現況 **E2E 11 / 單元 75 / M01 回歸 40+35 / worker 132 全綠**；Gate 4 兩輪獨立稽核後經用戶裁決通過；後續缺口已轉票 TECH-006 ~ 010；交付文見 `docs/deliverable/2026-10-08-M01-US-101-一鍵開始結束會議錄音.md`）| SPIKE-002 |
 | M01-US-102 | US | M01 | 會議中斷網或 app 被殺，本地音檔分段緩存與恢復回補 | 4 條 BDD | P0 | 8 | **DONE**（2026-10-09：30 秒一段、每段獨立可解碼、上傳成功才刪；恢復以**伺服端帳本為權威**對帳，只補缺、不重複、不覆蓋；重開 app 先詢問續傳（丟棄需二次確認）；伺服端冪等用 `INSERT OR IGNORE`（同 seq 不同 hash → 409 不覆蓋）、逐字稿以 `chunkSeq` 去重；Gate 4 read-only 稽核判 FAIL/BLOCK，7 條（1×P0 靜默丟音 + 2×P1 + 4×P2）全修並附紅→綠實測；現況 **UI 單元 132 / typecheck 0 / M01 回歸 97 / E2E 16 / lint 0；worker 158 全綠 / markdownlint 0**；交付文見 `docs/deliverable/2026-10-09-M01-US-102-本地音檔分段緩存與恢復回補.md`，設計見 `docs/design/M01-US-102-audio-chunk-idempotency.md`）| M01-US-101 |
-| M01-US-103 | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | PENDING | SPIKE-001 |
+| **M01-US-103** | US | M01 | 多人語音即時轉譯（speaker 編號 + 時間戳）| 4 條 BDD | P0 | 8 | **DONE**（2026-10-09：逐字稿**真的落地了** —— 新增 `worker/src/nova-events.ts`（原始 STT 訊息 → 事件的純函式翻譯，永不丟錯）、`worker/src/transcript-stream.ts`（管線：冪等鍵 `seg:<speaker>:<startMs>`、`UtteranceEnd` 收段、重疊留痕、`finalize` 必 flush）、`worker/src/storage/transcript-store.ts`（DO SQLite append-only 帳本：只有 `list/count/find/record/previousEndMs`，型別上沒有 update/delete；`seq` 由 `MAX(seq)+1` 配發、驗證失敗與衝突**不燒號**）、兩條新路由 `POST /transcript/segments`（整批先驗證）與 `POST /transcript/stream`（逐段落地）；**只有 `is_final` 的字落地**（interim 不落地＝AC-6 結構上成立）；身分撞鍵同內容 → `duplicate`、不同內容 → `conflict` 附兩份全文（不得靜默覆寫）；重疊值**問帳本**（`previousEndMs`）而非記憶體指標 —— 第一版用記憶體，真跡整段重播時第一段被算成假重疊而變成 `conflict`（AC-1 的重播等價當場破功，被測試抓到後改成問帳本）；`meetingOffsetMs` 必填、缺／負／非整數一律 400（不得默默當 0）；**真跡重播**（SPIKE-001 那份 38 則 nova-3 訊息）→ 6 段、speaker `0/1/0/1/0/1`、242 個字詞一字不丟；**突變驗證 12 條全數紅→綠**（M1 interim 也落地／M2 同鍵直接覆寫／M3 空 transcript 照收／M4 overlap 回記憶體／M5 重送也計數／M6 `UtteranceEnd` 不切段／M7 正式路徑漏動詞守門／M8 `finalize` 非布林照收／M9 `segments[i]` 不指名／M10 字詞順序洗牌／M11 假重疊／M12 缺口路由 body 型別守門），其中 M6 另在**真 workerd** 上重驗（綠→紅→綠）；Gate 4 兩條獨立通道（reviewer 可合併：0 P0 / 0 P1 / 11 條 P2；oracle 需修正後合併：**1 P0**（呼叫端契約）＋5 P1）→ P0 走「文件契約＋釘樁測試＋開票」、其餘逐條處置；**第二輪重審（修正後）**：oracle 抓到 **1 P1**（`/transcript/stream` — 本票**正式路徑** — 漏動詞守門，`DELETE` 帶合法 body 會回 200 並真的寫入一列）＋6 條 P2，全部逐條修／釘樁（405 `allow: POST`、`finalize` 非布林 → 400、`segments[i]` 指名、AC-7 補 `overlap_ms=0`、真跡單調改驗「同一則訊息內」、過期 UE 誤切寫成已知後果）；**reviewer2 重審判「可合併」**（0 P0 / 0 P1 / 4 條 P2，全部是告知）：P2-1 把 D13 的「23/24」由**環境相依**改成**測試釘住**（`expect(exact).toBe(23)`）、P2-2 只補註解與文件（零間隙增量來源＝US-104 顯示層形狀）、P2-3 順手修掉**既有** `/transcript/gap` 的 `null` body → **500**（改 400＋測試＋突變 M12）、P2-4 併發 lost update 保留並交由 TECH-013；現況 **worker 234（19 檔）/ `tsc` 0 / markdownlint 59 檔 0 issues / M01 回歸 185 全綠；UI（本票未動）單元 188 / lint 0 / M01 回歸 153+35 / E2E 35 全綠**；交付文見 `docs/deliverable/2026-10-09-M01-US-103-多人群組即時轉譯.md`，設計見 `docs/design/M01-US-103-transcript-ledger.md`（v1.3）；遺留技術債轉票 TECH-012 / TECH-013）| SPIKE-001 |
 | M01-US-104 | US | M01 | 會議中即時顯示逐字稿（interim / 自動跟隨，決策 D2）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
 | M01-US-105 | US | M01 | 會後統一命名：把「發言者 2」改成「阿明」（決策 D1）| 4 條 BDD | P1 | 3 | PENDING | M01-US-103 |
 | **M01-US-106** | US | M01 | **原生錄音層**：Tauri plugin（`AVAudioEngine`）取代 webview `MediaRecorder`，支援背景/鎖屏續錄（決策 **D14**）| 4 條 BDD | P0 | 8 | PENDING（✅ 已確認：照計畫走） | SPIKE-002b |
@@ -213,13 +213,16 @@ v2.0 現況：**4 個 Module**（M01 聽 / M02 記 / M03 問 / M04 編）＝「�
 | **TECH-008** | TECH | — | session 讀取驗證帶入「現在時間」：擋下 `started_at` / `ends_at` 同量平移的 DB 竊改（並容忍時鐘回調）（§2.4 反思維度 3 轉票）| — | P2 | 1 | PENDING | M01-US-101 |
 | **TECH-009** | TECH | — | worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）| — | P1 | 3 | PENDING | M01-US-101 |
 | **TECH-011** | TECH | — | app 實作對齊 `DESIGN.md` §5 規則 8：emoji icon → inline SVG `Icon` 元件（`app/ui` 5 處）| — | P2 | 2 | **DONE**（2026-10-09：5 處 emoji → `Icon`（chat/mic/ban，圖形取自原型 `IP` 表逐字元相同）；三層守門（`scripts/check-design-icons.mjs` 全檔含 `.css`＋原型同源 / `icon.test.ts`＋`emoji.ts` / `icon-component.test.ts`＋E2E）；Gate 4 獨立稽核 P0/P1=0，另 8 條 P2 經用戶裁決修 6 條；`dist` 正式 bundle 實測 0 emoji；**iPhone 12 mini 真機複驗**：tab 圖示像素級判讀兩處皆單色 SVG、零 emoji 像素（空狀態 38pt 三處因真機留有舊會議未出現，轉下次真機驗收順便看）| M01-US-101 |
+| **TECH-012** | TECH | M01 | 逐字稿串流的**跨請求等價**：把聚段緩衝從「請求級」改成「會議級」（隨 DO 狀態存活）| — | P1 | 3 | PENDING（起點：US-103 Gate 4 的 P0-1 —— 呼叫端把同一場會議拆成多個請求會**靜默少字**；US-104 要在會議中即時顯示，跨請求的 `pending` 終究得做。附帶解掉「換一個 `meetingOffsetMs` 同一句變兩列」與顯示路徑同源問題）| M01-US-103 |
+| **TECH-013** | TECH | M01 | `GET /transcript/segments` 分頁／增量讀取 ＋ 串流「部分寫入」時 `transcriptWrites` 與帳本列數的一致（US-103 Gate 4 P2-4／F5）| — | P2 | 2 | PENDING（現況：整場會議一次回傳（2 小時粗估 < 1 MB，可接受但該修）；串流中途 400 時前面已落地的列留著但該次計數沒更新 → 帳本正確、計數落後。均已明文記在設計 §6 技術債）| M01-US-103 |
 
-**合計**：**183 SP / 52 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
-P1 = 41 SP、P2 = **17 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，本輪 +6 平移）
+**合計**：**188 SP / 54 項**｜P0 = 28 項 / 125 SP（其中 6 項已完成：TECH-001、SPIKE-001 ~ 004）｜
+P1 = 44 SP、P2 = **19 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP（合計與 P0/P1/P2 由 `awk` 實算；階段 SP 自 v2.2 起未同步重算，
+累計 **+11** 平移：v2.2 前 +6、2026-10-09 的 TECH-012/013 +5）
 
 **Module 分佈實算**（含掛在該 Module 的 SPIKE）：M01 = **54 SP**（含 SPIKE-001/002/002b）、M02 = **42 SP**
 （含 SPIKE-003/004/004b）、M03 = **33 SP**（含 SPIKE-005）、M04 = 27 SP（含 SPIKE-006）、INT = 8 SP、TECH = **19 SP**
-（TECH-001~011）。合計 183 SP。
+（TECH-001~013）。合計 188 SP。
 
 > **SPIKE-002 / 004 造成的計畫變動**：新增 12 項 / 34 SP（含反思轉出的 2 項），其中 8 項是 P0
 > —— 因為兩個 spike 各揭露一個「原本以為沒問題、其實不成立」的前提
@@ -392,6 +395,12 @@ P1 = 41 SP、P2 = **17 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP�
 - **依賴**: SPIKE-001
 - **驗收方式**: `REGRESSION_MODULE=M01`
 - **為什麼這個優先**: P0。多人辨識是產品定義的核心；沒有它，「會議記錄」退化成「單人 dictation」
+- **本輪新增的關鍵決定（呼叫端契約）**: `/transcript/stream` 的聚段緩衝**活在單一請求裡** ——
+  同一場會議的事件必須在同一個請求送完（最後一筆帶 `finalize:true`）。違反契約**不會報錯，只會少字**
+  （真跡實測：一次送完 6 段 66 字；每則 final 一個請求但不 `finalize` → 4 段 28 字）。
+  這是正式路徑（DO 內 STT WS）踩不到的邊界，但對外 API 必須寫明，故以文件＋釘樁測試固定，
+  根治（緩衝持久化）轉 TECH-012。
+- **交付物**: `docs/deliverable/2026-10-09-M01-US-103-多人群組即時轉譯.md`
 
 ### M01-US-104 會議中即時顯示逐字稿
 
@@ -819,6 +828,7 @@ P1 = 41 SP、P2 = **17 SP**｜三階段：A **113 SP** / B **39 SP** / C 27 SP�
 
 | 版本 | 日期 | 變動 | 為什麼 |
 | --- | --- | --- | --- |
+| **v2.8** | **2026-10-09** | **M01-US-103 → DONE**（逐字稿帳本＋串流落地：`nova-events` / `transcript-stream` / `transcript-store` ＋ `POST /transcript/segments`、`POST /transcript/stream`；真跡重播 6 段、speaker `0/1/0/1/0/1`、242 字不丟）；**Gate 4 第二輪（修正後重審）修正**：`/transcript/stream` 補 **HTTP 動詞守門**（非 POST → 405 `allow: POST`；原本 `DELETE` 帶合法 body 會回 200 並**真的寫入一列**）、`finalize` 非布林 → 400（原本**靜默吃掉最後一段**）、`segments[i]` 錯誤訊息指名、AC-7 補「兩段 `overlap_ms` 都是 0」斷言、真跡單調改驗「同一則訊息內」；突變 6 → **12 條**（M7~M12 逐條紅；M12＝順手修掉既有 `/transcript/gap` 的 `null` body 500）；**reviewer2 重審「可合併」**（0 P0 / 0 P1 / 4 條 P2 全數處置：D13 數字改由測試釘住、顯示層限制寫進註解與設計、既有缺口路由 500 修正、併發計數交 TECH-013）；更正本列測試數字（230 → **234**、M01 回歸 181 → **185**）；新增 **TECH-012**（3 SP / P1）、**TECH-013**（2 SP / P2）→ 合計 183 → **188 SP**、項數 52 → **54**、TECH 19 → **24 SP** | 第二輪 oracle 抓到「第一輪的 405 守門只補在 `/transcript/segments`，本票**正式路徑**沒補」——守門補一半等於沒補；SP 不變（都在原票範圍內）|
 | **v2.7** | **2026-10-09** | **TECH-011 → DONE**（emoji → `Icon` 元件 + 三層守門）；依 Gate 4 複驗修正 6 條 P2：①新增 `scripts/check-design-icons.mjs`（掃 `src/**` 含 `.css`、驗原型同源；掛進 `npm test` / `npm run lint`）②去註解改逐字元掃描器並抽成 `emoji.ts`（自帶 11 條測試）③ `@html` 查表限自有鍵 ④`DESIGN.md` §3 的 8 處 emoji 改 `Icon(name)` ⑤更正本檔失真的測試數字；**SP 不變**（183 SP）| 用戶裁決「現在修守門缺口 4 條 + 文件 2 條」：守門會漏＝等於沒有守門（checker 實測 `.css` 注入 emoji 時 vitest 仍 4 passed）；DESIGN §3 與 §5 規則 8 自相矛盾 |
 | **v2.6** | **2026-10-09** | 新增 **TECH-011**（app 實作對齊 `DESIGN.md` §5 規則 8「圖示一律 inline SVG、禁用 emoji」：`app/ui` 5 處 emoji icon → `Icon` 元件，2 SP / P2）→ 合計 181 → **183 SP**、P2 15 → **17 SP**、TECH 17 → **19 SP** | 規則早在 2026-10-07（DESIGN v2.2）就已立、PRD 原型也照做了，獨漏 app 實作 → 補齊並加靜態守門測試（避免再次無聲退化）|
 | **v2.5** | **2026-10-09** | **M01-US-101 → DONE**（iPhone 12 mini 真機驗收通過）；TECH-006 → DONE（併入同一次真機驗收）；TECH-007 標記「部分已交付」（iPhone 尺寸 E2E 3 條 + 外框高度不變式）；**SP 不變**（174 SP）| 真機驗收暴露出 3 個真機專屬的「按不到」版面問題（狀態列遮 CTA、`100dvh` 溢出、外框高度未定致逐字稿撐開畫面）；修好才算真的滿足 AC-1 / AC-2，屬原票範圍內的修正，不追加 SP |
