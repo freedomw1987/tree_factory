@@ -263,3 +263,9 @@ exit=0；66 項檢查全過（+1 行彙總 = 67 ✅ / 0 ❌；log /tmp/tech08-sm
 
 > 送審 patch（第一輪凍結，審查期間未再改動）：`/tmp/tech08-review.patch` = 5 檔、+273/−11、
 > sha256 `60a3f9a6f04a788ff08693467033127144525a378dae0483501546a1f51f4ac4`。
+> 第二輪送審 patch（remediation 後、含 `Number.isFinite`）：`/tmp/tech08-review-final.patch`。
+
+**最終 commit 範圍**（`git diff c099c4b..HEAD`，4 個 commit：`570c290` feat / `d1b130d` docs /
+`0abb9d8` fix / `8ad2ab8` docs） = **12 檔、+1015/−18、1220 行**，
+patch `/tmp/tf-tech08-diff.patch`、sha256 `1101b570c96c7779e52bb44884f27fae84761d43f571ea585e11e8d8539f4c6e`。
+（此範圍之後只有一次「補記本行 sha」的書面 commit，不動程式、不動測試、不動文件數字。）
