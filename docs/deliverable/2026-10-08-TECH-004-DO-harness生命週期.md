@@ -17,6 +17,23 @@
 （重建必須是整條鏈 adapter → storage → harness）。本票把這三件事固定成骨架，
 讓 M02 之後的票都站在同一套基礎上。
 
+## 為什麼做這個改動（§1.2）
+
+**為什麼做**：`docs/system-design.md` 把「一場會議 = 一個 DO」定為架構前提，但 DO 的生命週期
+（隨時被回收、constructor 不能 `await`、`close()` 連 storage 一起關）與 Pi Harness（需要 storage +
+非同步初始化）天然衝突。這個衝突若不在骨架層解掉，後續 M02/M03 每一張票都要各自重猜一次，
+且會各自踩到不同的坑。本票把「怎麼活下來」變成可測的封裝。
+
+**為什麼這樣設計**：①**單例 + 懶初始化**——DO 可能被喚醒多次，若每個 entrypoint 都新建 harness，
+會出現兩個 harness 搶同一份 storage；②**alarms 接力**——DO 被回收後記憶體狀態消失，
+只能靠平台 alarm 重新喚醒並由 storage 還原狀態；③**憑證走 Worker 綁定**——`process.env` 在本機
+（vitest）與 worker runtime 語意不同，讀它會出現「本機綠、部署 401」的假信心。
+
+**為什麼放棄其他選項**：①**不做「記憶體 harness 單例」**——本機看起來對，但 DO 回收即失效，
+是最典型的假綠；②**不用 `release()` 立即關閉**——會讓正在開的請求拿到已關閉的 harness
+（第二輪 P1-2 的 Design B' 改成非阻塞延後釋放）；③**不自創交易排隊**——自創版本只擋住同步到達的操作，
+官方契約要求「在交易回呼 `await` 期間到達的操作」也要排隊，故改為移植官方 `SerialOperationQueue`。
+
 ## ⚠️ 收尾說明（誠實紀錄）
 
 本票的**實作與驗證在 trust mode 期間（2026-10-08 約 04:00–04:08）完成**，
@@ -46,6 +63,17 @@
 | `docs/deliverable/2026-10-08-TECH-004-DO-harness生命週期.md` | 新增 | 本文件（含**第二～七輪** checker 原文，共 6 個引用區塊；第一輪為 verdict 摘要 + 表格）|
 | `docs/trust-log.md` | 修改 | trust mode 收尾紀錄（+34 行，含於 `800063d`）|
 | `docs/backlog.md` | 修改 | TECH-004 → `DONE` |
+
+### 改動背後的理由（§2.4）
+
+| 改動 | 為什麼是這個做法 |
+| --- | --- |
+| `DoSqliteDatabase` 移植官方 `SerialOperationQueue` | 官方契約（`pi-durable/dist/storage/sqlite/database.d.ts`）明定排隊語意；自創閘門漏掉「回呼 `await` 期間到達的操作」 |
+| `scope.active = false` 移進平台回呼（`node.js:117` 對齊）| 官方在 `COMMIT` **前**就讓 handle 失效；不逐行對齊會留一個「已失效卻還能寫入」的窗口 |
+| rollback 失敗回 `AggregateError([callbackError, rollbackError])` | 只丟 callback 錯誤會讓 rollback 失敗**靜默消失**，之後查帳查不出來 |
+| `release()` 改非阻塞延後（Design B'）| 阻塞會讓 DO 的請求處理卡住；立即關閉則讓等待者拿到死物件 |
+| 非法輸入一律丟錯／400／500（`MS_REQUIRED`、`PROVIDER_UNKNOWN`、`MODEL_UNAVAILABLE`）| 靜默退化（`Number("")→0`、換 provider、用 24k 窗口）會讓裝置**繼續跑但跑錯** |
+| 先驗 provider/model 再開 storage | 先開 storage 再失敗，會留下半開的資源（DO 被回收前不會有人清）|
 
 ## 測試 / 驗收證據
 
