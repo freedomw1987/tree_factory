@@ -1086,3 +1086,239 @@ M01 回歸 **passed=245 failed=0**；markdownlint **71 檔 / 0 issues**；
 2. 重生 `/tmp/tf-us104-diff.patch` 並記 sha256（舊的那份是 07:46 的）。
 3. 分三個 commit 落地：`feat`（產品＋測試）／`docs`（設計・AC・交付・trust-log・backlog）／`docs`（補 patch sha256）。
 4. 之後接 **TECH-012**（P1 / 3 SP）。
+
+## 2026-10-09 08:20 +0800 — 規劃／設計／執行 — TECH-012（逐字稿串流的跨請求等價）
+
+**為什麼是這一票**：US-103 Gate 4 的 **P0-1**（`/transcript/stream` 每個請求建一個 `TranscriptStream`，
+聚段緩衝活在請求裡 → 呼叫端拆請求就**靜默少字**）。US-104 已經在畫面上顯示逐字稿，
+跨請求的 `pending` 遲早要真的存在；而且這張票正好接著動同一層（US-104 交付文 §6.6 也把 5 項小債指向它）。
+
+### 設計（D1~D10；全文見 `docs/design/TECH-012-cross-request-stream-buffer.md`）
+
+- **D1** 會議級緩衝：DO SQLite 新表 `stream_buffer(session_id PK, state TEXT, updated_ms INTEGER)`，
+  `state` = JSON `{meetingOffsetMs, words[], pendingUtteranceEnd}`。
+- **D2** `meetingOffsetMs` 首值即權威；不同值 → 409 `OFFSET_MISMATCH`（回現值）且**零寫入**。
+  沒有這一條，「同一句變兩列」只是換個方式壞。
+- **D3** `finalize: true` → 收尾落地＋冪等。**（修訂過，見下）**
+- **D4** 被 `#transcriptWriteRejection` 擋下（會議結束／到 2 小時上限）→ 丟緩衝列＋回 `droppedBufferedWords: n`
+  （掉字要說得出來，不能假裝它不存在）。
+- **D5** `MAX_BUFFER_WORDS = 2000` → 先強制收段（`forcedFlushes`）；恰好等於上限**不得**先切。
+- **D6** 顯示層不另外持久化：resume 時拿落地緩衝最後的字當顯示緩衝的種子（interim 靠下一則累積重述自癒）。
+- **D7** 快照只在**整批成功之後**寫（中途拋錯不得讓緩衝前進，否則重送不安全）。
+- **D8** 持久狀態壞掉 → 500 `STREAM_BUFFER_CORRUPT`，**不得**當成「沒有緩衝」（那正是 P0-1 的靜默少字）。
+- **D9** 回應加法欄位 `meetingOffsetMs` / `bufferedWords` / `forcedFlushes`。
+- **D10** 重播去重：裝置端是 at-least-once，**原樣重送**不得疊字（`#takeFresh()` 以身分逐顆扣；
+  整批重播時什麼都不做，否則狀態不冪等）。改過內容的重播走衝突路徑（大聲，不靜默）。
+
+### 執行（TDD → 綠 → 突變）
+
+- 3 個新測試檔：`stream-buffer-store.test.ts`（17）／`transcript-stream-resume.test.ts`（11）／
+  `transcript-stream-route-buffer.test.ts`（16）＝ **44 條**。
+- Gate 1：紅 `24 failed ／ 1 passed (25)`（`/tmp/tech012-gate1-red.log`，exit=1）→ 綠 **44 passed**。
+  紅的當下那 1 條本來就綠的是「收尾時才發現壞字 → 前半已落地的列留著」，它釘的是**既有**部分寫入行為。
+- 突變 `/tmp/tech012-mutations.py`（**M01~M31**，sha256 `2b62e462…`）：**31 個全紅、0 個沒紅**、還原後全綠。
+- Gate 2/3：`tsc --noEmit` 乾淨、markdownlint **74 檔 0 issues**、worker 全量 **338 passed（25 檔）**、
+  回歸探針 PASS、UI 未動仍跑 E2E **39 passed**。
+
+### 突變測試抓到的**兩條空探針**（這才是突變的價值）
+
+1. **M02 目標挑錯**：原本要它打「壞掉的 JSON」，但那條 case 在 `JSON.parse` 就拋了，
+   與 `read()` 驗不驗形狀無關 → 改打「**合法 JSON 但不合法欄位**」才紅。
+2. **M28 真空**：批次路徑的測試用「還在跑」的 session，`#transcriptWriteRejection` 直接回 `null`，
+   根本走不到丟緩衝那段 → 突變不會紅。**改強測試**（追加「會議已結束」的批次路徑 case：409、
+   **不得**帶 `droppedBufferedWords`、緩衝列原封不動）之後才紅。
+   → 教訓：突變要一起檢查「目標測試挑得對不對」，不能只看「有沒有紅」。
+
+### 真 workerd 冒煙抓到的洞（單元測不出來的那一種）
+
+- `node /tmp/tech012-smoke.mjs`（真 `workerd` + 真 DO SQLite）第一輪：第 8 段「offset 漂移 → 409」
+  **沒有 409**，回 200 並把值釘在 5000。
+- 根因不是 D2 寫錯，是 **D3 的「刪掉整列」把 `meetingOffsetMs` 的釘樁一起刪了**：前一段 `finalize: true`
+  之後那場會議的列不存在，於是漂移的請求變成「第一次寫入」，重新連線的裝置端可以把**整段時間軸平移**。
+- 修法（**D3 修訂**）：`finalize` 改寫**只有釘樁的列**（`{meetingOffsetMs, words: [], pendingUtteranceEnd: false}`），
+  且 `finalize()` 一併**消費延後的 endpointing 訊號**（否則它會跟著快照活到下一條串流、讓下一句開頭多切一刀）。
+  會議真正結束時走 D4 的 `drop()`（整列刪掉，那時釘樁沒有意義）。
+- 修完重跑全 ✅：半句進緩衝 1 字 → 下一個請求補完落地 → finalize 冪等 → 漂移 409＋零寫入 →
+  `-1` → 400 → 整批重播 `duplicates:1` → B 場 offset 7000 隔離 → 會議結束 `droppedBufferedWords:2` 然後 0。
+- 並**補一條突變 M26**（finalize 之後把整列刪掉）把這個洞釘死，讓它不會回來。
+
+### 決策
+
+- **決策 1**：D3 由「刪列」改為「**只清字、留 offset 釘樁**」。理由：時間軸的權威是會議級的，
+  收尾只代表「這一段講完了」，不代表「這會議的 offset 可以重談」。
+- **決策 2**：`StreamBufferStore.clear()` **保留**（只剩 `drop()` 在用），不因為 finalize 改道就刪掉它——
+  刪掉要重跑一輪審查，而它現在是 `drop()` 的內部步驟。
+- **決策 3**：M28 的處置是**改強測試**（不是改產品碼），因為產品碼的意圖（兩條路徑互不干涉）是對的，
+  是測試沒測到。這是「不改碼也必須揭露」的誠實處理。
+- **決策 4**：E2E 先跑、Gate 4 後開。理由：兩者都要 8787（wrangler）與 SQLite 狀態，
+  並行會互相干擾；先把回歸釘死，再讓審查通道在**凍結版**上跑。
+
+### 下一步
+
+1. 啟動 Gate 4 兩通道（reviewer 靜態／oracle 執行；唯讀、不跑 E2E、可用自己的 wrangler）。
+2. 審查期間只動 `docs/**`：設計文（D3/D6 措辭、補 D10、§5 條數、§7 真 workerd 抓到的洞）、
+   `docs/ac/TECH-012.md`（AC-4 修訂、補 AC-9、DoD 勾選）、交付文、`backlog.md`（→ DONE）、`trust-log`。
+3. 收 Gate 4 結論 → 逐條處置 → 重生 patch + sha256 → 三段式 commit（不 push）。
+
+## 2026-10-09 09:07 +0800 — 審查 — TECH-012 Gate 4 雙通道啟動（凍結版）
+
+- 凍結指紋（Gate 4 啟動當下的 md5）：
+  `stream-buffer-store.ts 0d4071b0…`／`transcript-stream.ts 7196ddc4…`／`segmentation.ts ed7cfba3…`／
+  `meeting-do.ts e946e8d3…`；測試 4 檔 `e636580a…`／`8663a665…`／`47b9d212…`／`90a0b1e0…`。
+- 通道：`/tmp/tech012-gate4.js`（`runs.all`：`t012-reviewer` 唯讀靜態 ＋ `t012-oracle` 可執行）。
+- 交付給審查的**重點**（不讓審查者只看摘要）：D3 修訂的來龍去脈、M28 是**改強測試才紅**的、
+  31/31 突變表與腳本 sha256、8787/1420 已釋放（允許自己的 wrangler，但**三個 wrangler 不能同時跑**）、
+  以及「突變腳本會改寫 4 個產品檔再還原 → 同一時間只能一個通道跑」。
+- 審查期間主對話只動 `docs/**`；產品碼與測試的字節不再變動（除 Gate 4 要求修正外，屆時走「補救 → 再開一輪」）。
+
+## 2026-10-09 09:35 +0800 — 修正 — TECH-012 的 P1（AC-6 可被證偽）走「必修 → 凍結 → 重審」
+
+### 決策 1（必修，不延期、不降級成已知限制）
+
+Gate 4 第二輪 oracle 的 P1 是**語意等級**的：AC-6 寫「緩衝有界、一字不丟」，但第一版只擋**字數**，
+而真正會讓落地失敗的是**字元**（帳本 `MAX_TEXT_CHARS = 2000`）。一次 2001 顆字的請求會讓
+`forcedFlushes` 永遠 0、每個請求 400，那些字最後以 `droppedBufferedWords` 現形。
+→ 這不能「記錄成已知限制」帶進 commit：那等於交付一句**可被證偽**的 AC。
+選項比較：①改字元預算（推薦）②改成拒收超大請求 ③把帳本上限抬高。
+②會讓呼叫端卡在「怎麼送都被擋」，③動到別人的票；①在本票範圍內且可測。
+**採 ①**：逐字檢查 ＋ `maxTextChars`（預設＝帳本上限）。
+
+### 決策 2（逐字 vs 逐批：不是效能取捨，是正確性）
+
+逐批檢查天然有「一批本身就超過」的漏洞。逐字之後**任何請求都不可能讓緩衝超出上限**。
+逐字餵與逐批在聚段語意上等價（聚段器本來就逐字判斷切點），代價可忽略。
+
+### 決策 3（已知邊界不擴大範圍）
+
+「單一 token 本身超過帳本上限」→ 仍由帳本擋 400，**刻意不加規則**（一顆字不會有 2000 字元），
+只以測試釘住「大聲擋、不是靜默丟」。這條寫進設計 §6 第 8 條、AC-6 末項、交付文 §6 第 10 條。
+
+### 決策 4（重審的代價認了）
+
+動了產品程式碼 → 第一輪結論作廢，**必須**重跑一輪（reviewer ＋ oracle）。第二輪只動 2 個檔案
+（`transcript-stream.ts` md5 `a3085d48…`、`transcript-stream-resume.test.ts` md5 `bace326a…`），
+其餘 6 個受審檔案 md5 與第一輪相同 → 審查者可以把力氣放在「修正本身」。
+
+### 本輪重跑的閘門（全部重跑，不用舊數字）
+
+- Gate 1：新 6 條測試先紅 `/tmp/tech012-r2-gate1-red.log`（`4 failed | 1 passed (16)`，紅的那 1 條
+  是「單一超長 token 由帳本擋」的既有行為釘樁）→ 綠 `/tmp/tech012-r2-gate1-green.log`（17 passed）。
+- 全量：`npx vitest run` → **344 passed（25 檔）**。
+- 突變：`/tmp/tech012-mutations.py`（sha256 `8ececa21…`）→ 控制組 37 全綠 → **37/37 紅** → 還原後全綠
+  （`/tmp/tech012-mutations-r2.log` sha256 `87261b9c…`；M19／M21 重錨、新增 M32~M37）。
+- 真 workerd 冒煙：新增 R4（一次 2001 顆字）→ 全綠（`/tmp/tech012-smoke-r3.log`；第一次的失敗
+  是測試資料 0.05 秒/顆先撞到帳本的「不可落在未來」，已改 1 毫秒/顆並把過程寫進交付文 §3.1）。
+- Gate 2：`tsc --noEmit` 0；markdownlint **76 檔 0 issues**。
+- Gate 3：M01 回歸 PASS；UI（未動）E2E **39 passed（48.6s）**。
+
+### 下一步
+
+1. 文件回寫（已完成）：設計 D5／§5／§6 第 8~9 條／§7 第二輪、AC-6 修訂、交付文 §1／§2／§3.1／§4／§6／§7／§8、
+   `backlog.md`（TECH-012 列 ＋ 變動歷史 v2.17）、本檔。
+2. Gate 4 第二輪（`/tmp/tech012-gate4-r2.js`，run `e4797210-…`）：reviewer ＋ oracle，凍結版＝字元預算版。
+   兩條通道都被要求**搶 `/tmp/t012-mut.lock`** 之後才可跑突變腳本（腳本會改產品檔再還原）。
+3. 收結論 → 補交付文 §5 → 三段式 commit（feat / docs / docs-add-sha256；不 push）。
+
+## 2026-10-09 10:2x — TECH-012 第三輪（Gate 4 第二輪的 P1 修好之後重審）@ trust mode
+
+### 第二輪審查的結論（兩條 lane 都回來了）
+
+- reviewer（lane `t012r2-reviewer`）：**可合併**，0 P0 / 0 P1，只有 2 條 report-only 的 P2：
+  P2-1 = 設計 §6 第 9 條寫「幾乎不會先觸發」，但字數上限在預設設定下**根本到不了**（純措辭）；
+  P2-2 = 形狀合法但緩衝總長超過上限的快照，resume 後第一個請求會 400（本碼自己寫不出這種快照）。
+- oracle（lane `t012r2-oracle`）：**需修正後合併**，在**重播（D10）路徑**上抓到**新的 P1**，
+  外加一條 P2（單一超長 token）。
+
+### 決策 1（P1 一定要修，但**不是**選最省事的那條）
+
+oracle 給的建議是 Option 1（把「帳本已覆蓋」加進去當判準）。我自己另外想了兩條：
+
+- Option A：拿「這一批開始時的快衝快照」當 already-buffered 的集合 → 我實作後跑
+  `transcript-ledger-routes.test.ts`，US-103 交付的 AC-4 會被打壞（`duplicates` 6 → 0、1 → 0）
+  → **這是在改一條已經交付的承諾**，退掉。
+- Option B：去改 US-103 的 AC → **絕對不做**（AC 是交付契約，不是我可以為了讓程式過就改的東西）。
+- 收 Option 1，並且**加第二個條件**（`wordEndMs <= bufferTailEndMs`，必須「會打亂順序」才丟），
+  這樣緩衝空時一個字都不丟 → US-103 AC-4「整批重播 → 全部 duplicate」**原封不動**（那兩條測試
+  我一行都沒改）。
+
+### 決策 2（比終點，不比起點）
+
+`#isStaleReplay()` 用 `wordEndMs` 與 `coveredEnd` 比。用起點比會誤殺「起點剛好等於已落地那列終點」
+的合法下一句。這個選擇會直接影響「會不會掉字」，所以寫進設計 D10 修訂二的「兩個條件」清單。
+
+### 決策 3（丟掉的字不能靜默 → 新欄位 `replayedWords`）
+
+被丟的重播字是字級的、`duplicates` 是段級的（帳本冪等鍵）——**兩種單位刻意不合併**，
+避免把「一個段落被整段去重」與「一顆字被丟」混成同一個數字。新欄位是純加法（D9 第四個），
+並補 M42 當殺手（誰把 `replayedWords` 改成靜默就轉紅）。
+
+### 決策 4（順手修掉 oracle 的 P2，並把 P2-2 留痕不修）
+
+P2（超長 token）**修**：在 `#feedLanding()` 的字迴圈最前面就擋 → 400，不讓它進緩衝。
+修前的症狀是「之後每一次請求都 400、整個緩衝變毒藥」——這是會把整場會議毀掉的一顆字，值得修。
+reviewer 的 P2-1 是純措辭，**當文件修**（「幾乎不會先觸發」→「**不可達**」）。
+P2-2（快照超上限）**不修**：本碼寫不出這種快照（不等於不可能被外部寫入），留痕在交付文 §6 第 11 條。
+
+### 決策 5（誠實揭露，不美化）
+
+- Gate 1 的紅跑裡 3 條紅，其中 2 條是**修前就紅**、1 條（邊界／`+1` 空白）是**修前就綠**的設計；
+  非真空靠突變 M39/M41 證明 → 這件事明寫在交付文 §3.2，不假裝「3 條都是新增的紅」。
+- 超長 token 修好之後**沒有**真 workerd 的證（只有單元層 ＋ 突變 M40）；oracle 的 probe F 是修前的。
+- 第二輪的 P1 **沒有**在真 workerd 上跑「修前」版本（oracle 的 probe J 就是修前的真 workerd 證），
+  我只有 vitest 的紅跑 → 交付文寫清楚來源。
+- 突變表一律用**腳本自己印的輸出**貼上去，貼完再用程式驗 `逐字相符: True`。
+
+### 本輪重跑的閘門（全部重跑，不用舊數字）
+
+- Gate 1：新 4 條測試先紅 `/tmp/tech012-r3-gate1-red.log`（`3 failed ／ 34 passed (37)`）→ 全綠
+  `/tmp/tech012-r3-gate1-green.log`（37 passed）。
+- 全量：`npx vitest run` → **348 passed（25 檔）**；三檔測試數 **17 / 20 / 17 = 54**。
+- 突變：`/tmp/tech012-mutations.py`（sha256 `5d1e641c…`）→ 控制組 42 全綠 → **42/42 紅** → 還原後全綠
+  （`/tmp/tech012-mutations-r3.log` sha256 `b1e2c038…`；新增 M38~M42）。
+- Gate 2：`tsc --noEmit` 0；markdownlint **76 檔 0 issues**。
+- Gate 3：UI（未動）E2E **39 passed（50.8s）**。
+- 真 workerd：`/tmp/tech012-smoke.mjs` 新增 R5（重播含已落地的字）→ 4/4 ✅，腳本輸出貼進交付文 §3.2。
+
+### 下一步
+
+1. 文件回寫（已完成）：設計 D9／D10 修訂二／§5／§6 第 8、10、11、12 條／§7 第三輪、AC-6 邊界／AC-8／AC-9、
+   交付文 §1／§2／§3.2／§4／§5／§6、`docs/backlog.md`（TECH-012 列 ＋ 變動歷史 **v2.18**）、本檔。
+2. Gate 4 第三輪（`/tmp/tech012-gate4-r3.js`，run `649f2011-…`）：reviewer ＋ oracle，凍結版＝修訂二版；
+   凍結指紋（8 檔 md5）＝`/tmp/tech012-md5-r3.txt`；兩條通道都被要求**搶 `/tmp/t012-mut.lock`** 之後才可跑突變。
+3. 收結論 → 補交付文 §5 第三輪 → 凍結後再跑一次全量（記錄 md5 前後）→ 三段式 commit
+   （feat / docs / docs-add-sha256；不 push）。
+
+## 2026-10-09 10:50 — TECH-012 Gate 4 第三輪結案：兩條通道都「可合併」
+
+### 決策 1（結論）
+
+- run `649f2011-23fe-4d2f-983f-881516c98028`：`reviewer` ＝**可合併（附註）**（0 P0／0 P1／0 P2、8 條 P3）；
+  `oracle` ＝**可合併（附 1 個 P2 ＋ 1 個協定衛生 P2）**。**修訂二的 P1 被獨立複驗為真解**。
+- 但**第一支 oracle lane（`9b3a26d1…`）中途截斷、只有一句話、沒有結論**（跑 3m04s、output 70 bytes）。
+  我**沒有**把「沒結論」當成通過，也沒有拿 reviewer 的結論補位；改用一支**範圍縮小、有數量上限**的新 lane
+  （`72c1b4f2…`，run `064972d0-…`：A 重跑 3 檔 54 條、B 自己拿掉條件 2、C 自寫探針、D 真 workerd 冒煙、E 讀規格）
+  補齊。這是**基礎設施重試**，不是新的一輪（凍結指紋、受審範圍都沒變）。
+
+### 決策 2（oracle 的兩個 P2 怎麼處置）
+
+- **P2-1（`replayedWords` 在 UI 沒有消費者）**：**不改程式，改成把範圍講清楚**。oracle 說得對——
+  那些被丟的重播字唯一的痕跡是那一次請求的回應欄位，`app/ui` 零命中；從使用者角度看那批字就是少了。
+  處置：AC-9 與設計 D10／§6、交付文 §6 第 3／13 條都加「**不靜默＝worker 回應層**，UI 未消費」，
+  並在 `docs/backlog.md` 留一列未開票遺留（要不要接 UI 告警＝新票）。
+- **P2-2（前一個 lane 在 8788 留下 `workerd`）**：這是**協定衛生**，不是本票程式缺陷。
+  它害新 lane 打到一台**不是它起的**伺服器 → 我已把「Gate 4 派工前後 `lsof` 必須空」寫進交付文 §5／§6 第 14 條。
+  **本文件與交付文引用的 8787 冒煙是主對話自己起的**，不受影響。
+
+### 決策 3（reviewer 的 8 條 P3）
+
+- F1~F6、F8 **全部當文件修**（數字／自我矛盾／控制組條數／貼錯的 lint 輸出／AC 混格／措辭理想化／缺條目），
+  修完 markdownlint 仍 **76 檔 0 issues**。
+- **F7 刻意不修**：那是 `worker/src/transcript-stream.ts:407` 的**產品檔註解**；為了修一行錯指的交叉引用
+  去動產品檔，會讓「審查 → 凍結 → 重審」的鏈斷掉，代價遠大於收益。**留痕、不假裝修好**，
+  等下次動該檔時一併修。
+- 我另外自己抓到一條 reviewer 沒提的：AC-8 的欄位清單漏了第三輪新增的 `replayedWords`（已補）。
+
+### 下一步
+
+1. 凍結後最後一次全量（md5 前後留證）→ 三段式 commit（`feat` / `docs` / docs-add-sha256；**不 push**）。
+2. TECH-012 commit 完 → TECH-007 才可以落地（凍結解除）。
