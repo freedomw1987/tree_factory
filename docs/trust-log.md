@@ -1814,3 +1814,36 @@ Refs: docs/backlog.md#TECH-009, docs/ac/TECH-009.md
 2. 退出 trust mode（trust-log 加「退出」段）
 3. INT-M01-M02-01 / TECH-005 留下一輪
 
+
+---
+
+## 2026-10-09 22:46 +0800 — trust mode 退出
+
+`commit 546a313` → `git push origin main` → `fcca6d5..546a313` 已 push。
+
+- 1h27m 預算用 1h13m（22:33 起跑 → 22:46 結案）
+- 結案 13 分鐘前已開 commit、push 完；剩餘時間**不再寫新功能**（選項 A 紀律）
+- 4 個 P1 / 5 SP 整合票（INT-M01-M02-01）+ TECH-005（Spike 探針退場）留下一輪
+
+### 本輪時間軸誠實總覽（用主機時鐘抽樣）
+- 22:33：trust mode 第三輪起跑
+- 22:35：TECH-014 Gate 1 開始（讀 AC + 設計）
+- 22:36：純函式 + 純函式測試 + storage store 改動
+- 22:37-22:38：meeting-do 改動（首次版有 `#gateAnchor` 邏輯漏洞 → 重構成 `#anchorGateSync`）
+- 22:39：30 個檔 535 條綠
+- 22:40：發現 session-anchor-routes 8 條紅 = `${path}` 拼成 `//session/start`（URL 雙斜線）→ 修
+- 22:41：30 個檔 561 條全綠（+ session-anchor-routes 26 條）
+- 22:42：worker typecheck 乾淨；regression-guard 通過
+- 22:43：交付文 / DESIGN.md / system-design.md / env-setup.md 補完
+- 22:45：trust-log 結案段
+- 22:46：commit 546a313 + push 完成
+
+---
+
+## 2026-10-09 22:48 +0800 — 下一輪 deadline 已收（07:30 +0800）
+
+收到用戶設定：下一輪 deadline = **2026-10-10 07:30 +0800**（距本輪結案 8h44m，扣除睡眠 7h 約 1h44m 可用）。
+
+- 未進 trust mode（待用戶選票）
+- 票池（依優先級）：INT-M01-M02-01（P0 / 5 SP）／TECH-005（P2 / 1 SP）／其他 backlog 票
+- 環境狀態：worker 1420 / 8787 兩個 workerd 仍在跑（從 TECH-009 留下），commit `546a313` 在 origin/main，無未 push
