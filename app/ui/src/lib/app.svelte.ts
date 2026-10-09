@@ -18,6 +18,8 @@ import { WakeLockManager, type WakeLockSentinelLike, type WakeLockState } from "
 import type { UploadOutcome } from "./recorder/uploader";
 import { HttpSessionClient, SessionApiError } from "./session/api";
 import { createLocalGapStorage, GapTracker, listPendingGapMeetings, type GapRecord } from "./transcript/gap-tracker";
+import { LiveTranscript, type TimelineEntry } from "./transcript/live-transcript";
+import { LiveTranscriptFeed, type FeedStatus } from "./transcript/live-transcript-feed";
 
 export type View = "list" | "start" | "permission" | "meeting" | "recover";
 export type Tab = "meetings" | "chat";
@@ -108,11 +110,105 @@ async function startGapTracking(meetingId: string): Promise<void> {
     // 牆鐘 elapsed（不是 `snapshot.elapsedMs`）：中斷時 snapshot 是凍結值，用它會把缺口
     // 記成 0 秒——真實缺了幾分鐘卻說「長度不到 1 秒」（Gate 4 F1）。
     elapsedMs: () => store?.wallClockElapsedMs ?? 0,
-    onChange: (gaps) => {
-      app.gaps = gaps;
-    },
+    onChange: setGaps,
   });
   await gapTracker.load();
+}
+
+/**
+ * M01-US-104：畫面上的缺口**只有這一條路徑**能改。
+ *
+ * 為什麼不能只寫 `app.gaps = gaps`：畫面現在渲染的是 `transcript.entries`（一份算好的快照），
+ * 只改 `app.gaps` 的話缺口列會停在舊物件上——離線補送成功後「待同步」會永遠掛著
+ * （本機已經 `synced:true`，畫面卻還說沒送出去）。
+ */
+function setGaps(gaps: GapRecord[]): void {
+  app.gaps = gaps;
+  syncTranscript();
+}
+
+/**
+ * M01-US-104：即時逐字稿的畫面狀態。
+ *
+ * 為什麼 `entries` 是「算好再放進 $state」而不是在畫面裡直接呼叫 `timeline()`：
+ * `timeline()` 會排序＋裁切；每次渲染都算等於每一句到來都做一次全表排序。
+ */
+export const transcript = $state({
+  entries: [] as TimelineEntry<GapRecord>[],
+  committed: 0,
+  omitted: 0,
+  following: true,
+  unread: 0,
+  status: { ok: true, error: null, lastOkMs: null } as FeedStatus,
+});
+
+let liveTranscript = new LiveTranscript<GapRecord>();
+let transcriptFeed: LiveTranscriptFeed | null = null;
+
+function syncTranscript(): void {
+  liveTranscript.applyGaps(app.gaps);
+  transcript.entries = liveTranscript.timeline();
+  const counts = liveTranscript.counts;
+  transcript.committed = counts.committed;
+  transcript.omitted = counts.omitted;
+  transcript.following = liveTranscript.following;
+  transcript.unread = liveTranscript.unread;
+}
+
+/**
+ * M01-US-104 D9：輪詢的生命週期只有一條規則——在會議畫面且真的在錄音才讀。
+ * 離開畫面 / 中斷 / 達上限 / 權限阻斷都停：沒有新句還一直打是無意義的流量。
+ */
+function syncTranscriptPolling(): void {
+  if (app.view === "meeting" && rec.snapshot.state === "recording") transcriptFeed?.start();
+  else transcriptFeed?.stop();
+}
+
+/** 使用者**自己**把逐字稿往上滑（AC-3）：離底部多遠決定要不要繼續跟隨。 */
+export function notifyTranscriptScroll(distancePx: number): void {
+  liveTranscript.notifyUserScroll(distancePx);
+  syncTranscript();
+}
+
+/** AC-4：「回到最新 · N 句新」。 */
+export function backToLatest(): void {
+  liveTranscript.backToLatest();
+  syncTranscript();
+}
+
+/**
+ * 餵入一段未定稿的文字（AC-1）。
+ * 裝置端還沒有 STT 連線，所以目前只有 dev 鉤子（`__tf.pushInterim`）用它；
+ * 真接線（audio → nova → interim 事件）是後續票的事——不假裝它已經有了。
+ */
+export function pushInterim(input: {
+  speakerId: number;
+  text: string;
+  startMs: number;
+  endMs: number;
+}): void {
+  liveTranscript.applyInterim(input);
+  syncTranscript();
+}
+
+/** 換一場會議：舊的句子不可以跟著帶過去（上一場的內容會變成幻覺）。 */
+function resetTranscript(client: HttpSessionClient): void {
+  transcriptFeed?.stop();
+  liveTranscript = new LiveTranscript<GapRecord>();
+  transcript.entries = [];
+  transcript.committed = 0;
+  transcript.omitted = 0;
+  transcript.following = true;
+  transcript.unread = 0;
+  transcript.status = { ok: true, error: null, lastOkMs: null };
+  transcriptFeed = new LiveTranscriptFeed({
+    client,
+    live: liveTranscript,
+    onChange: (status) => {
+      transcript.status = status;
+      syncTranscript();
+    },
+  });
 }
 
 /**
@@ -180,7 +276,7 @@ export async function syncPendingGaps(): Promise<void> {
       api: new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }),
       storage: createLocalGapStorage(meetingId),
       elapsedMs: () => 0, // 只有已存在的缺口會被補送，不會新增
-      ...(meetingId === app.currentMeetingId ? { onChange: (gaps: GapRecord[]) => (app.gaps = gaps) } : {}),
+      ...(meetingId === app.currentMeetingId ? { onChange: setGaps } : {}),
     });
     await tracker.load();
     await tracker.sync();
@@ -385,7 +481,11 @@ export async function confirmStart(rawTitle: string): Promise<void> {
   unsubscribe = store.subscribe(() => syncSnapshot());
   app.currentMeetingId = meetingId;
   app.currentTitle = title;
+  // 上一場的缺口／逐字稿不得帶到這一場。兩行是一組的：`app.gaps = []` 只是清畫面用的陣列，
+  // 真正把狀態機換掉的是下一行的 `resetTranscript()`（Gate 4 P2：下一行若被移走，
+  // 這行就會留下一個「只改陣列、沒更新狀態機」的舊 bug 入口）。
   app.gaps = [];
+  resetTranscript(client);
   await startGapTracking(meetingId);
   try {
     await store.start();
@@ -409,6 +509,7 @@ export async function confirmStart(rawTitle: string): Promise<void> {
       status: "recording",
     });
     app.view = "meeting";
+    syncTranscriptPolling();
     return;
   }
   if (snapshot.notice?.code === "PERMISSION_DENIED") {
@@ -422,6 +523,10 @@ export async function confirmStart(rawTitle: string): Promise<void> {
 /** 從權限阻斷頁回到列表（使用者可能已去設定開好權限）。 */
 export function backToList(): void {
   app.view = "list";
+  // 離開會議畫面就沒有「正在說…」了：留著只會讓下一次進來看到一句早就結束的話。
+  liveTranscript.clearInterim();
+  syncTranscript();
+  syncTranscriptPolling();
 }
 
 export async function endMeeting(): Promise<void> {
@@ -437,9 +542,13 @@ export async function endMeeting(): Promise<void> {
   gapTracker = null;
   // M01-US-108 D9：結束會議就把 sentinel 放掉（不再宣稱螢幕受保護），且不能再收 release 事件。
   wakeLock().stop();
+  // M01-US-104：會議結束就不會再有 interim（`clearInterim()` 的註解承諾了這件事，這裡兑現它）。
+  liveTranscript.clearInterim();
+  syncTranscript();
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
   app.view = "list";
+  syncTranscriptPolling();
 }
 
 export async function resumeMeeting(): Promise<void> {
@@ -455,6 +564,7 @@ export async function resumeMeeting(): Promise<void> {
   syncSnapshot();
   await flushChunks();
   await gapTracker?.sync();
+  syncTranscriptPolling();
 }
 
 /** 由畫面每秒呼叫（到點自動結束的驅動來源）。 */
@@ -476,6 +586,7 @@ export function tickMeeting(): void {
     // 到上限之後不需要續航（錄音已經停了），放掉 sentinel。
     wakeLock().stop();
   }
+  syncTranscriptPolling();
 }
 
 /** 上限畫面的兩個出口（AC-6）：產生記錄 / 開新一場。 */
@@ -485,15 +596,20 @@ export function closeLimitSession(choice: "generate" | "new"): void {
   // 同 endMeeting()：這一場結束了，舊 tracker 不得再收背景事件（免得建出幽靈缺口）。
   gapTracker = null;
   wakeLock().stop();
+  // 同 endMeeting()：這一場不會再有 interim 了。
+  liveTranscript.clearInterim();
+  syncTranscript();
   store?.closeSession();
   if (app.currentMeetingId !== null) setStatus(app.currentMeetingId, "ended");
   syncSnapshot();
   if (choice === "generate") {
     app.view = "list";
     app.toast = "記錄產生由 M02-US-203 接上；2:00 前的逐字稿與音檔已完整保留。";
+    syncTranscriptPolling();
     return;
   }
   app.view = "start";
+  syncTranscriptPolling();
 }
 
 /** 前景/背景切換（AC-4）：由 main.ts 綁上瀏覽器事件。 */
@@ -507,6 +623,12 @@ export function notifyVisibility(hidden: boolean): void {
   // M01-US-108 D3：進背景時瀏覽器一定會收走 sentinel，主動收乾淨才不會把「系統本來就會做的事」
   // 誤判成 lost（那會在回前景時多出一張不必要的提示）。
   if (hidden) wakeLock().suspend();
+  if (hidden) {
+    // M01-US-104：進背景後裝置端不再收音（SPIKE-002），畫面上那句「正在說…」永遠不會被定稿
+    // ——留著就是一句不會變的謊。回前景時輪詢會把真正定稿的句子補進來。
+    liveTranscript.clearInterim();
+    syncTranscript();
+  }
   if (willInterrupt) void gapTracker?.handleHidden();
   store?.notifyVisibility(hidden);
   syncSnapshot();
@@ -521,4 +643,5 @@ export function notifyVisibility(hidden: boolean): void {
     // M01-US-108 D4：回前景且**還在錄音**才重取（visible 不自動續錄，所以中斷中不取）。
     if (rec.snapshot.state === "recording") void wakeLock().acquire();
   }
+  syncTranscriptPolling();
 }

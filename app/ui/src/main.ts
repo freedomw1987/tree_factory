@@ -8,6 +8,7 @@ import {
   initRecovery,
   loadMeetings,
   notifyVisibility,
+  pushInterim,
   resumeUnfinished,
   tickMeeting,
   workerBaseUrl,
@@ -60,6 +61,10 @@ if (import.meta.env.DEV) {
       discardUnfinished,
       flushChunks,
       syncPendingGaps,
+      // M01-US-104：裝置端還沒有 STT 連線（沒有真的 interim 事件來源），
+      // 所以顯示層的 interim 只能由這個鉤子驅動——這是**誠實**的測試縫，
+      // 不是「假裝已經接上」：E2E 用它驗 AC-1/AC-2，真接線是後續票。
+      pushInterim,
     },
   });
 }

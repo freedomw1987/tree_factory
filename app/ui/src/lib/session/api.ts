@@ -13,6 +13,8 @@
  */
 
 import type { SessionClient } from "../recorder/store";
+import type { SegmentRow } from "../transcript/live-transcript";
+import type { SegmentPage } from "../transcript/live-transcript-feed";
 
 export type SessionPhase = "recording" | "ended" | "limit_reached";
 
@@ -80,6 +82,31 @@ export const PERMANENT_GAP_ERRORS: ReadonlySet<string> = new Set([
   "SESSION_NOT_STARTED",
 ]);
 
+
+/**
+ * 逐字稿帳本的一列（網路邊界：形狀不對就整列丟掉，不要讓 `NaN` 流進畫面）。
+ * 時間戳必須是安全整數（含 `endMs`），`text` 必須是非空字串——否則寧可少一列也不要顯示「undefined」。
+ */
+function parseSegmentRow(item: unknown): SegmentRow | null {
+  if (item === null || typeof item !== "object") return null;
+  const raw = item as Record<string, unknown>;
+  const seq = Number(raw.seq);
+  const speakerId = Number(raw.speakerId);
+  const startMs = Number(raw.startMs);
+  const endMs = Number(raw.endMs);
+  const text = typeof raw.text === "string" ? raw.text : "";
+  if (!Number.isSafeInteger(seq) || !Number.isSafeInteger(speakerId) || text === "") return null;
+  if (!Number.isSafeInteger(startMs) || !Number.isSafeInteger(endMs)) return null;
+  const idempotencyKey = typeof raw.idempotencyKey === "string" ? raw.idempotencyKey : undefined;
+  return {
+    seq,
+    speakerId,
+    text,
+    startMs,
+    endMs,
+    ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+  };
+}
 
 export class SessionApiError extends Error {
   readonly status: number;
@@ -253,6 +280,47 @@ export class HttpSessionClient implements SessionClient {
           Number.isSafeInteger(gap.fromMs) &&
           (gap.toMs === null || Number.isSafeInteger(gap.toMs)),
       );
+  }
+
+  /**
+   * M01-US-104：讀逐字稿帳本（TECH-013 的分頁 / 增量契約）。
+   *
+   * `since` 傳上一次回應的 `nextSince`（空頁回 `null` ＝ 用同一個值再問仍是空頁，不會有前進的假象）；
+   * `hasMore` 為真時呼叫端要續抓，否則畫面會停在某一頁。
+   */
+  async listSegments(input: { since: number | null; limit: number }): Promise<SegmentPage> {
+    const query = new URLSearchParams({ limit: String(input.limit) });
+    if (input.since !== null) query.set("since", String(input.since));
+    const url = `${this.#baseUrl}/m/${encodeURIComponent(this.#meetingId)}/transcript/segments?${query.toString()}`;
+    let response: Response;
+    try {
+      response = await this.#fetch(url);
+    } catch (error) {
+      throw new TranscriptGapApiError("NETWORK", error instanceof Error ? error.message : String(error));
+    }
+    if (!response.ok) {
+      throw new TranscriptGapApiError("SERVER", `讀逐字稿失敗（HTTP ${response.status}）`, response.status);
+    }
+    const payload = (await response.json()) as Record<string, unknown>;
+    const raw = Array.isArray(payload.segments) ? payload.segments : [];
+    // 水位（`nextSince`）只能是安全整數：不是的話等於**沒有**水位，寧可下一次重讀同一頁
+    // （重讀靠冪等鍵去重），也不要拿一個 `NaN` 去問伺服端（`?since=NaN` 會被回 400）。
+    // 與列內欄位同一套語意：數字字串 `"3"` 接受（列的 `seq: "3"` 也是這樣）。
+    // 但 `null`／`undefined`／空字串**不得**被 `Number()` 變成 `0` —— TECH-013 的契約是
+    // 「沒有新資料時回 `null`」，變成 `0` 會讓每一輪都從頭重讀整份帳本。
+    const asSince =
+      typeof payload.nextSince === "number" ||
+      (typeof payload.nextSince === "string" && payload.nextSince.trim() !== "" && /^[0-9]+$/.test(payload.nextSince.trim()))
+        ? Number(payload.nextSince)
+        : Number.NaN;
+    const nextSince = Number.isSafeInteger(asSince) ? asSince : null;
+    return {
+      segments: raw
+        .map((item) => parseSegmentRow(item))
+        .filter((row): row is SegmentRow => row !== null),
+      nextSince,
+      hasMore: payload.hasMore === true,
+    };
   }
 
   #post(action: "start" | "stop", body?: unknown): Promise<SessionPayload> {

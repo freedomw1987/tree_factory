@@ -1,8 +1,19 @@
 <script lang="ts">
-  import { endMeeting, rec, resumeMeeting, closeLimitSession, app } from "../lib/app.svelte";
+  import {
+    endMeeting,
+    rec,
+    resumeMeeting,
+    closeLimitSession,
+    app,
+    transcript,
+    notifyTranscriptScroll,
+    backToLatest,
+  } from "../lib/app.svelte";
   import { formatClock, minutesUntilLimit } from "../lib/recorder/limit";
+  import { FOLLOW_THRESHOLD_PX } from "../lib/transcript/live-transcript";
   import { wakeLockHint } from "../lib/recorder/wake-lock";
   import TranscriptGapRow from "./TranscriptGapRow.svelte";
+  import TranscriptLineRow from "./TranscriptLineRow.svelte";
 
   const HOLD_MS = 1_000;
 
@@ -57,6 +68,33 @@
 
   $effect(() => () => {
     if (frame !== null) cancelAnimationFrame(frame);
+  });
+
+  /** 逐字稿的捲動容器（跟隨 / 不跟隨都要知道離底部多遠，見 M01-US-104 AC-3）。 */
+  let transcriptEl: HTMLElement | null = $state(null);
+
+  /**
+   * M01-US-104 AC-3：用「離底部多遠」判斷要不要繼續跟隨。
+   * 這裡刻意不看 `event.isTrusted`：程式自己設 `scrollTop` 也會發出**可信**的 scroll 事件，
+   * 區分不了。靠距離則是可靠的：程式自己捲一定是捲到底（距離 ≈ 0），
+   * 只有使用者往上滑才會出現大於門檻的距離。
+   * 另外，沒有實際變化時不進狀態機（否則每個 scroll 事件都會重建一次時間軸陣列）。
+   */
+  function handleTranscriptScroll(): void {
+    if (transcriptEl === null) return;
+    const distancePx = transcriptEl.scrollHeight - transcriptEl.scrollTop - transcriptEl.clientHeight;
+    if ((distancePx <= FOLLOW_THRESHOLD_PX) === transcript.following) return;
+    notifyTranscriptScroll(distancePx);
+  }
+
+  $effect(() => {
+    // AC-3：跟隨時把畫面帶到最新一句。
+    // AC-4：不跟隨時**完全不動** `scrollTop`——不跳動只能靠「根本不動它」保證，
+    // 任何補償式修正都會在每一句到達時掙扎一下。
+    const following = transcript.following;
+    const lineCount = transcript.entries.length;
+    if (!following || transcriptEl === null || lineCount === 0) return;
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
   });
 </script>
 
@@ -120,19 +158,56 @@
     </p>
   {/if}
 
-  <section class="transcript" data-testid="transcript">
-    {#if app.gaps.length === 0}
-      <p class="dim" data-testid="transcript-waiting">等待第一句…（逐字稿由 M01-US-103 / US-104 接上）</p>
-    {:else}
-      <!--
-        M01-US-107 AC-2：畫面上有缺口就把空白說出來。
-        「等待第一句…」在這個時候要換掉——不然使用者會把「沒有句子」誤認為「這段話沒人說」。
-      -->
-      <ul class="gap-list" data-testid="transcript-gap-list">
-        {#each app.gaps as gap (gap.seq)}
-          <TranscriptGapRow {gap} />
-        {/each}
-      </ul>
+  <section
+    class="transcript-wrap"
+    data-testid="transcript-wrap"
+    data-following={transcript.following}
+    data-unread={transcript.unread}
+  >
+    <section
+      class="transcript"
+      data-testid="transcript"
+      bind:this={transcriptEl}
+      onscroll={handleTranscriptScroll}
+    >
+      {#if transcript.entries.length === 0}
+        <!--
+          M01-US-104 D10：讀不到的時候不能只說「等待第一句…」——那會被讀成「沒有人在說話」。
+          逐字稿為空且有錯時，明說讀不到（內容一到就會自己出現）。
+        -->
+        {#if transcript.status.ok}
+          <p class="dim" data-testid="transcript-waiting">等待第一句…</p>
+        {:else}
+          <p class="dim" role="status" data-testid="transcript-stale">逐字稿暫時讀不到，連線恢復後會自動補上。</p>
+        {/if}
+      {:else}
+        {#if transcript.omitted > 0}
+          <!-- DoD：渲染預算（最近 30 句）——被裁掉的話必須說出來，不得假裝全在畫面上 -->
+          <p class="dim" data-testid="transcript-omitted">上方已省略 {transcript.omitted} 句（只保留最近 30 句）</p>
+        {/if}
+        <ul class="line-list" data-testid="transcript-line-list">
+          {#each transcript.entries as entry (entry.kind === "line" ? entry.line.key : `gap:${entry.gap.seq}`)}
+            {#if entry.kind === "line"}
+              <TranscriptLineRow line={entry.line} />
+            {:else}
+              <TranscriptGapRow gap={entry.gap} />
+            {/if}
+          {/each}
+        </ul>
+        {#if !transcript.status.ok}
+          <!-- 舊內容留著（不清空）＋明說它是稍早的：清空會被誤讀成「沒人在說話」 -->
+          <p class="dim" role="status" data-testid="transcript-stale">
+            逐字稿暫時讀不到，下面內容是稍早的；連線恢復後會自動補上。
+          </p>
+        {/if}
+      {/if}
+    </section>
+
+    {#if !transcript.following}
+      <!-- AC-4：停止跟隨時的浮動入口；N 是停止跟隨後進來的句數 -->
+      <button type="button" class="to-latest" data-testid="btn-back-to-latest" onclick={() => backToLatest()}>
+        {transcript.unread > 0 ? `回到最新 · ${transcript.unread} 句新` : "回到最新"}
+      </button>
     {/if}
   </section>
 
@@ -260,6 +335,33 @@
     cursor: pointer;
   }
 
+  .transcript-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+  }
+
+  .transcript-wrap > .transcript {
+    flex: 1;
+  }
+
+  .to-latest {
+    position: absolute;
+    inset: auto var(--space-3) var(--space-3) auto;
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border-radius: 999px;
+    border: 1px solid var(--accent);
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px #0006;
+  }
+
   .transcript {
     flex: 1;
     background: var(--surface);
@@ -278,13 +380,14 @@
     margin: 0;
   }
 
-  .gap-list {
+  /* M01-US-104：句子與缺口在同一條時間軸上（順序由 mergeTimeline 決定）。 */
+  .line-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   .limit {
