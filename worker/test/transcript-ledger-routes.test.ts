@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
+import { TEST_ANCHOR_KEY } from "./meeting-do.test.js";
 
 import { MeetingDurableObject, type MeetingDurableObjectContext } from "../src/meeting-do.js";
 import type { MeetingBindings } from "../src/harness/meeting-harness.js";
@@ -74,7 +75,7 @@ function started(nowMs = 1_700_000_000_000): {
   tick: (ms: number) => void;
 } {
   const { ctx, tick } = sqliteContext(nowMs);
-  const durable = new MeetingDurableObject(ctx, {} as MeetingBindings);
+  const durable = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
   return { durable, ctx, tick };
 }
 
@@ -205,10 +206,10 @@ describe("M01-US-103 /transcript/segments（寫入 + 讀回）", () => {
 
   it("M01-跨 DO instance：換一個 DO 讀同一份 DB 仍看得到逐字稿（不是記憶體帳本）", async () => {
     const { ctx } = sqliteContext();
-    const first = new MeetingDurableObject(ctx, {} as MeetingBindings);
+    const first = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
     await startMeeting(first);
     await call(first, "/transcript/segments", { segments: [oneSegment] });
-    const second = new MeetingDurableObject(ctx, {} as MeetingBindings);
+    const second = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
     const listed = await call(second, "/transcript/segments");
     expect(listed.body).toMatchObject({ count: 1 });
     expect(listed.body.segments).toMatchObject([{ seq: 1, text: "第一句" }]);

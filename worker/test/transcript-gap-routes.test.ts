@@ -10,6 +10,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
+import { TEST_ANCHOR_KEY } from "./meeting-do.test.js";
 
 import { MeetingDurableObject, type MeetingDurableObjectContext } from "../src/meeting-do.js";
 import type { MeetingBindings } from "../src/harness/meeting-harness.js";
@@ -75,7 +76,7 @@ function started(nowMs = 1_700_000_000_000): {
   tick: (ms: number) => void;
 } {
   const { ctx, tick } = sqliteContext(nowMs);
-  const durable = new MeetingDurableObject(ctx, {} as MeetingBindings);
+  const durable = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
   return { durable, ctx, tick };
 }
 
@@ -235,7 +236,7 @@ describe("M01-US-107 逐字稿缺口標記路由", () => {
     await call(durable, "/session/start", {});
     tick(7_000);
     await call(durable, "/transcript/gap", { seq: 1, fromMs: 7_000, toMs: 8_000 });
-    const revived = new MeetingDurableObject(ctx, {} as MeetingBindings);
+    const revived = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
     const listed = await call(revived, "/transcript/gaps");
     expect(listed.body.gaps as Gap[]).toEqual([{ seq: 1, fromMs: 7_000, toMs: 8_000 }]);
   });

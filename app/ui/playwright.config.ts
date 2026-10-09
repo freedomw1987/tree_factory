@@ -26,6 +26,8 @@ import { defineConfig, devices } from "@playwright/test";
 declare const process: { env: Record<string, string | undefined> };
 
 const E2E_DEVICE_TOKEN = process.env.E2E_DEVICE_TOKEN ?? "e2e-device-token";
+/** TECH-014：worker 端的 session_anchor HMAC 金鑰（測試用固定值）。 */
+const E2E_SESSION_ANCHOR_KEY = process.env.E2E_SESSION_ANCHOR_KEY ?? "e2e-session-anchor-key-32-bytes-or-more";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -48,7 +50,7 @@ export default defineConfig({
       // 真的 Durable Object（faux provider，零成本）；session 路由就是打這裡。
       // TECH-009：worker 端的 DEVICE_TOKEN 必須與 `E2E_DEVICE_TOKEN` 相同，
       // 否則 UI 帶的憑證會被判 AUTH_INVALID（那就變成在驗錯的東西）。
-      command: `npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux --var DEVICE_TOKEN:${E2E_DEVICE_TOKEN}`,
+      command: `npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux --var DEVICE_TOKEN:${E2E_DEVICE_TOKEN} --var SESSION_ANCHOR_KEY:${E2E_SESSION_ANCHOR_KEY}`,
       cwd: "../../worker",
       url: "http://127.0.0.1:8787/",
       reuseExistingServer: true,

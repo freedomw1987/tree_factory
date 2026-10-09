@@ -153,6 +153,48 @@ cd worker && DEVICE_TOKEN=<同一把> node scripts/do-smoke.mjs
 > `CLOUDFLARE_API_KEY`」——那不是憑證關擋的，是 harness 的模型憑證沒設（同一個碼的兩義，
 > 見 `docs/ac/TECH-009.md` 的範圍界定）。
 
+## 7. session_anchor HMAC 金鑰（TECH-014）
+
+`SESSION_ANCHOR_KEY` 是 DO 內「session 的可信錨點（HMAC-SHA256）」的密鑰 —
+**任何能取得它的人都能竄改金鑰能保護的全部欄位**。設法同 `DEVICE_TOKEN`：secret 走
+`wrangler secret put`，本機走 `.dev.vars`（已在 `.gitignore`）。
+
+**未設 / 空字串 / 只有空白** → `/session/start` 回 `500 SESSION_ANCHOR_NOT_CONFIGURED`（fail-closed）。
+這是 Tech-014 設計 D6：不能「沒設金鑰也能開會」。
+
+### 7.1 worker（伺服端）
+
+```bash
+# ① 正式環境
+cd worker && wrangler secret put SESSION_ANCHOR_KEY   # 貼上 32+ bytes 隨機金鑰
+
+# ② 本機開發：worker/.dev.vars
+#    SESSION_ANCHOR_KEY=dev-only-anchor-key-please-replace-with-32+random-bytes
+# 樣板在 worker/.dev.vars.example。
+```
+
+`--var` 也行（測試用，正式請走 secret）：
+
+```bash
+cd worker && npx wrangler dev --port 8787 --var HARNESS_PROVIDER:faux \
+  --var SESSION_ANCHOR_KEY:dev-only-anchor-key-32-bytes-or-more
+```
+
+**不要**走 `process.env`：見上節 TECH-009 的實測坑（wrangler 不從 process env 取 binding）。
+**不要** commit 真實金鑰：`.dev.vars` 已在 `.gitignore`，金鑰一旦意外上版、請視同洩漏重發。
+
+### 7.2 旋轉
+
+**金鑰換掉後**：
+1. **沒有平滑輪替期**（v1 範圍）：新金鑰生效 → 既有 session 讀進來 → MAC 對不上 → SESSION_CORRUPT 500。
+2. 作業步驟：先用舊金鑰把所有「未結束」的會議收成 ended，然後改金鑰、
+   重新 deploy。`session_anchor` 表上寫有 `version` 欄位，預備 v2 多金鑰輪替期時用。
+
+### 7.3 跟現有 SESSION_CLOCK_TOLERANCE_MS / MEETING_MAX_MS 的關係
+
+**完全獨立**：那些是「時間合理性」規則（Tech-008 範圍），Tech-014 在它們之上加了一層
+**可信錨點** — 即使時間欄被改得「不違規」（同量平移），錨的 MAC 也會對不上而 500。
+
 ---
 
 ---

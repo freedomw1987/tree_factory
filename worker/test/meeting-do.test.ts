@@ -20,7 +20,10 @@ interface Harness {
 }
 
 /** 最小的 DO context 替身：只記錄呼叫，不假裝自己是 SQLite。 */
-function makeDurable(env: MeetingBindings = {}): Harness {
+/** 測試預設金鑰（32+ bytes，隨機但固定，讓現有測試不需每個都加）。 */
+export const TEST_ANCHOR_KEY = "test-session-anchor-key-32-bytes-or-more-please";
+
+function makeDurable(env: MeetingBindings = { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY }): Harness {
   const alarms: number[] = [];
   const sqlCalls: string[] = [];
   let currentAlarm: number | null = null; // 平台會記住已設的 alarm，替身也要記

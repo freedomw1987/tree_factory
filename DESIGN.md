@@ -453,9 +453,12 @@ Icon(chat) 對話（首頁）
 | `MODEL_UNAVAILABLE` | ✅ | `ErrorState` | 「服務暫時不可用」+ 稍後重試 |
 | `SOURCE_UNRESOLVED` | ✅ | 該條結論改以「查無資料」呈現（**不當成答案輸出**）| 「這條結論的來源找不到了，已經改為查無」|
 | `CONCEPT_FAILED` | ✅ | `Banner`（warn，只在概念頁）| 「概念整理失敗，會議記錄不受影響」+ 重試 |
+| `SESSION_ANCHOR_NOT_CONFIGURED` | ❌ | `ErrorState`（阻斷式）| 「伺服器尚未完成安全設定」+ 見 `docs/env-setup.md`（與 `AUTH_NOT_CONFIGURED` 同類：不是使用者的錯，不該叫人重試）|
 
 **入口層三個碼（v2.6，TECH-009）**：`AUTH_NOT_CONFIGURED` / `ORIGIN_FORBIDDEN` / `RATE_LIMITED`
 由 `/m/**` 閘門在**進 DO 之前**回應，是 HTTP 錯誤主體而非 WS 下行訊息；呈現上仍遵守本表的「可重試」欄。
+**設定層一個碼（v2.7，Tech-014）**：`SESSION_ANCHOR_NOT_CONFIGURED` 走的是**Worker 進 DO 之後**才發現的，
+跟入口層不同（入口層是「轉送之前」）。但語意上仍不是「使用者能重試」——金鑰屬於部署期的事。
 `405 METHOD_NOT_ALLOWED` 不進表：它與 `404` 同級，是**傳輸層的請求形狀錯誤**——
 裝置端不需要理解它、也不該據它改變行為。
 
@@ -533,6 +536,7 @@ D8 的 `edited_at` 只能回答「有沒有被改過」，不能回答「原本�
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
 | 2026-10-09 | v2.6 | §5.1 錯誤碼表補 `AUTH_NOT_CONFIGURED` / `ORIGIN_FORBIDDEN` / `RATE_LIMITED` 三列的 UI 呈現與「使用者下一步」，並註明入口層碼是 HTTP 主體、`405` 不進表（傳輸層）| Agent（trust mode 執行階段 / TECH-009）|
+| 2026-10-09 | v2.7 | §5.1 補 `SESSION_ANCHOR_NOT_CONFIGURED`（Tech-014）：同類於 `AUTH_NOT_CONFIGURED`（不重試、不是使用者錯、指向 `env-setup.md`）；§5.1 註明「設定層一碼」（與入口層三碼分開，因為是「Worker 進 DO 後才回」）| Agent（trust mode 第三輪 / Tech-014）|
 | 2026-10-09 | v2.5 | §5 規則 8 條款擴充為**三層守門**：新增 `scripts/check-design-icons.mjs`（全檔掃描含 `.css` ＋原型逐字元同源比對，掛進 `npm test`/`npm run lint`）、`emoji.ts` 抽出且自帶測試；§3 畫面樹的 8 處 emoji 改為 `Icon(name)` 寫法（§3 與 §5 規則 8 不再自相矛盾）| Agent（TECH-011 Gate 4 複驗）|
 | 2026-10-09 | v2.4 | §5 規則 8 補**實作強制條款**（app 一律用 `Icon.svelte`、與原型同源、靜態測試守門）；`app/ui` 5 處 emoji 改 inline SVG（v2.2 立規後原型改了、app 漏做）| Agent（TECH-011）|
 | 2026-10-08 | v2.3 | 依 SPIKE-002 / SPIKE-004 回寫：新增 **D14**（錄音移到原生層，webview 背景不收音）、**D15**（分階段模型 8b/70b + 顯式壓縮政策）；§4.2 加註「背景不是只斷顯示、是音訊缺失」的更正 | Agent（trust mode 執行階段）|

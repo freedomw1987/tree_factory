@@ -1,0 +1,4 @@
+# TECH-014：這是「session_anchor」HMAC 金鑰（至少 32 bytes，建議隨機）。
+# 本機開發用，正式部署走 `wrangler secret put SESSION_ANCHOR_KEY`。
+# 這個檔**不要** commit 真實金鑰 — `.dev.vars` 已在 .gitignore。
+SESSION_ANCHOR_KEY = "dev-only-anchor-key-please-replace-with-32+random-bytes"

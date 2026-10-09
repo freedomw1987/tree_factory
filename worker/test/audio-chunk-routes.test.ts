@@ -7,6 +7,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
+import { TEST_ANCHOR_KEY } from "./meeting-do.test.js";
 
 import { MeetingDurableObject, type MeetingDurableObjectContext } from "../src/meeting-do.js";
 import type { MeetingBindings } from "../src/harness/meeting-harness.js";
@@ -69,7 +70,7 @@ async function call(
 
 function started(nowMs = 1_700_000_000_000): { durable: MeetingDurableObject; tick: (ms: number) => void } {
   const { ctx, tick } = sqliteContext(nowMs);
-  const durable = new MeetingDurableObject(ctx, {} as MeetingBindings);
+  const durable = new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
   return { durable, tick };
 }
 

@@ -3,6 +3,11 @@ name = "tree-factory-worker"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
 
+# TECH-014：SESSION_ANCHOR_KEY 是簽 HMAC 用的金鑰，**絕不得** commit。
+# 走 `wrangler secret put SESSION_ANCHOR_KEY`（正式）或 .dev.vars（本機）—
+# `.dev.vars` 在 .gitignore 內，安全。
+# 沒設金鑰時 /session/start 會回 500 SESSION_ANCHOR_NOT_CONFIGURED（fail-closed）。
+
 # DO 的 SQLite 儲存後端（`new_sqlite_classes` 需要 compatibility_date >= 2024-04-03）
 [[durable_objects.bindings]]
 name = "MEETING"

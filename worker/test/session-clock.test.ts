@@ -18,6 +18,7 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
+import { TEST_ANCHOR_KEY } from "./meeting-do.test.js";
 
 import {
   MEETING_MAX_MS,
@@ -104,7 +105,7 @@ function doDevice(nowMs = STARTED): {
       },
     },
   } as unknown as MeetingDurableObjectContext;
-  return { durable: new MeetingDurableObject(ctx, {} as MeetingBindings), db, tick: (ms) => (now += ms) };
+  return { durable: new MeetingDurableObject(ctx, { SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings), db, tick: (ms) => (now += ms) };
 }
 
 async function call(
@@ -208,37 +209,35 @@ describe("M01-TECH-008 session 讀取的時間合理性", () => {
     expect(response.body.endedReason).toBe("limit");
   });
 
-  // ---- 釘樁群：以下是**已知限制**，不是「還沒想到」。改壞了要讓它紅。 ----
-  // 依據：`違規 ⟺ Δ > elapsed + TOL`（見檔頭）。ecosystem 沒有可信錨點之前，
-  // 「已錄時間以內的平移」與「真實歷史」在 DB 裡無法區分，所以只能放行 ——
-  // 這一半必須被測試釘住，否則整排綠燈會給出「同量平移擋得住」的假保證。
+  // ---- 釘樁群：以下是**收緊**的邊界（TECH-014 後）。改壞了要讓它紅。 ----
+  // 依據：TECH-008 的「同量平移可被放行」已知邊界已由 TECH-014 釘下。
+  // 釘點（`session_anchor`）不在任何儲存體內（只在 env ），改 DB 不能同步重簽 MAC；
+  // 因此「兩欄一起往後推同樣多」現在走得 500 SESSION_CORRUPT（見 AC-3-① / ② / ③）。
 
-  it("M01-TECH-008 Given 已錄 1 小時 When 兩欄一起再往後推 1 小時 Then 放行（已知限制，見 AC 刻意不做）", async () => {
+  it("M01-TECH-014 Given 已錄 1 小時 When 兩欄一起再往後推 1 小時 Then 500 SESSION_CORRUPT（同量平移）", async () => {
     const { durable, db, tick } = doDevice();
     expect((await call(durable, "/session/start", {})).status).toBe(201);
     tick(60 * 60 * 1000); // 真的錄了 1 小時
     shiftSessionBy(db, 60 * 60 * 1000); // 差值仍是 2h
     const response = await call(durable, "/session");
-    // 放行不是 bug 被漏掉，是這一票的**已知邊界**：釘在這裡，未來補了錨點就會紅。
-    expect(response.status).toBe(200);
-    expect(response.body.phase).toBe("recording");
-    // 原本只剩 1 小時，現在又是滿滿 2 小時 —— 上限確實被續命了。
-    expect(response.body.remainingMs).toBe(MEETING_MAX_MS);
+    // TECH-014：錨的 MAC 不再匹配，吵鬧的 500 取代「上限可被無聲續命」。
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe("SESSION_CORRUPT");
+    expect(response.body.recoverable).toBe(false);
   });
 
-  it("M01-TECH-008 Given 已超過上限的會議 When 平移把時間軸搬到現在 Then 放行（上限可被續命）", async () => {
+  it("M01-TECH-014 Given 已超過上限的會議 When 平移把時間軸搬到現在 Then 500 SESSION_CORRUPT（復活也被擋）", async () => {
     const { durable, db, tick } = doDevice();
     await call(durable, "/session/start", {});
     tick(130 * 60 * 1000); // 已過 2h 上限
     shiftSessionBy(db, 130 * 60 * 1000);
     const response = await call(durable, "/session");
-    // 過期會議被「搬」回現在就復活了；靠 alarm 擋不住（見設計 D7：alarm 會跟著被改的值跑）。
-    expect(response.status).toBe(200);
-    expect(response.body.phase).toBe("recording");
-    expect(response.body.remainingMs).toBe(MEETING_MAX_MS);
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe("SESSION_CORRUPT");
+    expect(response.body.recoverable).toBe(false);
   });
 
-  it("M01-TECH-008 Given 平移量 = 已錄時間 + 容忍值 + 1ms When 讀取 Then 擋下（真正的邊界）", async () => {
+  it("M01-TECH-014 Given 平移量 = 已錄時間 + 容忍值 + 1ms When 讀取 Then 擋下（真正的邊界）", async () => {
     const { durable, db, tick } = doDevice();
     await call(durable, "/session/start", {});
     const elapsed = 5 * 60 * 1000;

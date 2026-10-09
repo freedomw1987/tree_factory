@@ -54,6 +54,13 @@ import {
   type SessionSnapshot,
   type SessionSql,
 } from "./storage/session-store.js";
+import {
+  ANCHOR_VERSION,
+  anchorEquals,
+  anchorKey,
+  anchorMac,
+  sessionAnchorMessage,
+} from "./session-anchor.js";
 import { StreamBufferCorruptError, StreamBufferStore } from "./storage/stream-buffer-store.js";
 import {
   SEGMENT_PAGE_LIMIT_MAX,
@@ -153,6 +160,34 @@ export class MeetingDurableObject {
   readonly #lifecycle: HarnessLifecycle<OpenMeetingResult>;
   #alarmWakes = 0;
 
+  /**
+   * TECH-014（D5）：錨的狀態，DO 醒來時算一次。
+   *
+   * - `ok`：簽過、與 DB 現值一致（`ok.mac` = 甦醒時從 DB 讀出的 mac）；同步閘門拿這個對。
+   * - `corrupt`：資料不合法（讀不到 session、讀不到錨、錨不符）。
+   * - `unchecked`：金鑰未設定（AC-5）——讀取時仍走 `read()` 拿到原貌，但**開始會議**被擋下。
+   *
+   * 這個 promise 永不 reject（設計 D5）。壞狀態是資料、不是例外。
+   */
+  readonly #anchorReady: Promise<
+    | { status: "ok"; session: MeetingSession; mac: string }
+    | { status: "corrupt"; reason: string }
+    | { status: "unchecked" }
+  >;
+
+  /**
+   * TECH-014（D5）：#anchorReady 的同步取法。
+   * fetch / alarm 開頭 await 過後，這裡「同一個 call stack」裡的同步路徑可以讀。
+   * 這是唯一在不拆 `read → gate → write` 原子性下讓 `#readSession` 同步閘門的設計：
+   * 記的**不是結果**，是「await 過了沒」的 flag；實際拿結果仍然由
+   * `#anchorReady` 送出（但微任務上不會換過結果）。
+   */
+  #anchorGateSync:
+    | null
+    | { status: "ok"; session: MeetingSession; mac: string }
+    | { status: "corrupt"; reason: string }
+    | { status: "unchecked" } = null;
+
   constructor(ctx: DurableObjectState, env: MeetingEnv) {
     this.#ctx = ctx;
     this.#env = env;
@@ -163,6 +198,60 @@ export class MeetingDurableObject {
       setAlarm: (atMs) => ctx.storage.setAlarm(atMs),
       getAlarm: () => ctx.storage.getAlarm(),
     });
+    this.#anchorReady = this.#loadAnchor();
+  }
+
+  /**
+   * TECH-014（D5 / D6）：甦醒時算一次錨的狀態。
+   * 永遠不 reject；回值三態由 `fetch` / `alarm` / `#readSession` 各自消費。
+   * 同時「同步快取」到 #anchorGateSync，讓 #readSession 的同步閘門能拿到結果。
+   */
+  async #loadAnchor(): Promise<
+    | { status: "ok"; session: MeetingSession; mac: string }
+    | { status: "corrupt"; reason: string }
+    | { status: "unchecked" }
+  > {
+    const key = anchorKey(this.#env);
+    if (key === null) {
+      this.#anchorGateSync = { status: "unchecked" };
+      return this.#anchorGateSync;
+    }
+    const store = this.#sessionStore();
+    let snapshot: SessionSnapshot | null;
+    try {
+      snapshot = store.read(this.#now());
+    } catch (error) {
+      if (error instanceof SessionCorruptError) {
+        const c = { status: "corrupt" as const, reason: error.message };
+        this.#anchorGateSync = c;
+        return c;
+      }
+      throw error;
+    }
+    if (snapshot === null) {
+      this.#anchorGateSync = { status: "unchecked" };
+      return this.#anchorGateSync;
+    }
+    const anchor = store.readAnchor();
+    if (anchor === null) {
+      const c = { status: "corrupt" as const, reason: "session_anchor 缺失" };
+      this.#anchorGateSync = c;
+      return c;
+    }
+    const expected = await anchorMac(
+      key,
+      snapshot.session.meetingId,
+      snapshot.session.startedAtMs,
+      snapshot.session.endsAtMs,
+    );
+    if (anchor.mac !== expected) {
+      const c = { status: "corrupt" as const, reason: "session_anchor MAC 不一致" };
+      this.#anchorGateSync = c;
+      return c;
+    }
+    const ok = { status: "ok" as const, session: snapshot.session, mac: anchor.mac };
+    this.#anchorGateSync = ok;
+    return ok;
   }
 
   /** 壽命統計（給維運與測試看單例與接力是否真的發生）。 */
@@ -171,6 +260,11 @@ export class MeetingDurableObject {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // TECH-014（D5）：任何讀取之前先 await 錨的狀態。
+    // 這一條 await 放在 fetch 開頭，讓後續路徑可以同步使用錨狀態（讀取閘門）。
+    // 壞狀態走 `corrupt` 與 SESSION_CORRUPT 500 — 動到的只是「用 session 的路徑」，
+    // `GET /health` 等不該被這層冩到的地方隨 fetch 後面接的 405 / 404 邏輯決定（後者不讀 session）。
+    await this.#anchorReady;
     const url = new URL(request.url);
     // TECH-009 D7：會**改狀態**且「不必帶 body」就能被觸發的端點收斂成 POST-only（`POST_ONLY_PATHS`）。
     //
@@ -334,6 +428,8 @@ export class MeetingDurableObject {
    * （而不是等到記憶體被平台回收才第一次走重建路徑）。
    */
   async alarm(): Promise<void> {
+    // TECH-014（D5）：alarm 也是 DO 醒來的一種 — 讓錨狀態被計算一次。
+    await this.#anchorReady;
     this.#alarmWakes += 1;
     // 先收 session 再處理 harness：到點收尾不該被 harness 的失敗拖累
     // （若 harness 拋錯，錄音上限仍然已經落地，裝置端問到的會是正確答案）。
@@ -420,6 +516,36 @@ export class MeetingDurableObject {
     // （差值仍是 2 小時）。時間來源與其他路徑同一個 `#now()`，測試注入固定時鐘即可重現。
     const snapshot = store.read(this.#now());
     if (snapshot === null) return null;
+    // TECH-014（D5）：同步閘門。
+    // 這裡**不能** await — `meeting-do.ts:781` 保留的「read → gate → write 不可分割」不變式
+    // 是 TECH-014 為什麼要拆成「甦醒一次 + 同步比對」的根本原因。
+    // 錨的狀態由 `#anchorReady` 在 `fetch` / `alarm` 開頭 await 過了（同步快取進 #anchorGateSync），
+    // 這裡只是拿來對一遍。
+    const gate = this.#anchorGateSync;
+    if (gate === null) {
+      // 護欄：fetch / alarm 開頭都 await 過了 — 怎麼看都不該走到這裡。
+      // 如果走到，意味著有人從外部 call 到 #readSession 卻沒先 await，咬下來。
+      throw new SessionCorruptError("session_anchor 尚未準備（fetch/alarm 開頭未 await #anchorReady）");
+    }
+    if (gate.status === "unchecked") return this.#expireInStore(store, snapshot);
+    if (gate.status === "corrupt") throw new SessionCorruptError(`session_anchor: ${gate.reason}`);
+    // status === "ok"：現讀到的「三元組」必須等於甦醒時驗過的（AC-2-②）。
+    if (
+      snapshot.session.meetingId !== gate.session.meetingId ||
+      snapshot.session.startedAtMs !== gate.session.startedAtMs ||
+      snapshot.session.endsAtMs !== gate.session.endsAtMs
+    ) {
+      throw new SessionCorruptError("session_anchor 與 session 改寫後不一致");
+    }
+    return this.#expireInStore(store, snapshot);
+  }
+
+  /**
+   * 過期就寫回：alarm 可能沒醒、可能被延後；上限是**時間**決定的，
+   * 所以任何一次請求都必須先把過期的 recording 收成 ended（否則狀態會被讀成還在錄）。
+   * 為什麼仍走 `store.write()`：read → gate → write 不變式（不可拆）的一部分。
+   */
+  #expireInStore(store: SessionStore, snapshot: SessionSnapshot): SessionSnapshot {
     const expired = expireSession(snapshot.session, this.#now());
     if (expired === snapshot.session) return snapshot;
     const next = { ...snapshot, session: expired };
@@ -463,6 +589,20 @@ export class MeetingDurableObject {
    * 真正「再錄一場」是由裝置端換一個新的 meeting id（= 新的 DO）達成的。
    */
   async #sessionStartRoute(request: Request): Promise<Response> {
+    // TECH-014（D6 / AC-5）：未設金鑰 → 不能開始。
+    // 設計上這是把「金鑰檢查」放在「讀既有 session」之前，因為「沒金鑰卻能讀」是一個
+    // 模糊的中間狀態；這個例子的設計是「沒金鑰 → 隨後的 start 一定 500，讀者看到 500 也可重簽」。
+    const key = anchorKey(this.#env);
+    if (key === null) {
+      return json(
+        {
+          error: "SESSION_ANCHOR_NOT_CONFIGURED",
+          message: "SESSION_ANCHOR_KEY 未設定／空字串／只有空白，無法開始會議",
+          recoverable: false,
+        },
+        500,
+      );
+    }
     const store = this.#sessionStore();
     const existing = this.#readSession(store);
     if (existing !== null) return json(this.#payload(existing), 201);
@@ -471,6 +611,21 @@ export class MeetingDurableObject {
       transcriptWrites: 0,
     };
     store.write(snapshot);
+    // 寫錨：一次重簽面對這個 meeting（AC-1）。`transcriptWrites` 以外的三元組被簽。
+    const mac = await anchorMac(
+      key,
+      snapshot.session.meetingId,
+      snapshot.session.startedAtMs,
+      snapshot.session.endsAtMs,
+    );
+    store.writeAnchor(mac, ANCHOR_VERSION);
+    // 錨列一旦寫入，`#anchorGateSync` 的「unchecked」就該設成「ok」讓接下來的
+    // 讀取走同步閘門（不重複讀到 session 認為存在但 anchor 還沒被快取的狀態）。
+    this.#anchorGateSync = {
+      status: "ok",
+      session: snapshot.session,
+      mac,
+    };
     await this.#armSessionAlarm(snapshot.session.endsAtMs);
     return json(this.#payload(snapshot), 201);
   }

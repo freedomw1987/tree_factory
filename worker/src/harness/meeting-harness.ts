@@ -45,6 +45,12 @@ export interface MeetingBindings {
   REALTIME_MODEL_ID?: string;
   /** 會後產出階段模型 id。 */
   NOTES_MODEL_ID?: string;
+  /**
+   * TECH-014：時間軸錨的金鑰（HMAC-SHA256）。**未設／空字串／只有空白 → fail-closed**，
+   * `/session/start` 會回 500 `SESSION_ANCHOR_NOT_CONFIGURED`（D6）。
+   * 不接受預設值（靜默放行 = 沒有錨）。
+   */
+  SESSION_ANCHOR_KEY?: string;
   [name: string]: unknown;
 }
 

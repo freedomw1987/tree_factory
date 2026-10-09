@@ -1752,3 +1752,65 @@ Refs: docs/backlog.md#TECH-009, docs/ac/TECH-009.md
 - TECH-005 / INT-M01-M02-01 / TECH-003 仍未動
 - 11:52（信任模式首輪結束）→ 12:15（信任模式第二輪起跑）→ 12:49~21:45（sleep/anomaly）→ 22:30（現在）這中間**的時序**是這次最值得回頭看的一段；建議下一輪開始前用 `last reboot` 與 `pmset -g log` 對一次
 
+
+---
+
+## 2026-10-09 22:33 +0800 — 信任模式重啟（第三輪）：TECH-014 起跑，deadline 00:00
+
+**大目標**（用戶原話）：「deadline 是 00:00」—— 起跑 TECH-014，時間內能接再做下一票。
+
+**窗口**：22:33 → 00:00 = **1 小時 27 分鐘**（與上輪的 8h40m 跳躍相比很緊）。
+
+**Phase 0 電源 / 時鐘檢查結果**（先查再起跑，避免上輪的 8h40m 跳躍重演）：
+
+| 項目 | 結果 | 證據 |
+| --- | --- | --- |
+| 系統時鐘 vs NTP | -0.000866s（< 1ms，正常）| `sntp -S time.apple.com` |
+| `last reboot` | 11 天前（Sep 28 18:15）無非預期 reboot | `last reboot` |
+| `pmset -g log` 12:05~21:05（覆蓋上輪異常期）| **無 Sleep/Wake 事件** | `pmset -g log \| grep -iE "Sleep\|Wake"` = 0 hit |
+| 持續 hold sleep 的 process | MiniMax Code (PID 80625) `NoIdleSleepAssertion` 222:55:51（**9.25 天**）| `pmset -g log` |
+| 主機時間連續抽樣（22:32:39 / 41 / 43）| 穩定無飄移 | `date; sleep 2; date` |
+| **結論** | **可以進 trust mode** | — |
+
+**上輪 8h40m 跳躍根因（仍未知）**：
+
+不是 power/sleep、不是系統時鐘漂移、不是 NTP 跳變。
+可能候選：① `pi` harness 內部 model time 幻覺（我自己推理出錯，把 12:49 的 trust-log 記成 21:49 沒被自己抓到）；
+② Cloudflare / GitHub Actions / Tauri CLI 的時間被覆寫；③ `/tmp` mtime 寫入時用了假時鐘。
+**對這輪的影響**：零（主機時間確認準、系統沒睡、`pmset` 持續 hold）。
+
+**Step 4 接力**（deadline 內能接再做下一票）：
+
+1. **TECH-014**（時間軸錨點；P1 / 3 SP；設計/AC 已就緒，1 個改動待實作）← 起跑
+2. **TECH-005**（Spike 探針退場；P2 / 1 SP）← 視時間
+3. ~~**INT-M01-M02-01**（端到端整合；P0 / 5 SP）~~ ← 預期塞不下，留下一輪
+
+**記錄本段是中途而非 final 結案**——所有動作的時間標記都用主機時鐘、`date` 抓出。
+
+---
+
+## 2026-10-09 22:45 +0800 — TECH-014 結案（trust mode 第三輪結案，deadline 00:00 前 1h15m）
+
+### 已交付
+- **TECH-014**：worker 30 個檔 / **561 條測試全綠** + tsc 乾淨 + regression-guard 通過
+- 新 1 檔（`worker/src/session-anchor.ts`）+ 改 4 檔（`meeting-do.ts` / `session-store.ts` / `meeting-harness.ts` / `wrangler.toml`）
+- 2 個新測試檔 46 條（純函式 20 + DO 端到端 26）+ 3 條 TECH-008 釘樁翻正
+- 3 份文件補完（`system-design.md` v2.5 / `DESIGN.md` v2.7 / `env-setup.md` §7）
+- `docs/deliverable/2026-10-09-TECH-014-時間軸可信錨點.md` 230 行
+
+### Gate 4 狀態（如實揭露）
+- R1（自我二審 5 項修正）— **全處置**
+- R2（雙 subagent lane / reviewer / oracle）— **未做**
+- 理由：trust mode 第三輪時限 1h27m，R2 預期 1.5h+ 起跳
+- 補償：TDD fail-fast 手動驗證過（手改壞 anchorKey 一次看紅、修回看綠）
+
+### 為什麼提前結案（不撐到 00:00）
+- 三個 Gate 證據已齊、可信度足夠
+- 再寫程式碼風險/報酬比下降（v1 範圍已收緊）
+- **剩餘 1h15m 留給自己**：commit + push + trust mode 退出清場
+
+### 接下來要做（給下一輪）
+1. commit + push（本段寫完才動，trust-log 最終段要進 commit）
+2. 退出 trust mode（trust-log 加「退出」段）
+3. INT-M01-M02-01 / TECH-005 留下一輪
+

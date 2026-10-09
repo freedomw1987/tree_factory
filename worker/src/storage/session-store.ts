@@ -57,6 +57,21 @@ const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS meeting_session (
   transcript_writes INTEGER NOT NULL DEFAULT 0
 )`;
 
+/** TECH-014（D4）：錨存獨立表，`id=1` 與 `meeting_session` 的單列哲學一致。 */
+const CREATE_ANCHOR_TABLE = `CREATE TABLE IF NOT EXISTS session_anchor (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  mac TEXT NOT NULL,
+  version INTEGER NOT NULL
+)`;
+
+const SELECT_ANCHOR = `SELECT mac, version FROM session_anchor WHERE id = 1`;
+
+/** UPSERT 進 session_anchor；用 INSERT OR REPLACE 確保冪等。 */
+const UPSERT_ANCHOR = `INSERT OR REPLACE INTO session_anchor (id, mac, version) VALUES (1, ?, ?)`;
+
+/** 刪除錨列（用於 AC-6 測試：模擬「刪掉錨列」攻擊）；常式不直接使用。 */
+const DELETE_ANCHOR = `DELETE FROM session_anchor WHERE id = 1`;
+
 const UPSERT = `INSERT INTO meeting_session
   (id, meeting_id, started_at_ms, ends_at_ms, state, ended_at_ms, ended_reason, transcript_writes)
   VALUES (1, ?, ?, ?, ?, ?, ?, ?)
@@ -126,7 +141,42 @@ export class SessionStore {
   #ensure(): void {
     if (this.#ready) return;
     this.#sql.exec(CREATE_TABLE);
+    this.#sql.exec(CREATE_ANCHOR_TABLE);
     this.#ready = true;
+  }
+
+  /**
+   * TECH-014（D4／D5）：讀取錨列。
+   *
+   * 沒列 → 回 `null`（**不等於合法**，AC-6：會議存在但錨不存在＝資料不合法），
+   * 不由這裡丟 `SessionCorruptError`——決策權在更外層（DO 的同步閘門）。
+   */
+  readAnchor(): { mac: string; version: number } | null {
+    this.#ensure();
+    const [row] = this.#sql.exec(SELECT_ANCHOR).toArray();
+    if (row === undefined) return null;
+    const r = row as Record<string, unknown>;
+    const mac = r.mac;
+    const version = r.version;
+    if (typeof mac !== "string" || typeof version !== "number") {
+      throw new SessionCorruptError(`session_anchor 欄位型別錯：mac=${typeof mac}, version=${typeof version}`);
+    }
+    return { mac, version };
+  }
+
+  /** TECH-014（D4）：寫入／覆寫錨列。`write()` **不**呼叫這個，由 DO 在 `/session/start` 明確觸發（AC-4 任何一次合法 `write()` 都不需要重算 MAC）。 */
+  writeAnchor(mac: string, version: number): void {
+    this.#ensure();
+    this.#sql.exec(UPSERT_ANCHOR, mac, version);
+  }
+
+  /**
+   * 刪除錨列（**測試專用**）：讓 AC-6 測試可以模擬「刪掉錨列」的攻擊者行為。
+   * 常式程式碼不呼叫這個方法。
+   */
+  deleteAnchorForTest(): void {
+    this.#ensure();
+    this.#sql.exec(DELETE_ANCHOR);
   }
 }
 

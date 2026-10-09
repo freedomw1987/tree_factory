@@ -8,6 +8,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
+import { TEST_ANCHOR_KEY } from "./meeting-do.test.js";
 
 import type { MeetingBindings } from "../src/harness/meeting-harness.js";
 import {
@@ -63,7 +64,7 @@ function makeHarness(nowMs = 1_700_000_000_000): Harness {
     id: { toString: () => "do-abc" },
     now: () => now,
   };
-  const durable = new MeetingDurableObject(ctx, { HARNESS_PROVIDER: "faux" } as MeetingBindings);
+  const durable = new MeetingDurableObject(ctx, { HARNESS_PROVIDER: "faux", SESSION_ANCHOR_KEY: TEST_ANCHOR_KEY } as MeetingBindings);
   return {
     durable,
     alarms,
