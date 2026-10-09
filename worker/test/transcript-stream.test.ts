@@ -356,6 +356,12 @@ describe("M01-US-103 TranscriptStream", () => {
     expect(whole.ledger.count()).toBe(6);
     expect(words([...wholeReport.appended, ...wholeTail.appended])).toBe(66);
 
+    // ⚠️ 這一題釘的是**這個物件**的行為（誰拿到同一個物件，誰才接得回緩衝）。
+    // 路由層（`/transcript/stream`）已經在 TECH-012 用 `stream_buffer` 把那半句存進 DO SQLite，
+    // 「同一場會議拆成多個請求」在**路由層**已經是安全的（見
+    // `test/transcript-stream-route-buffer.test.ts` 的 M01-D1 兩題）。這裡反面用法的數字
+    // （4 段 28 字）仍然有效，因為它示範的是「物件各自獨立時會怎樣」，
+    // 而不是「呼叫端永遠只能發一個請求」。
     // 反面用法（每則訊息各自一個請求物件、而且都不收尾）：
     // 只有「自己就自成一段」的字會落地——4 段 28 字，其餘 38 個字隨物件一起被丟掉，
     // 而且**不會有任何錯誤回報**。這就是為什麼 `/transcript/stream` 的呼叫端契約是

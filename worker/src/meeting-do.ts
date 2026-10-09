@@ -54,6 +54,7 @@ import {
   type SessionSnapshot,
   type SessionSql,
 } from "./storage/session-store.js";
+import { StreamBufferCorruptError, StreamBufferStore } from "./storage/stream-buffer-store.js";
 import {
   SEGMENT_PAGE_LIMIT_MAX,
   TRANSCRIPT_SKEW_TOLERANCE_MS,
@@ -63,7 +64,12 @@ import {
   type RecordSegmentInput,
   type RecordSegmentOutcome,
 } from "./storage/transcript-store.js";
-import { TranscriptStream, type IngestReport } from "./transcript-stream.js";
+import {
+  TranscriptStream,
+  emptyIngestReport,
+  requireMeetingOffset,
+  type IngestReport,
+} from "./transcript-stream.js";
 
 /** Worker 綁定（含 secret 與 vars）。 */
 export type MeetingEnv = MeetingBindings;
@@ -244,6 +250,11 @@ export class MeetingDurableObject {
           return json({ error: "NOT_FOUND", path: url.pathname }, 404);
       }
     } catch (error) {
+      if (error instanceof StreamBufferCorruptError) {
+        // TECH-012 D8：讀到的緩衝壞掉與「沒有緩衝」在維運上是兩件事。
+        // 當成空的繼續跑 = 默默把那半句丟掉（正是 P0-1 的形狀）→ 所以大聲壞掉、recoverable:false。
+        return json({ error: error.code, message: error.message, recoverable: false }, 500);
+      }
       if (error instanceof SessionCorruptError) {
         // TECH-008：DB 被竊改（欄位不合法／時間軸被平移）與「程式 bug」在維運上是兩件事，
         // 所以給它自己的 code。`recoverable:false`：DO 每次讀都會失敗，裝置端只能停錄。
@@ -360,6 +371,14 @@ export class MeetingDurableObject {
 
   #gapLog(): TranscriptGapLog {
     return new TranscriptGapLog(this.#chunkSql());
+  }
+
+  /**
+   * TECH-012：會議級聚段緩衝。
+   * 它與帳本共用同一份 DO SQLite——緩衝必須活過 DO 被回收（記憶體版本做不到）。
+   */
+  #streamBufferStore(): StreamBufferStore {
+    return new StreamBufferStore(this.#chunkSql());
   }
 
   /**
@@ -601,7 +620,10 @@ export class MeetingDurableObject {
       // （第二輪獨立審查實測：200 + `accepted:1`）。append-only 不能只做一半。
       return json({ error: "METHOD_NOT_ALLOWED", message: "只支援 POST" }, 405, { allow: "POST" });
     }
-    const rejected = this.#transcriptWriteRejection(snapshot);
+    const meetingId = this.#meetingId(request);
+    // 被擋下來時要順手把緩衝丟掉（TECH-012 D4）：那半句確定不會進帳本了，
+    // 但不能默默消失——錯誤回應要說得出 `droppedBufferedWords`。
+    const rejected = this.#transcriptWriteRejection(snapshot, meetingId);
     if (rejected !== null) return rejected;
     const body = await this.#jsonObjectBody(request);
     if (!Array.isArray(body.messages)) {
@@ -612,18 +634,47 @@ export class MeetingDurableObject {
     if (body.finalize !== undefined && typeof body.finalize !== "boolean") {
       throw new TranscriptInvalidError("finalize 必須是布林（true 才會收尾）");
     }
+    // TECH-012 D2：offset 在**碰任何東西之前**先驗（不合法 → 400，不得默默當 0），
+    // 並與這一場會議已經寫定的值比對：不一致代表裝置端把時間軸整個平移了，
+    // 照收會讓同一句話換個時間點再落一次（重複句／時間軸說謊）→ 409，一個字都不寫。
+    const meetingOffsetMs = requireMeetingOffset(body.meetingOffsetMs);
+    const buffers = this.#streamBufferStore();
+    const buffered = buffers.read(meetingId);
+    if (buffered !== null && buffered.meetingOffsetMs !== meetingOffsetMs) {
+      return json(
+        {
+          error: "OFFSET_MISMATCH",
+          meetingOffsetMs: buffered.meetingOffsetMs,
+          received: meetingOffsetMs,
+          message:
+            `這場會議的 meetingOffsetMs 已經寫定為 ${buffered.meetingOffsetMs}，` +
+            `收到 ${meetingOffsetMs}；請沿用同一個值（音訊時間軸不會中途改變）。`,
+          accepted: 0,
+          transcriptWrites: snapshot.transcriptWrites,
+        },
+        409,
+      );
+    }
     const context = this.#transcriptWriteContext(snapshot);
-    // 這裡先建 stream：`meetingOffsetMs` 不合法會在建構時就拋（不得默默當 0）。
     const ledger = this.#segmentLedger();
+    // TECH-012 D1：把上一批留下的半句接回來。沒有這條路，切在句子中間的請求就會掉字。
     const stream = new TranscriptStream({
       sink: ledger,
-      meetingOffsetMs: body.meetingOffsetMs as number,
+      meetingOffsetMs,
+      ...(buffered === null
+        ? {}
+        : {
+            resume: {
+              words: buffered.words,
+              pendingUtteranceEnd: buffered.pendingUtteranceEnd,
+            },
+          }),
     });
     // 兩條帳本寫入路徑都走 `#writeWithCatchUp` 的差額補記（TECH-013 D5）：
     // 串流是**邊收邊落地**，中途一句落在未來時間窗就 400，但前面的句子已經在帳本裡；
     // 批次路徑的邏輯性壞資料靠「先驗完再寫」擋住，儲存層錯誤（INSERT／讀回失敗）則同樣靠補記。
     // `finalize()` 也可能拋（收尾那一句才是壞的），所以補記要包住兩者。
-    const report: IngestReport = { appended: [], duplicates: [], conflicts: [], pending: null };
+    const report: IngestReport = emptyIngestReport();
     const messages = body.messages as unknown[];
     this.#writeWithCatchUp(ledger, () => {
       this.#mergeIngestReport(report, stream.ingest(messages, context));
@@ -631,10 +682,21 @@ export class MeetingDurableObject {
         this.#mergeIngestReport(report, stream.finalize(context));
       }
     });
+    // TECH-012 D7：快照寫在**整批成功之後**。中途拋錯（例如某句落在未來）就不寫，
+    // 呼叫端可以原封不動重送同一批——已經落地的句子靠冪等鍵收斂成 duplicate（不會重複）。
+    // D3（修訂）：`finalize` 之後**只清字、留 offset 釘樁**（收尾過的字本來就已經空了）。
+    // 真 workerd 實測：整列刪掉的話，重新連線的裝置端可以帶一個新的 offset 繼續寫，
+    // 已落地的句子在 0~1 分鐘，新的句子卻整批跳到 offset 之後——時間軸從此說謊。
+    const state = stream.snapshot();
+    buffers.write(meetingId, state, this.#now());
     return json({
       ...this.#transcriptWriteResult(report.appended.length, report.duplicates.length, report.conflicts),
       appended: report.appended,
       pending: report.pending,
+      meetingOffsetMs,
+      bufferedWords: state.words.length,
+      forcedFlushes: report.forcedFlushes,
+      replayedWords: report.replayedWords,
     });
   }
 
@@ -652,10 +714,19 @@ export class MeetingDurableObject {
     return parsed as Record<string, unknown>;
   }
 
-  /** 兩條寫入路徑共用的守門（US-101 的 `acceptsTranscriptWrites` 是唯一判準）。 */
-  #transcriptWriteRejection(snapshot: SessionSnapshot): Response | null {
+  /**
+   * 兩條寫入路徑共用的守門（US-101 的 `acceptsTranscriptWrites` 是唯一判準）。
+   *
+   * `dropBufferFor`（TECH-012 D4）只有串流路徑會傳：批次路徑（`/transcript/segments`）
+   * 不碰串流緩衝，兩條路徑互不干涉。
+   */
+  #transcriptWriteRejection(snapshot: SessionSnapshot, dropBufferFor?: string): Response | null {
     if (acceptsTranscriptWrites(snapshot.session, this.#now())) return null;
     const status = sessionStatus(snapshot.session, this.#now());
+    // 會議已經不收寫入了 → 緩衝裡那半句不可能再落地。丟掉它，並把「幾個字沒落地」講出來。
+    // `drop()` 對壞掉的列也會清掉（回 0）：這裡的目的是清乾淨，不是驗資料。
+    const droppedBufferedWords =
+      dropBufferFor === undefined ? null : this.#streamBufferStore().drop(dropBufferFor);
     return json(
       {
         error: status.reached ? "LIMIT_REACHED" : "SESSION_ENDED",
@@ -664,6 +735,7 @@ export class MeetingDurableObject {
           : "這場會議已經結束，不再接受逐字稿。",
         accepted: 0,
         transcriptWrites: snapshot.transcriptWrites,
+        ...(droppedBufferedWords === null ? {} : { droppedBufferedWords }),
       },
       409,
     );
@@ -738,6 +810,8 @@ export class MeetingDurableObject {
     report.duplicates.push(...tail.duplicates);
     report.conflicts.push(...tail.conflicts);
     report.pending = tail.pending;
+    report.forcedFlushes += tail.forcedFlushes;
+    report.replayedWords += tail.replayedWords;
   }
 
   /**

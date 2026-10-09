@@ -44,6 +44,11 @@ export type StreamEvent =
 export interface SegmenterOptions {
   /** 停頓門檻（毫秒）。嚴格大於才切段。預設 1200ms（SPIKE-001 的實測值）。 */
   pauseThresholdMs?: number;
+  /**
+   * 跨請求接續：把上一次 `bufferedWords()` 的內容放回緩衝（TECH-012 D1）。
+   * 沒有這條路，切在句子中間的那半句就會隨物件消失（US-103 P0-1）。
+   */
+  resume?: readonly DiarizedWord[];
 }
 
 /** SPIKE-001 決定的預設停頓門檻：1.2 秒。 */
@@ -55,6 +60,13 @@ export class TranscriptSegmenter {
 
   constructor(options: SegmenterOptions = {}) {
     this.#pauseThresholdMs = options.pauseThresholdMs ?? DEFAULT_PAUSE_THRESHOLD_MS;
+    // 只複製一層陣列：`DiarizedWord` 的欄位都是 readonly，逐字共用是安全的（不修改輸入）。
+    this.#buffer = options.resume === undefined ? [] : [...options.resume];
+  }
+
+  /** 緩衝中的字（複本）——跨請求快照用；呼叫端不得藉此改到聚段器的狀態。 */
+  bufferedWords(): DiarizedWord[] {
+    return [...this.#buffer];
   }
 
   /**
