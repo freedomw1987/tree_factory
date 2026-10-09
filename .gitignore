@@ -28,6 +28,10 @@ worker/reports/
 
 # spike/node_modules 是 symlink → 上面的 node_modules/ 規則不匹配，需明列
 spike/spike-004/node_modules
+
+# spike 跑動產物（json / webm / png / txt）— 已在 git 的保留不動，
+# 這條只讓未來跑 spike 時不進 `git status`（10/09 22:30 確認）
+spike/results/
 worker/node_modules
 
 # Playwright（M01-US-101）
