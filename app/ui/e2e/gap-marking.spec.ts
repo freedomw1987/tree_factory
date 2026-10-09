@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+// TECH-009：直接打 worker 的請求要帶憑證（否則 401）。刻意不用 `use.extraHTTPHeaders`，
+// 那會連「UI 自己有沒有帶憑證」一起掩蓋掉。
+import { AUTH } from "./device-token";
 
 /**
  * M01-US-107「背景／鎖屏缺口標記」的 E2E。
@@ -16,6 +19,8 @@ import { expect, test, type Page } from "@playwright/test";
  */
 
 const WORKER_BASE = "http://localhost:8787";
+
+
 const MEETINGS_KEY = "tree_factory.meetings.v1";
 
 test.beforeEach(async ({ page }) => {
@@ -52,7 +57,7 @@ async function serverGaps(
   page: Page,
   meetingId: string,
 ): Promise<Array<{ seq: number; fromMs: number; toMs: number | null }>> {
-  const response = await page.request.get(`${WORKER_BASE}/m/${meetingId}/transcript/gaps`);
+  const response = await page.request.get(`${WORKER_BASE}/m/${meetingId}/transcript/gaps`, { headers: AUTH });
   expect(response.status()).toBe(200);
   const payload = (await response.json()) as { gaps?: Array<{ seq: number; fromMs: number; toMs: number | null }> };
   return payload.gaps ?? [];

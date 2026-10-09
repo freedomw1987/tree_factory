@@ -16,7 +16,7 @@ import { MediaRecorderCapture, type CaptureChunk } from "./recorder/media";
 import { RecorderStore, type RecorderSnapshot } from "./recorder/store";
 import { WakeLockManager, type WakeLockSentinelLike, type WakeLockState } from "./recorder/wake-lock";
 import type { UploadOutcome } from "./recorder/uploader";
-import { HttpSessionClient, SessionApiError } from "./session/api";
+import { HttpSessionClient, deviceTokenFrom, sessionFailureMessage } from "./session/api";
 import { createLocalGapStorage, GapTracker, listPendingGapMeetings, type GapRecord } from "./transcript/gap-tracker";
 import { LiveTranscript, type TimelineEntry } from "./transcript/live-transcript";
 import { LiveTranscriptFeed, type FeedStatus } from "./transcript/live-transcript-feed";
@@ -75,6 +75,19 @@ export function workerBaseUrl(): string {
   return typeof fromEnv === "string" && fromEnv.length > 0 ? fromEnv : "http://127.0.0.1:8787";
 }
 
+/**
+ * TECH-009：裝置憑證（`VITE_DEVICE_TOKEN`，必須與 worker 的 `DEVICE_TOKEN` 相同）。
+ *
+ * 為什麼沒有預設值：預設一把「大家都知道的」憑證比沒有憑證更糟——它看起來像有鎖。
+ * 沒設定時回 `undefined`，請求就不帶憑證，由伺服端回 401（UI 會說「請重新配對」）。
+ * 為什麼不放在 `localStorage`／`app` state：這是建置期注入的設定，
+ * 沒有配對流程（design D9 刻意不做），所以它跟 `VITE_WORKER_BASE_URL` 同性質。
+ */
+export function workerToken(): string | undefined {
+  // 規則（含「沒有預設值」與 trim）在 `deviceTokenFrom`：那裡有單元測試守著。
+  return deviceTokenFrom(import.meta.env.VITE_DEVICE_TOKEN);
+}
+
 let store: RecorderStore | null = null;
 let unsubscribe: (() => void) | null = null;
 let openedStore: OpenedChunkStore | null = null;
@@ -91,9 +104,22 @@ export function recorderStore(): RecorderStore | null {
   return store;
 }
 
+/**
+ * TECH-009：**唯一一條**建 client 的路——裝置憑證只在這一行接上去。
+ *
+ * 為什麼要收斂成一個函式：這裡原本有四處各自 `new HttpSessionClient(...)`
+ * （開始會議 / 音檔上傳 / 缺口追蹤 / 待補送缺口）。只把 token 傳給「開始會議」
+ * 那一處時，畫面**完全看不出來**——會議照開，只是缺口與音檔默默 401 被丟掉，
+ * 使用者看到的是「待同步」永遠掛著。E2E 抓到的那筆就是
+ * `POST /m/<id>/transcript/gap` 沒帶憑證。
+ */
+function sessionClient(meetingId: string): HttpSessionClient {
+  return new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId, token: workerToken() });
+}
+
 /** 依會議 id 取得該場的上傳 API（恢復流程用；與即時錄音走同一條 HTTP client）。 */
 function chunkApiFor(meetingId: string) {
-  return chunkUploadApi(new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }));
+  return chunkUploadApi(sessionClient(meetingId));
 }
 
 /**
@@ -105,7 +131,7 @@ function chunkApiFor(meetingId: string) {
  */
 async function startGapTracking(meetingId: string): Promise<void> {
   gapTracker = new GapTracker({
-    api: new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }),
+    api: sessionClient(meetingId),
     storage: createLocalGapStorage(meetingId),
     // 牆鐘 elapsed（不是 `snapshot.elapsedMs`）：中斷時 snapshot 是凍結值，用它會把缺口
     // 記成 0 秒——真實缺了幾分鐘卻說「長度不到 1 秒」（Gate 4 F1）。
@@ -273,7 +299,7 @@ export async function initRecovery(): Promise<void> {
 export async function syncPendingGaps(): Promise<void> {
   for (const meetingId of listPendingGapMeetings()) {
     const tracker = new GapTracker({
-      api: new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId }),
+      api: sessionClient(meetingId),
       storage: createLocalGapStorage(meetingId),
       elapsedMs: () => 0, // 只有已存在的缺口會被補送，不會新增
       ...(meetingId === app.currentMeetingId ? { onChange: setGaps } : {}),
@@ -460,7 +486,7 @@ export async function confirmStart(rawTitle: string): Promise<void> {
   app.starting = true;
   const meetingId = globalThis.crypto?.randomUUID?.() ?? `m-${Date.now()}`;
   await ensureStore();
-  const client = new HttpSessionClient({ baseUrl: workerBaseUrl(), meetingId });
+  const client = sessionClient(meetingId);
   conflictReported = false;
   gapReported = false;
   pipeline =
@@ -490,10 +516,11 @@ export async function confirmStart(rawTitle: string): Promise<void> {
   try {
     await store.start();
   } catch (error) {
-    app.toast =
-      error instanceof SessionApiError
-        ? `伺服端沒有接受這場會議（${error.code}）。請確認網路後再試。`
-        : `無法開始會議：${error instanceof Error ? error.message : String(error)}`;
+    // TECH-009：走到這裡一定是「伺服端拒絕」（麥克風失敗在 store 內就被吸收了，
+    // 見 `RecorderStore.start()` 的註解）。401／429 由 `sessionFailureMessage` 分開講
+    // （憑證失效要重新配對、忙線要等），不可以再用「請確認網路」帶過——
+    // 那會把使用者送去查一條沒壞的線。
+    app.toast = sessionFailureMessage(error);
   }
   app.starting = false;
   syncSnapshot();

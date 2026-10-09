@@ -12,6 +12,7 @@ import {
   resumeUnfinished,
   tickMeeting,
   workerBaseUrl,
+  workerToken,
   syncPendingGaps,
 } from "./lib/app.svelte";
 import { probeIfEnabled } from "./lib/dev/cors-probe";
@@ -77,7 +78,8 @@ if (import.meta.env.DEV) {
 // 舊寫法雖然不執行，但程式碼與 `session/start` 字串仍留在 bundle 裡）。
 if (import.meta.env.VITE_CORS_PROBE === "1") {
   void (async () => {
-    const report = await probeIfEnabled("1", workerBaseUrl());
+    // TECH-009：探針也要帶憑證（否則它自己會拿到 401，把設定問題顯示成 CORS 問題）。
+    const report = await probeIfEnabled("1", workerBaseUrl(), undefined, workerToken());
     if (report === null) return;
     const pre = document.createElement("pre");
     pre.dataset.testid = "cors-probe";

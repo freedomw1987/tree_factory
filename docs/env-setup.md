@@ -101,8 +101,66 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 ---
 
+## 6. 邊緣授權與速率限制的環境設定（TECH-009）
+
+`worker/src/index.ts` 的 `/m/**` 閘門是 **fail-closed**：沒設定 `DEVICE_TOKEN` 的 worker，會對所有
+`/m/**`（`OPTIONS` 與 `GET /` 除外）回 `500 AUTH_NOT_CONFIGURED`。**這是刻意的**——「沒設就放行」的
+靜默開發模式，正是這一票要消滅的失敗模式。
+
+### 6.1 worker（伺服端）
+
+```bash
+# ① 正式環境：secret 不進版控，交給 Cloudflare 的 secret store
+cd worker && wrangler secret put DEVICE_TOKEN      # 貼上同一把憑證
+
+# ② 本機開發：worker/.dev.vars（已在 .gitignore）
+#    DEVICE_TOKEN=<與 app 同一把>
+#    RATE_LIMIT_MAX=300          # 選用，預設 300
+#    RATE_LIMIT_WINDOW_MS=60000  # 選用，預設 60000
+cd worker && npx wrangler dev --port 8787
+```
+
+`RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` 的解析規則是「**不合法就用預設**」：空白、`0`、負數、
+小數、`1e3`、`0x10`、亂字串一律視為沒設定（**不會**變成無上限、也**不會**變成全部 `429`）。
+
+### 6.2 app（裝置端）
+
+```bash
+# 開發：把同一把憑證給 Vite（playwright.config.ts 的 webServer 就是這樣餵 E2E 的）
+cd app/ui && VITE_DEVICE_TOKEN=<同一把> npm run dev
+```
+
+沒設 / 空字串 / 只有空白 → **不送** `Authorization`（`deviceTokenFrom` 會回 `undefined`），
+於是請求會被伺服端回 `401`，UI 顯示「裝置授權已失效，請重新配對」。
+**刻意不提供**「開發時自動放行」的旗標。
+
+### 6.3 開發時怎麼確認閘門是通的
+
+```bash
+# CORS 探測：沒帶 --token 時 POST 會是 401（那是憑證問題，不是 CORS 壞了；探測器會自己講）
+cd worker && node scripts/cors-probe.mjs --token <同一把>
+
+# 入口層 + DO 全鏈路（真 workerd）
+cd worker && DEVICE_TOKEN=<同一把> node scripts/do-smoke.mjs
+```
+
+> ⚠️ **啟動 worker 時的坑（實測踩過）**：`DEVICE_TOKEN=s3cret npx wrangler dev` **不會**把 binding
+> 餵進 worker（wrangler 不從 process env 取 binding）——你會看到每個 `/m/**` 都回
+> `500 AUTH_NOT_CONFIGURED`，然後誤判「閘門壞了」。**環境變數前綴只有 Node 腳本
+> （`do-smoke.mjs`／`cors-probe.mjs`）在用**；worker 端要 `.dev.vars` 或 `--var`：
+> `cd worker && npx wrangler dev --port 8787 --var DEVICE_TOKEN:s3cret --var HARNESS_PROVIDER:faux`。
+> 少了 `HARNESS_PROVIDER:faux` 時 `/health` 會回 `401 AUTH_INVALID`「provider 需要
+> `CLOUDFLARE_API_KEY`」——那不是憑證關擋的，是 harness 的模型憑證沒設（同一個碼的兩義，
+> 見 `docs/ac/TECH-009.md` 的範圍界定）。
+
+---
+
+---
+
 ## 變動歷史
 
 | 日期 | 版本 | 變更 | 作者 |
 | --- | --- | --- | --- |
+| 2026-10-09 | v1.2 | §6.3 補「啟動 worker 的坑」：`DEVICE_TOKEN=… npx wrangler dev` 不會把 binding 餵進 worker（要 `.dev.vars` 或 `--var`），以及缺 `HARNESS_PROVIDER:faux` 時 `/health` 回 401 `AUTH_INVALID` 是模型憑證問題、不是憑證關 | Agent（trust mode 執行階段 / TECH-009 Gate 4 第 2 輪）|
+| 2026-10-09 | v1.1 | 新增 §6：`DEVICE_TOKEN`（worker secret／`.dev.vars`）與 `VITE_DEVICE_TOKEN`（app 建置）的設定步驟、不合法的 `RATE_LIMIT_*` 用預設的規則、以及 `cors-probe.mjs --token` / `do-smoke.mjs` 兩個開發檢查流程 | Agent（trust mode 執行階段 / TECH-009）|
 | 2026-10-08 | v1.0 | 初版：TECH-001 環境前置執行紀錄（含 CocoaPods 補漏、雙 toolchain 處理）| Agent（§2.3 執行）|

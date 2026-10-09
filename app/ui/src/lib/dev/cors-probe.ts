@@ -19,6 +19,8 @@
  * （vite 會內聯，未設時 `main.ts` 的整段分支會被 tree-shake 掉；見 AC-4）。
  */
 
+import { withDeviceToken } from "../session/api";
+
 export interface CorsProbeResult {
   /** webview 自己看到的來源（`location.origin`）。 */
   origin: string;
@@ -35,6 +37,14 @@ export interface CorsProbeResult {
    * `null` ＝ 根本沒走到這一步（start 失敗或非 201）。
    */
   stopped: boolean | null;
+  /**
+   * TECH-009：這次探針有沒有帶裝置憑證。
+   *
+   * 為什麼要有這個欄位：TECH-009 之後，沒帶憑證的請求**一定**是 401。
+   * 少了這一行，401 會被讀成「CORS 出問題」，把一個設定問題誤判成網路問題
+   * （正好是這張票要消滅的那種誤導）。
+   */
+  credential?: boolean;
 }
 
 /**
@@ -66,6 +76,13 @@ export function formatProbeReport(result: CorsProbeResult): string {
   if (result.status !== null) {
     lines.push("（拿得到 status 就代表 CORS 已通過：被擋時 fetch 會直接丟例外）");
   }
+  if (result.credential === false) {
+    // TECH-009：不帶憑證的回應在伺服端一定是 401（AUTH_NOT_CONFIGURED／AUTH_INVALID），
+    // 這與 CORS 無關；講清楚才不會把人送去查一條沒壞的線。
+    lines.push("裝置憑證：沒帶（未設 VITE_DEVICE_TOKEN）→ 401 是預期結果，不是 CORS 問題");
+  } else if (result.credential === true) {
+    lines.push("裝置憑證：有帶（Authorization: Bearer …）");
+  }
   if (result.error !== null) {
     lines.push(`webview 沒拿到回應：${result.error}`);
   }
@@ -85,8 +102,13 @@ function fallbackMeetingId(): string {
 export async function runCorsProbe(
   baseUrl: string,
   fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
+  token?: string,
 ): Promise<CorsProbeResult> {
   const origin = globalThis.location?.origin ?? "(unknown)";
+  // TECH-009：探針刻意走裸請求（要看原始 status），但仍要帶憑證——
+  // 否則它會拿到 401 並把「沒設憑證」顯示成一場 CORS 失敗。
+  const send = withDeviceToken(fetchImpl, token);
+  const credential = token !== undefined && token !== "";
   const base = baseUrl.replace(/\/$/, "");
   const meetingId = globalThis.crypto?.randomUUID?.() ?? fallbackMeetingId();
   const url = (path: string) => `${base}/m/${encodeURIComponent(meetingId)}/${path}`;
@@ -95,7 +117,7 @@ export async function runCorsProbe(
     // ⚠️ `mode: "cors"` 刻意寫出來（不要只靠預設值）：
     // 「拿得到 status ⇒ CORS 已通過」這個立論**只在 cors 模式成立**——
     // `mode: "no-cors"` 的 opaque response 不丟例外、status 永遠 0，拿得到也驗不到 CORS。
-    const response = await fetchImpl(url("session/start"), {
+    const response = await send(url("session/start"), {
       method: "POST",
       mode: "cors",
       headers: { "content-type": "application/json" },
@@ -107,13 +129,14 @@ export async function runCorsProbe(
       status: null,
       error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
       stopped: null,
+      credential,
     };
   }
   // 只有「真的讀到 201」才會走到這裡 → 這筆 stop 就是讀取成功的機械證據。
   let stopped: boolean | null = null;
   if (status === 201) {
     try {
-      const stoppedResponse = await fetchImpl(url("session/stop"), {
+      const stoppedResponse = await send(url("session/stop"), {
         method: "POST",
         mode: "cors",
         headers: { "content-type": "application/json" },
@@ -126,7 +149,7 @@ export async function runCorsProbe(
       stopped = false;
     }
   }
-  return { origin, status, error: null, stopped };
+  return { origin, status, error: null, stopped, credential };
 }
 
 /** 給 `main.ts` 用的最小入口：啟用時打一次並回傳要顯示的文字。 */
@@ -134,12 +157,13 @@ export async function probeIfEnabled(
   flag: string | undefined,
   baseUrl: string,
   fetchImpl?: typeof fetch,
+  token?: string,
 ): Promise<string | null> {
   if (!corsProbeEnabled(flag)) return null;
   try {
     const result = await (fetchImpl === undefined
-      ? runCorsProbe(baseUrl)
-      : runCorsProbe(baseUrl, fetchImpl));
+      ? runCorsProbe(baseUrl, globalThis.fetch.bind(globalThis), token)
+      : runCorsProbe(baseUrl, fetchImpl, token));
     return formatProbeReport(result);
   } catch (error) {
     // 探針**任何**失敗都不准往上冒（AC-2：不得影響正常 UI）。

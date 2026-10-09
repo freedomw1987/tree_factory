@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+// TECH-009：直接打 worker 的請求要帶憑證（否則 401）。刻意不用 `use.extraHTTPHeaders`，
+// 那會連「UI 自己有沒有帶憑證」一起掩蓋掉。
+import { AUTH } from "./device-token";
 
 /**
  * M01-US-104「會議中即時顯示逐字稿」的 E2E。
@@ -15,6 +18,8 @@ import { expect, test, type Page } from "@playwright/test";
  */
 
 const WORKER_BASE = "http://localhost:8787";
+
+
 const MEETINGS_KEY = "tree_factory.meetings.v1";
 
 interface SegmentInput {
@@ -49,6 +54,7 @@ async function startMeeting(page: Page, title: string): Promise<string> {
 /** 直接打伺服端寫入逐字稿（＝未來 STT 落地走的那條路徑），不經過畫面。 */
 async function postSegments(page: Page, meetingId: string, segments: SegmentInput[]): Promise<void> {
   const response = await page.request.post(`${WORKER_BASE}/m/${meetingId}/transcript/segments`, {
+    headers: AUTH,
     data: { segments },
   });
   expect(response.status(), await response.text()).toBe(200);
@@ -59,7 +65,10 @@ async function postSegments(page: Page, meetingId: string, segments: SegmentInpu
  * 讀 `total` 而不是 `count`：`count` 是**這一頁**的列數（會被 `limit` 截掉），`total` 才是帳本總數。
  */
 async function serverSegmentCount(page: Page, meetingId: string): Promise<number> {
-  const response = await page.request.get(`${WORKER_BASE}/m/${meetingId}/transcript/segments?limit=500`);
+  const response = await page.request.get(
+    `${WORKER_BASE}/m/${meetingId}/transcript/segments?limit=500`,
+    { headers: AUTH },
+  );
   expect(response.status()).toBe(200);
   const payload = (await response.json()) as { total?: number };
   return payload.total ?? 0;

@@ -14,7 +14,8 @@
 export const DRIFTED_ORIGIN = "http://localhost:1421";
 
 /** `--help` 要印的用法（放在這裡，測試才能斷言它非空）。 */
-export const USAGE = "用法：node scripts/cors-probe.mjs [--base URL] [--origin O]… [--meeting ID] [--json]";
+export const USAGE =
+  "用法：node scripts/cors-probe.mjs [--base URL] [--origin O]… [--meeting ID] [--token VALUE] [--json]";
 
 /**
  * 從 `src/cors.ts` 的**原始碼文字**解析 dev 白名單——單一真相來源。
@@ -55,12 +56,17 @@ export function resolveOrigins(explicit, parsed) {
 /**
  * 解析 CLI 參數。**不呼叫 `process.exit`**（那是呼叫端的事），錯誤用 `error` 回傳。
  *
- * @returns {{ base: string, origins: string[], meeting: string, json: boolean, help: boolean, error: string | null }}
+ * `--token`（TECH-009）：worker 現在對 `/m/**` 一律要求裝置憑證，沒帶就是 401。
+ * 這支腳本刻意**預設不帶**（探測的是 CORS 政策，不是憑證），但給得出值才能看到
+ * 「憑證正確時 POST 真的通」——否則讀者會把 401 誤讀成 CORS 壞了。
+ *
+ * @returns {{ base: string, origins: string[], meeting: string, token: string, json: boolean, help: boolean, error: string | null }}
  */
 export function parseArgs(argv) {
   const origins = [];
   let base = "http://127.0.0.1:8787";
   let meeting = "cors-probe";
+  let token = "";
   let json = false;
   const take = (flag, i) => {
     const value = argv[i + 1];
@@ -69,23 +75,24 @@ export function parseArgs(argv) {
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--help" || arg === "-h") return { base, origins, meeting, json, help: true, error: null };
+    if (arg === "--help" || arg === "-h") return { base, origins, meeting, token, json, help: true, error: null };
     if (arg === "--json") {
       json = true;
       continue;
     }
-    if (arg === "--base" || arg === "--meeting" || arg === "--origin") {
+    if (arg === "--base" || arg === "--meeting" || arg === "--origin" || arg === "--token") {
       const { value, error } = take(arg, i);
-      if (error !== null) return { base, origins, meeting, json, help: false, error };
+      if (error !== null) return { base, origins, meeting, token, json, help: false, error };
       i += 1;
       if (arg === "--base") base = value;
       else if (arg === "--meeting") meeting = value;
+      else if (arg === "--token") token = value;
       else origins.push(value);
       continue;
     }
-    return { base, origins, meeting, json, help: false, error: `未知參數：${arg}（--help 看用法）` };
+    return { base, origins, meeting, token, json, help: false, error: `未知參數：${arg}（--help 看用法）` };
   }
-  return { base: base.replace(/\/$/, ""), origins, meeting, json, help: false, error: null };
+  return { base: base.replace(/\/$/, ""), origins, meeting, token, json, help: false, error: null };
 }
 
 /**

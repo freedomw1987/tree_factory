@@ -139,6 +139,14 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
     headers: { "content-type": "application/json; charset=utf-8", ...headers },
   });
 
+/**
+ * 「不必帶 body 就能改狀態」的路徑（TECH-009 D7；名單由 Gate 4 第 1 輪 reviewer **P2-2** 收斂）。
+ *
+ * 為什麼是這四條：其餘寫入路由（`/transcript/gap`、`/audio/chunk`、`/submit`、`/debug/faux`）
+ * 都需要 body，一個沒有 body 的 `GET` 會先被各自的驗證擋成 400，本來就沒有副作用。
+ */
+const POST_ONLY_PATHS = new Set(["/wake", "/release", "/session/start", "/session/stop"]);
+
 export class MeetingDurableObject {
   readonly #ctx: DurableObjectState;
   readonly #env: MeetingEnv;
@@ -164,6 +172,27 @@ export class MeetingDurableObject {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    // TECH-009 D7：會**改狀態**且「不必帶 body」就能被觸發的端點收斂成 POST-only（`POST_ONLY_PATHS`）。
+    //
+    // 為什麼放在 DO（而不是入口）：路由表的單一真相在這裡，入口不重複一份方法表，
+    // 才不會出現「新增端點忘了同步」。代價是 `GET /wake` 仍會把 DO 叫起來
+    // （但憑證與速率限制在入口就先擋過，而且這裡不設 alarm、不寫 session，沒有副作用）。
+    //
+    // 為什麼要做這件事：`<img src="https://…/m/x/wake?ms=…">` 這種 simple GET
+    // 不受同源政策限制，任何網站都能讓訪客的瀏覽器替它改動伺服器狀態。
+    //
+    // Gate 4 第 1 輪 reviewer **P2-2** 追加：原本只涵蓋 `/wake` 與 `/release`，但
+    // `GET /m/<id>/session/start` 同樣「建 session ＋ arm alarm」（真 workerd 實測 201），
+    // 是**同一個形狀**的洞。跨站不可利用（simple request 帶不了 `Authorization`，
+    // 帶了憑證的請求必先 preflight，白名單外來源在入口就被 403），
+    // 但一致性與縱深防禦上都該一起收斂。
+    if (request.method !== "POST" && POST_ONLY_PATHS.has(url.pathname)) {
+      return json(
+        { error: "METHOD_NOT_ALLOWED", method: request.method, path: url.pathname },
+        405,
+        { allow: "POST" },
+      );
+    }
     try {
       switch (url.pathname) {
         case "/health":

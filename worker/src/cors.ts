@@ -7,6 +7,9 @@
  *
  * 為什麼不用 `*`：這一區是會議資料的入口，任何網站都能打就等於把使用者的會議開放出去。
  * 允許清單明列，且正式部署必須自己設 `ALLOWED_ORIGINS`（未設定時只給 dev 來源）。
+ *
+ * TECH-009 起，這裡同時是**拒絕關**的依據：清單外的來源不再只是「不給標頭但照常轉發」，
+ * 而是在入口就 403（`ORIGIN_FORBIDDEN`）——不給標頭只擋得住讀取，寫入的副作用已經發生了。
  */
 
 /** 本機開發／Tauri webview 的來源（`ALLOWED_ORIGINS` 未設定時的預設值）。 */
@@ -37,7 +40,8 @@ export function corsHeaders(
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,x-meeting-id",
+    // TECH-009：裝置憑證走 `Authorization`；少了這一行，帶憑證的請求連 preflight 都過不了。
+    "access-control-allow-headers": "content-type,x-meeting-id,authorization",
     "access-control-max-age": "600",
     vary: "origin",
   };

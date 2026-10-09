@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+// TECH-009：直接打 worker 的請求要帶憑證（否則 401）。刻意不用 `use.extraHTTPHeaders`，
+// 那會連「UI 自己有沒有帶憑證」一起掩蓋掉。
+import { AUTH } from "./device-token";
 
 /**
  * M01-US-102 AC-3 的 E2E：**app 被殺 / 斷電重開**之後，若本機還有沒送出的分段，
@@ -124,9 +127,11 @@ test("AC-3：使用者明確按下「確定丟棄」才真的刪掉本機暫存"
 //   光驗「丟棄」不算驗完 AC-3——續傳是預設動作，也是唯一會把資料送回伺服端的一條路。
 const WORKER_BASE = "http://localhost:8787";
 
+
+
 /** 讓伺服端真的有一場進行中的會議（正常流程是按「開始」，這裡直接備好伺服端狀態）。 */
 async function startServerSession(page: Page, meetingId: string): Promise<void> {
-  const response = await page.request.post(`${WORKER_BASE}/m/${meetingId}/session/start`);
+  const response = await page.request.post(`${WORKER_BASE}/m/${meetingId}/session/start`, { headers: AUTH });
   expect(response.ok()).toBeTruthy();
 }
 
@@ -148,7 +153,7 @@ test("AC-2：重開後按「續傳」→ 依伺服端帳本回補分段（真的
   await expect(page.getByTestId("recover-screen")).not.toBeVisible({ timeout: 10_000 });
 
   // 權威證據：問伺服端帳本，而不是相信畫面說「好了」。
-  const ledger = await page.request.get(`${WORKER_BASE}/m/${meetingId}/audio/chunks`);
+  const ledger = await page.request.get(`${WORKER_BASE}/m/${meetingId}/audio/chunks`, { headers: AUTH });
   const body = (await ledger.json()) as { chunks?: Array<{ seq: number }>; count?: number };
   expect(body.chunks?.map((chunk) => chunk.seq)).toEqual([1]);
   expect(body.count).toBe(1);
@@ -175,7 +180,7 @@ test("AC-1/AC-2：伺服端已有同 seq 的其他內容 → 不覆蓋、不刪�
   await expect(page.getByTestId("recover-item")).toContainText("還有 1 段未送出"); // 本機檔保留
 
   // 伺服端仍是原本那一段（hash 未變、count 仍為 1）：不覆蓋是這張票的紅線。
-  const ledger = await page.request.get(`${WORKER_BASE}/m/${meetingId}/audio/chunks`);
+  const ledger = await page.request.get(`${WORKER_BASE}/m/${meetingId}/audio/chunks`, { headers: AUTH });
   const body = (await ledger.json()) as { chunks?: Array<{ seq: number; hash: string }>; count?: number };
   expect(body.count).toBe(1);
   expect(body.chunks?.[0]?.hash).toBe(await hashOf("first-audio"));

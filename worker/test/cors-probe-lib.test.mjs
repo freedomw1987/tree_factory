@@ -78,12 +78,20 @@ describe("M01-TECH-010 cors-probe 的判斷邏輯", () => {
       base: "http://127.0.0.1:8787",
       origins: [],
       meeting: "cors-probe",
+      token: "",
       json: false,
       help: false,
       error: null,
     });
     expect(parseArgs(["--base", "http://127.0.0.1:9000/", "--json"]).base).toBe("http://127.0.0.1:9000");
     expect(parseArgs(["--json"]).json).toBe(true);
+  });
+
+  it("M01-TECH-009-Given --token When 解析 Then 收下（預設空字串：探測目標是 CORS，不是憑證）", () => {
+    expect(parseArgs(["--token", "s3cret"]).token).toBe("s3cret");
+    expect(parseArgs(["--token"]).error).toBe("--token 缺少值");
+    expect(parseArgs(["--token", "s3cret"]).error).toBeNull();
+    expect(USAGE).toContain("--token");
   });
 
   it("M01-TECH-010-Given 重複的 --origin When 解析 Then 全部收下（對照組比單點檢查更能看出漂移）", () => {

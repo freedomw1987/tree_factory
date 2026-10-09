@@ -26,7 +26,9 @@ export type RecNoticeCode =
   | "PERMISSION_DENIED"
   | "DEVICE_UNAVAILABLE"
   | "START_TIMEOUT"
-  | "LIMIT_REACHED";
+  | "LIMIT_REACHED"
+  /** TECH-009：伺服端拒絕（401／429／500…），不是裝置問題。 */
+  | "SESSION_REJECTED";
 
 /** 要給使用者看的說明。`settingsLink` = 需要提供「前往系統設定」入口（AC-3：不得靜默失敗）。 */
 export interface RecNotice {
@@ -35,7 +37,19 @@ export interface RecNotice {
   settingsLink?: boolean;
 }
 
-export type StartFailureReason = "permission_denied" | "device_unavailable" | "timeout";
+export type StartFailureReason =
+  | "permission_denied"
+  | "device_unavailable"
+  | "timeout"
+  /**
+   * TECH-009：伺服端拒絕（401／429／500…）。
+   *
+   * 為什麼要獨立一類：以前所有非權限的失敗都被歸成 `device_unavailable`，
+   * 於是「裝置授權已失效」會被講成「抓不到麥克風（可能被其他 App 占用）」——
+   * 使用者會去關掉一個根本沒問題的 App。這個分類是為了不再說錯話，
+   * 不是為了讓錯誤碼好看。
+   */
+  | "session_rejected";
 
 export type RecEvent =
   | { type: "start_requested" }
@@ -67,6 +81,12 @@ const FAILURE_NOTICES: Record<StartFailureReason, RecNotice> = {
   timeout: {
     code: "START_TIMEOUT",
     message: "麥克風 3 秒內沒有回應，這場會議沒有開始錄音。請再試一次。",
+  },
+  session_rejected: {
+    // 這裡刻意只講「伺服端沒有接受」，具體原因（憑證失效／忙線）由 UI 層用
+    // `sessionFailureMessage` 講清楚——那是唯一知道 401／429 差異的地方。
+    code: "SESSION_REJECTED",
+    message: "伺服端沒有接受這場會議，因此沒有開始錄音。",
   },
 };
 

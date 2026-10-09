@@ -51,7 +51,16 @@ if (listError !== null) {
   console.error(listError);
   process.exit(2);
 }
-const { base, meeting, json } = args;
+const { base, meeting, token, json } = args;
+
+/**
+ * TECH-009：`/m/**` 之後一律要裝置憑證，沒帶就是 401。
+ * 這裡只有在給了 `--token` 時才加標頭——探測的目標是 CORS 政策，
+ * 不該因為「剛好有憑證」而讓 preflight 的判讀改變（`verdict()` 只看 preflight）。
+ */
+function authHeaders(token) {
+  return token === "" ? {} : { authorization: `Bearer ${token}` };
+}
 
 async function probe(base, meeting, origin) {
   const url = `${base}/m/${meeting}/session/start`;
@@ -69,7 +78,7 @@ async function probe(base, meeting, origin) {
     };
     const post = await fetch(url, {
       method: "POST",
-      headers: { origin, "content-type": "application/json", "x-meeting-id": meeting },
+      headers: { origin, "content-type": "application/json", "x-meeting-id": meeting, ...authHeaders(token) },
       body: JSON.stringify({ meetingId: meeting }),
     });
     row.post = {
@@ -104,6 +113,12 @@ if (json) {
         ` x-cors-allowed=${row.preflight.allowed ?? "(未開旗標)"}` +
         `｜POST ${row.post.status} allow-origin=${row.post.allowOrigin ?? "(無)"}` +
         ` → ${verdict(row)}`,
+    );
+  }
+  if (token === "") {
+    console.log(
+      "註：沒帶 --token，所以 POST 會是 401 AUTH_INVALID（TECH-009 之後 fail-closed）——" +
+        "這不是 CORS 壞了；要看 POST 真的通請加 --token <DEVICE_TOKEN>。",
     );
   }
   console.log(hint(rows));

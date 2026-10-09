@@ -60,6 +60,11 @@ const DEFAULT_START_TIMEOUT_MS = 3_000;
 function classifyFailure(error: unknown): StartFailureReason {
   const name = error instanceof Error ? error.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") return "permission_denied";
+  // TECH-009：伺服端拒絕（`SessionApiError` 帶著 HTTP `status`）。
+  // 這裡刻意用**鴨子型別**而不是 import `SessionApiError`：store 只依賴
+  // `SessionClient` 介面，不該反過來認識某一支 API client 的類別
+  // （測試用的假 session 也才有機會模擬同一個形狀）。
+  if (typeof (error as { status?: unknown } | null)?.status === "number") return "session_rejected";
   return "device_unavailable";
 }
 
@@ -147,7 +152,12 @@ export class RecorderStore {
     } catch (error) {
       clearTimeout(watchdog);
       if (attempt !== this.#attempt) return;
-      this.#fail(classifyFailure(error));
+      const reason = classifyFailure(error);
+      this.#fail(reason);
+      // TECH-009：只有「伺服端拒絕」往上拋。麥克風問題已經有 notice（權限的還有阻斷頁），
+      // 拋出去只會讓呼叫端多說一句重複的話；伺服端拒絕則需要呼叫端講出**具體**原因
+      // （憑證失效要重新配對、忙線要等一下，兩句話完全不一樣）。
+      if (reason === "session_rejected") throw error;
     }
   }
 

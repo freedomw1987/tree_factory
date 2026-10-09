@@ -39,6 +39,13 @@ describe("M01-US-101 worker CORS", () => {
     expect(corsHeaders("https://evil.example", undefined)).toEqual({});
   });
 
+  it("TECH-009：允許標頭必須含 `authorization`（否則裝置端帶憑證的請求連 preflight 都過不了）", () => {
+    const headers = corsHeaders("http://localhost:1420", undefined);
+    const allowed = headers["access-control-allow-headers"] ?? "";
+    expect(allowed.toLowerCase()).toContain("authorization");
+    expect(allowed.toLowerCase()).toContain("content-type");
+  });
+
   it("M01-Given 沒有 Origin（原生呼叫／同源）When 取標頭 Then 不加 CORS 標頭", () => {
     expect(corsHeaders(null, undefined)).toEqual({});
   });

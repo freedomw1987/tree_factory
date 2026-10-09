@@ -14,6 +14,19 @@ import { defineConfig, devices } from "@playwright/test";
  *   （刻意**不**用 `mode: "serial"`：那會讓一條失敗就 skip 掉後面全部，反而少掉證據；
  *   序列靠 `workers: 1` + 每個測試清 localStorage 就夠了。）
  */
+/**
+ * TECH-009：E2E 用的裝置憑證。
+ *
+ * 為什麼可以寫死在這裡：這是**本機測試**用的值，不是祕密——測試要能自己把
+ * worker 起起來並帶對的憑證，才驗得到「UI 真的會送 Authorization」。
+ * 正式部署的 `DEVICE_TOKEN` 走 `wrangler secret`（見 `docs/env-setup.md`），
+ * 不會是這個值。**刻意不**在 `use.extraHTTPHeaders` 裡塞同一顆 token：
+ * 那會讓「UI 忘了帶憑證」的 bug 照樣全綠（連瀏覽器請求都會被測試設定補上）。
+ */
+declare const process: { env: Record<string, string | undefined> };
+
+const E2E_DEVICE_TOKEN = process.env.E2E_DEVICE_TOKEN ?? "e2e-device-token";
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 45_000,
@@ -33,7 +46,9 @@ export default defineConfig({
   webServer: [
     {
       // 真的 Durable Object（faux provider，零成本）；session 路由就是打這裡。
-      command: "npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux",
+      // TECH-009：worker 端的 DEVICE_TOKEN 必須與 `E2E_DEVICE_TOKEN` 相同，
+      // 否則 UI 帶的憑證會被判 AUTH_INVALID（那就變成在驗錯的東西）。
+      command: `npx --yes wrangler@4 dev --port 8787 --local --var HARNESS_PROVIDER:faux --var DEVICE_TOKEN:${E2E_DEVICE_TOKEN}`,
       cwd: "../../worker",
       url: "http://127.0.0.1:8787/",
       reuseExistingServer: true,
@@ -41,6 +56,9 @@ export default defineConfig({
     },
     {
       command: "npm run dev",
+      // TECH-009：vite 在**啟動時**內聯 `VITE_DEVICE_TOKEN`，所以這裡要用 env 傳進去
+      // （測試檔本身讀不到 worker 的 `--var`）。
+      env: { VITE_DEVICE_TOKEN: E2E_DEVICE_TOKEN },
       url: "http://localhost:1420/",
       reuseExistingServer: true,
       timeout: 60_000,

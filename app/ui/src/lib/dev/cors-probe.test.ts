@@ -150,6 +150,31 @@ describe("TECH-006 探針的「真的讀到」證明（回呼 stop）", () => {
     expect(report).toContain("boom");
   });
 
+  it("TECH-009：帶 token → start 與 stop 都帶 Authorization（探針不能被自己的認證擋掉）", async () => {
+    const seen: (string | null)[] = [];
+    const { calls, impl } = fakeFetch((_url, init) => {
+      seen.push(new Headers(init?.headers).get("authorization"));
+      return ok201();
+    });
+    const result = await runCorsProbe("http://127.0.0.1:8787", impl, "tok-9");
+    expect(calls).toHaveLength(2);
+    expect(seen).toEqual(["Bearer tok-9", "Bearer tok-9"]);
+    expect(result.credential).toBe(true);
+    expect(formatProbeReport(result)).toContain("有帶");
+  });
+
+  it("TECH-009：沒 token → 不帶 Authorization，且報告明說「401 是預期結果，不是 CORS 問題」", async () => {
+    const seen: (string | null)[] = [];
+    const { impl } = fakeFetch((_url, init) => {
+      seen.push(new Headers(init?.headers).get("authorization"));
+      return ok201();
+    });
+    const result = await runCorsProbe("http://127.0.0.1:8787", impl);
+    expect(seen[0]).toBeNull();
+    expect(result.credential).toBe(false);
+    expect(formatProbeReport(result)).toContain("不是 CORS 問題");
+  });
+
   it("TECH006-Given 旗標未設 When 走 probeIfEnabled Then 完全不動作（連 fetch 都不呼叫）", async () => {
     const { calls, impl } = fakeFetch(() => ok201());
     expect(await probeIfEnabled(undefined, "http://127.0.0.1:8787", impl)).toBeNull();

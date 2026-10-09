@@ -13,6 +13,19 @@
 
 const BASE = process.env.DO_SMOKE_BASE ?? "http://127.0.0.1:8787";
 
+/**
+ * TECH-009：worker 的 `DEVICE_TOKEN`（必須與啟動參數 `--var DEVICE_TOKEN:<值>` 相同）。
+ *
+ * 為什麼必填而不是「沒設就跳過」：TECH-009 之後沒帶憑證的請求一律 401
+ * （fail-closed）。若這裡靜靜地不帶憑證，整支冒煙會全部紅，然後被誤讀成
+ * 「DO 壞了」。寧可一開始就講清楚要設什麼。
+ */
+const DEVICE_TOKEN = process.env.DEVICE_TOKEN ?? "";
+const TOKEN_HEADER = DEVICE_TOKEN === "" ? {} : { authorization: `Bearer ${DEVICE_TOKEN}` };
+
+/** 只跑邊緣授權段（TECH-009）：因為速率限制需要**另開一顆** worker（見該段說明）。 */
+const ONLY = process.env.DO_SMOKE_ONLY ?? "";
+
 // 每次跑用不同的會議 id：DO 的 storage 是持久的，固定 id 會讓第二次以後的執行
 // 看到上一輪的殘留（「未開始 404」變成 200、逐字稿次數從 2 開始），
 // 於是「全綠」只在乾淨 state 下成立。有了 run id，同一份 state 可以重複跑。
@@ -28,26 +41,35 @@ function check(label, condition, detail = "") {
   console.log(`${mark} ${label}${detail === "" ? "" : ` — ${detail}`}`);
 }
 
-async function get(path) {
-  const response = await fetch(`${BASE}${path}`);
+async function get(path, init = {}) {
+  const response = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { ...TOKEN_HEADER, ...(init.headers ?? {}) },
+  });
   const text = await response.text();
   try {
-    return { status: response.status, body: JSON.parse(text) };
+    return { status: response.status, body: JSON.parse(text), headers: response.headers };
   } catch {
-    return { status: response.status, body: text };
+    return { status: response.status, body: text, headers: response.headers };
   }
 }
 
 async function post(path, payload) {
   const response = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...TOKEN_HEADER },
     body: JSON.stringify(payload),
   });
-  return { status: response.status, body: await response.json() };
+  return { status: response.status, body: await response.json(), headers: response.headers };
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+if (ONLY === "edge-auth") {
+  await edgeAuthSection();
+  console.log(`\n邊緣授權 smoke（TECH-009）：${failures === 0 ? "全部通過 ✅" : `${failures} 項失敗 ❌`}`);
+  process.exit(failures === 0 ? 0 : 1);
+}
 
 console.log(`DO smoke：base=${BASE}`);
 console.log("--- 0. Worker 活著 ---");
@@ -88,16 +110,17 @@ check("entries 增加", afterTurn.body.entries > second.body.entries, `${second.
 const entriesAfterTurn = afterTurn.body.entries;
 
 console.log("--- 4. alarm 接力 ---");
-const missing = await get(`/m/${mid('meeting-a')}/wake`);
+// TECH-009：`/wake` 由 GET 改 POST（GET 可被第三方網站用 <img> 直接觸發）。
+const missing = await post(`/m/${mid('meeting-a')}/wake`, {});
 check("缺 ?ms 時明確報錯（不退化成 0）", missing.status === 400 && missing.body.error === "MS_REQUIRED");
-const scheduled = await get(`/m/${mid('meeting-a')}/wake?ms=1500`);
+const scheduled = await post(`/m/${mid('meeting-a')}/wake?ms=1500`, {});
 check("wake 設定了 alarm", scheduled.body.scheduled === true, JSON.stringify(scheduled.body));
 check(
   "alarm 時間 = 現在 + 1500ms（query 參數真的有送到 DO）",
   scheduled.body.at - Date.now() > 500,
   `at-now=${scheduled.body.at - Date.now()}ms`,
 );
-const rescheduled = await get(`/m/${mid('meeting-a')}/wake?ms=60000`);
+const rescheduled = await post(`/m/${mid('meeting-a')}/wake?ms=60000`, {});
 check("更晚的 wake 不動既有 alarm（只往前）", rescheduled.body.scheduled === false, JSON.stringify(rescheduled.body));
 await sleep(2500);
 
@@ -478,6 +501,135 @@ check(
     writes: raceSession.body.transcriptWrites,
   }),
 );
+
+/**
+ * TECH-009 的邊緣授權段。
+ *
+ * 為什麼要獨立成一段、可以單獨跑：速率限制要驗 429 就得把門檻調到 3，
+ * 但同一顆 worker 一旦 `RATE_LIMIT_MAX=3`，上面那些動輒上百個請求的段落
+ * 會全部變成 429——於是「429 有沒有生效」永遠驗不到，或者要被誤讀成
+ * 「DO 壞了」。所以用 `DO_SMOKE_ONLY=edge-auth` 搭配**另一顆** worker（不同埠）。
+ */
+async function edgeAuthSection() {
+  console.log(`邊緣授權 smoke：base=${BASE}`);
+  // 門檻很小時（`RATE_LIMIT_MAX:3` 那顆），E1–E3 自己就會把窗口打滿，
+  // 於是 E3 的「POST 有效果」檢查只會拿到 429。那不是壞掉，是限制生效——
+  // 所以改成驗「連 POST /wake 都被擋」（證明限制涵蓋所有 `/m/**` 路徑，不只 health）。
+  const max = Number(process.env.SMOKE_RATE_MAX ?? "0");
+  const tiny = Number.isSafeInteger(max) && max > 0;
+
+  if (tiny) {
+    console.log("⏭  E1–E3 略過：這顆 worker 的 RATE_LIMIT_MAX 很小（" + max + "），前面的檢查會把窗口打滿，",
+    );
+    console.log("   使 E4 的「前幾筆放行、之後才 429」失去意義。E1–E3 由預設門檻那顆 worker 驗。");
+  } else {
+    console.log("--- E1. 沒憑證／錯憑證一律被拒（fail-closed）---");
+    const bare = await fetch(`${BASE}/m/${mid('auth')}/health`);
+    const bareBody = await bare.json();
+    check(
+      "沒帶憑證 → 401 AUTH_INVALID（不是放行、也不是 500）",
+      bare.status === 401 && bareBody.error === "AUTH_INVALID",
+      `${bare.status} ${JSON.stringify(bareBody)}`,
+    );
+    const wrong = await fetch(`${BASE}/m/${mid('auth')}/health`, {
+      headers: { authorization: "Bearer definitely-not-the-token" },
+    });
+    const wrongBody = await wrong.json();
+    check("錯的憑證 → 401（不得放行）", wrong.status === 401 && wrongBody.error === "AUTH_INVALID");
+    check(
+      "401 的訊息不得洩漏設定的憑證內容",
+      !JSON.stringify(wrongBody).includes(DEVICE_TOKEN) || DEVICE_TOKEN === "",
+    );
+
+    console.log("--- E2. Origin 白名單 ---");
+    const evilOrigin = await get(`/m/${mid('auth')}/health`, { headers: { origin: "http://evil.example" } });
+    check(
+      "清單外 Origin → 403 ORIGIN_FORBIDDEN（即使憑證正確）",
+      evilOrigin.status === 403 && evilOrigin.body.error === "ORIGIN_FORBIDDEN",
+      `${evilOrigin.status} ${JSON.stringify(evilOrigin.body)}`,
+    );
+    const devOrigin = await get(`/m/${mid('auth')}/health`, { headers: { origin: "http://localhost:1420" } });
+    check(
+      "白名單 Origin + 正確憑證 → 200（403 不是把正常路徑也擋掉）",
+      devOrigin.status === 200 && devOrigin.body.ok === true,
+      `${devOrigin.status}`,
+    );
+
+    console.log("--- E3. /wake、/release 只收 POST ---");
+    const getWake = await get(`/m/${mid('auth')}/wake?ms=1000`);
+    check(
+      "GET /wake → 405 METHOD_NOT_ALLOWED + Allow: POST",
+      getWake.status === 405 &&
+        getWake.body.error === "METHOD_NOT_ALLOWED" &&
+        (getWake.headers.get("allow") ?? "").toUpperCase().includes("POST"),
+      `${getWake.status} allow=${getWake.headers.get("allow")}`,
+    );
+    const getRelease = await get(`/m/${mid('auth')}/release`);
+    check("GET /release → 405", getRelease.status === 405 && getRelease.body.error === "METHOD_NOT_ALLOWED");
+    // 改方法最怕的是「順手把端點弄壞」：所以不只驗 405，還要驗 POST 真的有效果。
+    const postWake = await post(`/m/${mid('auth')}/wake?ms=60000`, {});
+    const postRelease = await post(`/m/${mid('auth')}/release`, {});
+    if (tiny) {
+      check(
+        `小門檻（${max}）下連 POST /wake 都被 429 擋（限制涵蓋所有 /m/** 路徑，不只 /health）`,
+        postWake.status === 429 && postWake.body.error === "RATE_LIMITED",
+        `${postWake.status} ${JSON.stringify(postWake.body)}`,
+      );
+      console.log("⏭  略過「POST 照常工作」兩條：這顆 worker 的窗口已被 E1–E3 打滿；由預設門檻那顆 worker 驗。");
+    } else {
+      check(
+        "POST /wake 照常工作（排得出 alarm）",
+        postWake.status === 200 && postWake.body.scheduled === true && typeof postWake.body.at === "number",
+        `${postWake.status} ${JSON.stringify(postWake.body)}`,
+      );
+      check(
+        "POST /release 照常工作（真的把會議關掉）",
+        postRelease.status === 200 && typeof postRelease.body.released === "boolean" && postRelease.body.isOpen === false,
+        `${postRelease.status} ${JSON.stringify(postRelease.body)}`,
+      );
+    }
+  }
+
+  console.log("--- E4. 速率限制（需要這顆 worker 的 RATE_LIMIT_MAX 很小）---");
+  if (!tiny) {
+    console.log("⏭  跳過 429：這顆 worker 的門檻未知（預設 300），同一輪打爆它會污染上面的結果。");
+    console.log("   要驗 429 請另開一顆（不同埠）：");
+    console.log(
+      "   npx wrangler dev --port 8799 --local --var HARNESS_PROVIDER:faux --var DEVICE_TOKEN:s3cret --var RATE_LIMIT_MAX:3",
+    );
+    console.log("   DO_SMOKE_BASE=http://127.0.0.1:8799 DO_SMOKE_ONLY=edge-auth SMOKE_RATE_MAX=3 node scripts/do-smoke.mjs");
+    return;
+  }
+  const statuses = [];
+  let last = null;
+  for (let i = 0; i < max + 3; i += 1) {
+    last = await get(`/m/${mid('auth')}/health`);
+    statuses.push(last.status);
+  }
+  const firstBlocked = statuses.indexOf(429);
+  check("連續打超過門檻後出現 429", firstBlocked >= 0, statuses.join(","));
+  if (tiny) {
+    // 窗口乾淨時可以驗得更強：前面的筆數真的被放行，第 max+1 筆才開始擋
+    // （不是「從第一筆就全擋」——那會讓 429 看起來對，實際上 limiter 根本沒在數）。
+    check(
+      `前 ${max} 筆放行（200）、第 ${max + 1} 筆起才 429`,
+      firstBlocked === max && statuses.slice(0, max).every((code) => code === 200),
+      statuses.join(","),
+    );
+  }
+  check(
+    "一旦被擋，窗內每一筆都還是 429（不得偷偷放行）",
+    firstBlocked >= 0 && statuses.slice(firstBlocked).every((code) => code === 429),
+    statuses.join(","),
+  );
+  const retryAfter = last === null ? null : last.headers.get("retry-after");
+  check(
+    "429 帶 Retry-After（正整數秒）",
+    retryAfter !== null && /^[0-9]+$/.test(retryAfter) && Number(retryAfter) > 0,
+    String(retryAfter),
+  );
+  check("429 的 body 說得清楚（RATE_LIMITED + recoverable）", last.body.error === "RATE_LIMITED", JSON.stringify(last.body));
+}
 
 console.log(`\nDO smoke：${failures === 0 ? "全部通過 ✅" : `${failures} 項失敗 ❌`}`);
 process.exit(failures === 0 ? 0 : 1);

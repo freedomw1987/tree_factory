@@ -38,6 +38,8 @@ class FakeCapture implements CaptureAdapter {
 class FakeSession implements SessionClient {
   startCalls = 0;
   stopReasons: string[] = [];
+  /** TECH-009：讓 `start()` 丟錯（模擬伺服端拒絕：401／429／500）。 */
+  failWith: unknown = null;
   #endsAtMs: number;
 
   constructor(endsAtMs = 7_200_000) {
@@ -46,6 +48,7 @@ class FakeSession implements SessionClient {
 
   async start(): Promise<{ startedAtMs: number; endsAtMs: number }> {
     this.startCalls += 1;
+    if (this.failWith !== null) throw this.failWith;
     return { startedAtMs: 0, endsAtMs: this.#endsAtMs };
   }
 
@@ -101,6 +104,31 @@ describe("M01-US-101 錄音 store", () => {
     expect(s.notice?.settingsLink).toBe(true);
     expect(capture.releaseCalls).toBeGreaterThan(0);
     expect(session.stopReasons).toContain("aborted");
+  });
+
+  it("TECH-009 AC-6：伺服端拒絕（401）When 開始 Then 明說 SESSION_REJECTED、回 idle，且把錯誤往上拋給呼叫端", async () => {
+    // 為什麼要「往上拋」：401 的文案（裝置授權已失效／請重新配對）屬 UI 層，
+    // store 不該知道那些字。它只要把「這是伺服端拒絕」講清楚，並讓呼叫端能分辨。
+    const session = new FakeSession();
+    session.failWith = Object.assign(new Error("裝置授權已失效"), { status: 401, code: "AUTH_INVALID" });
+    const capture = new FakeCapture();
+    const { store } = makeStore({ capture, session });
+    await expect(store.start()).rejects.toThrow("裝置授權已失效");
+    const s = store.snapshot;
+    expect(s.state).toBe("idle");
+    expect(s.pending).toBe(false);
+    expect(s.notice?.code).toBe("SESSION_REJECTED");
+    // 最關鍵的一條：不得把「伺服端拒絕」講成裝置問題——那會叫使用者去關掉別的錄音 App。
+    expect(s.notice?.code).not.toBe("DEVICE_UNAVAILABLE");
+    expect(capture.acquireCalls).toBe(0);
+  });
+
+  it("TECH-009 AC-6：麥克風權限被拒**不**往上拋（那條路已經有阻斷頁，拋出去只會多一句重複的 toast）", async () => {
+    const capture = new FakeCapture(async () => {
+      throw Object.assign(new Error("denied"), { name: "NotAllowedError" });
+    });
+    const { store } = makeStore({ capture });
+    await expect(store.start()).resolves.toBeUndefined();
   });
 
   it("M01-Given mic 3 秒沒起來 When 超過 3 秒 Then 明說 START_TIMEOUT、狀態回 idle、不限於靜默等待（AC-1）", async () => {

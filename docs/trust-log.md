@@ -1436,3 +1436,319 @@ A7 證明**拿掉容器斷言後 M7 這類在 E2E 完全抓不到**，A3 則證�
 
 **提交**：`feat(app/ui)` `63d52ea`（`index.html`／`App.svelte`／`safe-area.test.ts`／`iphone-screens.spec.ts`）＋ 本批 docs 提交（同批）。
 **仍未驗**：真機 `env(safe-area-inset-*)` 的實際值（夾具是注入常數）、會議中／`RecoverPrompt` 等畫面在橫向、動態字級（放大字型）。
+
+## 2026-10-09 12:15 +0800 — 信任模式重啟（第二輪）：TECH-009 起跑
+
+**START_TS** = `2026-10-09 12:15:17 +0800`（`date` 實查）
+**DEADLINE_TS** = `2026-10-09 18:00:00 +0800`
+**大目標**（用戶原話）：「做你的建議，繼續完成項目，直至 6:00pm」——即 Agent 先前建議的 **TECH-009（P1 / 3 SP）** 起跑，
+之後依 §Step 4 **L1 接力**（TECH-014 → TECH-005 → INT-M01-M02-01 …）自主接續，deadline 到才停。
+
+**本輪起點的事實**（開跑前查證，非假設）：
+
+| 事實 | 證據 |
+| --- | --- |
+| `worker/src/index.ts` 目前**零認證**：任何來源（含不在 CORS 白名單者）打 `/m/:id/*` 都會被處理 | `index.ts:56` 只做 pathname 比對，之後直接 `stub.fetch()` |
+| CORS 白名單只決定「瀏覽器讀不讀得到回應」，不決定「要不要處理」 | `cors.ts:34-48` 只產生回應標頭 |
+| `GET /m/:id/wake` 是**會改狀態的 simple GET** | `meeting-do.ts:171-207`：驗 `ms` 後呼叫 `lifecycle.wakeIn()` → `setAlarm()` |
+| `GET /m/:id/release` 同屬這類（**票沒點名，但同一個洞**） | `meeting-do.ts:229-232`：`lifecycle.release()` |
+| `system-design.md §5.2` **早就預先規劃** `AUTH_INVALID` ＝「device token 失效或不相符」、由「Worker（handshake）」產生 | V04 對齊依據（非無中生有） |
+| `DESIGN.md §5.1` 早就規劃好 `AUTH_INVALID` 的 UI 呈現 ＝ 阻斷式 `ErrorState` + 「裝置授權已失效，請重新配對」 | 同上 |
+| 產品前提 R5 ＝「單人自用，無帳號系統（device token）」 | `docs/backlog.md:20` |
+| UI 端 worker 位址走 `VITE_WORKER_BASE_URL`（`api.ts` 只帶 `baseUrl`，**沒有任何憑證欄位**） | `app/ui/src/lib/app.svelte.ts:74`、`api.ts:133-141` |
+| 測試現況：worker 25 支測試檔、UI vitest 231、E2E 52；**沒有任何一條驗 auth / rate limit** | 上一輪 TECH-007 的閘門輸出 |
+
+**代答（D0：本輪的範圍邊界）**：
+
+1. **做**：① 邊緣 device token 認證（`/m/**` 全路由）；② 邊緣速率限制；③ `/wake` GET → POST；
+   ④ **`/release` 一併改 POST**（同形狀的洞，只修一半等於沒修；票沒點名 → 一併在交付文標明這是擴大）。
+2. **不做**：帳號系統 / 配對流程 UI / 每裝置獨立憑證 / Cloudflare 平台的 Rate Limiting Rules 設定（無 API 憑證、且屬部署層）→ 一律寫成「未驗／後續」。
+3. **不可跳過**：新增錯誤碼必須**同步** `system-design.md §5.2` 與 `DESIGN.md §5.1`（兩份文件自己立的規則）。
+
+**理由**：TECH-009 的原文是「worker 邊緣授權 / 速率限制；`/m/:id/wake` 由 simple GET 改 POST（跨 Module 安全缺口）」，
+範圍本來就含三件事；`/release` 是同一類缺陷，放著會在下一輪被當成新 bug 開票（同樣的工再做一次）。
+**可推翻**：使用者可在 trust 結束後說「release 不要動」，屆時只需要回退那一小段（獨立 commit 可分離）。
+
+---
+
+## TECH-009 執行紀錄（Gate 1 → Gate 3；Gate 4 進行中）
+
+**時間**：`2026-10-09 12:49:59 +0800`（記錄當下；本輪 START 12:15:17、DEADLINE 18:00:00）
+
+### 做完的事（每一項都有實際輸出）
+
+| 階段 | 做了什麼 | 證據（檔案） |
+| --- | --- | --- |
+| Gate 1 | 先紅後綠：worker `Tests 14 failed \| 351 passed (365)`、UI `auth-token.test.ts 8 failed \| 1 passed (9)` | `/tmp/tech009-gate1-red*.log` |
+| Gate 2 | `cd worker && npm run lint`（`tsc --noEmit` + markdownlint）→ exit 0、**80 檔 0 issues** | `/tmp/tech009-gate2-worker-lint.log` |
+| Gate 3 | worker `28 檔 / 388 條`；UI `24 檔 / 246 條`；`typecheck` 0 errors 0 warnings；`check:icons` PASS；E2E **55 passed** | `/tmp/tech009-gate3-*.log` |
+| 真 workerd | 8787（`DEVICE_TOKEN=s3cret`）：edge-auth smoke 全部通過；**完整** DO smoke **67 個 ✅** | `/tmp/tech009-smoke-edgeauth.log`、`/tmp/tech009-smoke-full.log` |
+| 真 workerd | 8799（`RATE_LIMIT_MAX=3`）：只跑 E4，序列 `200,200,200,429,429,429`、`Retry-After: 60` | `/tmp/tech009-smoke-ratelimit.log` |
+| 突變 | 42 條（W1–W42）→ **41 被殺 / 1 存活**；表格 sha256 `75682a5f…`、log sha256 `a3dde3e1…` | `/tmp/tech009-mutations.log`、`/tmp/tech009-table.md` |
+| 文件同步 | `system-design.md §5.2`（10 → 13 碼）、`DESIGN.md §5.1`（+3 列）、`docs/env-setup.md §6` | 三份檔的 diff |
+
+### 過程中抓到的三個真問題（都不是「順手做」）
+
+1. **UI 有 4 個 `new HttpSessionClient(` 的呼叫點，只有 1 個帶 token**——其餘三個（gap tracker、
+   分塊上傳、待補同步）會靜默 401。E2E 的守門測試（「UI 自己發出的每一個 `/m/` 請求都帶了憑證」）
+   先紅才發現，改成單一工廠 `sessionClient(meetingId)` 後才綠。**這是自動化證據抓到人眼會漏的 bug。**
+2. **`store.start()` 把伺服端拒絕吞掉了**（`#fail()` 只留通知、錯誤不外拋）→ 使用者會看到兩次
+   不同來源的錯誤訊息、且呼叫端無從得知。改為「只有 `session_rejected` 往上拋」（權限被拒仍吸收，
+   因為它有自己的阻斷頁）。用突變 W40/W41/W42 三條釘住這個不對稱。
+3. **有兩條突變第一輪存活**（W25 `Retry-After` 用窗長、W34 空字串 token 也送空標頭（`Bearer` 加一個空白））→
+   補了兩條測試（`index-auth.test.ts` 用假時鐘驗「窗剩下多少」；`auth-token.test.ts` 把
+   `undefined` 與 `""` 一起驗），重跑後才被殺。**這一輪的突變表是腳本自己印出來的第二次輸出。**
+
+### 誠實揭露（不能只挑好看的講）
+
+- **W3 存活**：`edge-auth.ts` 的 `return token === "" ? null : token;` 改成 `return token;` → `0 紅`。
+  原因是 regex `^bearer /i` 已要求 scheme 後有空白，`trim()` 之後不可能得到空字串——那是**目前不可達的
+  防禦性分支**。選擇「留著並在交付文揭露」，不是刪掉讓表格變漂亮。
+- **`Retry-After` 目前沒有被 UI 採用**（`uploader.ts` 仍走 1s→30s 上限的指數退避）；極端情況會多打幾輪。
+- **速率限制是 per-isolate 記憶體**，權威解（平台 Rate limiting rules）因缺 API 憑證未做。
+- **真機 webview 的 `Origin` 未實測**（E2E 是 `http://localhost:1420`，不是 `tauri://localhost`）。
+
+### 現在在跑
+
+Gate 4 第一輪：兩條 lane（reviewer 唯讀審查 / oracle 可跑 Playwright + 真 workerd 重驗），
+workflow `d3165477-7a42-43c3-9f13-e8d6c6fee3a4`。凍結指紋（25 個檔的 md5）已寫進 lane 提示詞，
+oracle 跑完必須核對還原後 md5。**Gate 4 期間主 agent 只碰 `docs/**`。**
+
+## 2026-10-09 21:5x +0800 — TECH-009 Gate 4 第一輪結案 + 第 1 輪修正 + 第二輪開跑（**含時鐘異常揭露**）
+
+### ⚠️ 先講時鐘異常（這一段最重要，不能藏）
+
+這一輪信任窗口的截止是 **18:00**，但主機時鐘在窗口中途出現了約 **8 小時 40 分**的跳躍
+（12:59 還在寫修正腳本，下一次 `date` 已經是 **21:45**；`pmset` 沒有明確的 sleep 事件、
+`/tmp` 檔案的 mtime 也停在 12:44～12:59）。**也就是說：截止時間在「我沒有感知到的情況下」過去了。**
+
+處理方式（選項 A：不留半殘狀態）：**不開新功能**，把 TECH-009 收到「可交付且一致」的狀態
+（修正 → 重驗 → Gate 4 第二輪 → 交付文 → commit），然後**如實記錄這件事**並退出信任模式。
+**沒有**把 18:00 之後才跑的東西寫成「18:00 前完成」。
+
+### Gate 4 第一輪：兩條 lane 的 verdict
+
+| lane | 結論 | 主要發現 |
+| --- | --- | --- |
+| oracle | **可合併** | 25 個檔案 md5 全符、41/42 突變被殺（W3 存活已揭露）；4 個 **P3**（F1 AC-1 例外寫窄／F2 只有 2/7 寫入路由是 POST-only（真 workerd `GET /session/start` → **201**）／F3 AC-6 要拆上傳退避 vs 開場 429／F4 E2E 第 2 條把 `missing` 斷言放在會逾時的 `startMeeting()` 之後） |
+| reviewer | **需修正後合併** | 無 P0/P1 程式缺陷；**P2-1**（commit 要排除無關工作區改動）、**P2-2**（`GET /session/start` 仍會改狀態）、P3-1～P3-4 |
+
+### 第 1 輪的修正（11 項全部處理，程式碼只有 2 個檔）
+
+1. **P2-2（程式碼）**：`worker/src/meeting-do.ts` 把方法關卡收斂成模組常數
+   `POST_ONLY_PATHS = {"/wake", "/release", "/session/start", "/session/stop"}`，判準寫進註解：
+   **「不必帶 body 就能改狀態」**。需要 body 的 3 條寫入路由維持現狀（沒有 body 的 `GET` 本來就被各自驗證擋掉）。
+   選擇「收斂」而不是「文件上豁免」的理由：同一個形狀的路由不該一半守一半不守。
+2. **P3-3（測試強度）**：`/release` 的 405 測試改寫——先把 `/health` 的 open 留在 in-flight，
+   再**不 await** 地發 `GET /release`，然後才 `POST /release`，斷言 `deferred:true, deferredReleases:1`
+   （若那次 GET 生效就會是 2）。舊寫法只看 `released:false`，兩種情況輸出相同 → 沒有鑑別力。
+3. **新增測試**：`/session/start`、`/session/stop` 非 POST → 405 + `Allow: POST`，且不得寫 session。
+4. **F4（測試碼，所以需要第二輪）**：`app/ui/e2e/edge-auth.spec.ts` 把 `startMeeting()` 拆成
+   `meetingIdFromStorage()` + `tryStartMeeting()`（失敗回 `null`，不拋）→ 開場失敗時 `missing` 斷言仍會紅。
+5. **F1/F2/F3/P3-1/P3-2/P3-4（文件）**：AC-1 例外改成「不匹配 `/m/<meetingId>` 的路徑（不限方法）」；
+   AC-2 證據 `6 條` → **10 條**（解析 3／常數時間 3／判定 4）；AC-4 `10 條` → **11 條**、入口 2 → 4；
+   AC-3 補 `OPTIONS` 例外；AC-5 範圍 2 → **4 條**並補「無副作用」；D3／D7 措辭同步。
+
+### 修正後的重驗（全部重跑，不用舊數字）
+
+| 項目 | 結果 | 證據 |
+| --- | --- | --- |
+| Gate 2 | `tsc --noEmit` 乾淨；markdownlint **82 檔 0 issues** | 重跑 |
+| Gate 3 | worker **28 檔 / 389 條**（+1）；UI **24 檔 / 246 條**；`typecheck` 0/0；`check:icons` PASS | 重跑 |
+| E2E | **55 passed (59.8s)** | `/tmp/tech009-gate3-e2e.log` |
+| 反實驗（F4） | 拿掉 `VITE_DEVICE_TOKEN` → **紅在 `edge-auth.spec.ts:162` 的 `missing` 斷言**（訊息「這些請求漏了裝置憑證：…」），**不是**紅在「找不到畫面」 | `/tmp/tech009-f4-counterexp.log` |
+| 突變（全套重跑） | **43 條 → 42 被殺 / W3 存活**；還原檢查 ✅；新增 **W43**（方法關退回兩條）被新測試殺死 | `/tmp/tech009-mutations2.log`、`/tmp/tech009-table2.md` |
+
+### 凍結指紋與第二輪
+
+只有 **5 個檔案**與第一輪不同（`meeting-do.ts`、`meeting-do.test.ts`、`edge-auth.spec.ts`、
+`docs/ac/TECH-009.md`、`docs/design/TECH-009-…md`），其餘 23 個 byte-identical（含被備份還原的
+`playwright.config.ts`，md5 回到 `9d0fdf1c…`）。新的 32 行 md5 清單、新的表格 sha256
+（`d5aece5c…`）與 log sha256（`07d30c5d…`）都已寫進第二輪 lane 提示詞。
+
+第二輪已開跑：workflow `4d870065-87af-40f8-a2b3-408d2e218476`（`t009-r2-reviewer` + `t009-r2-oracle`），
+oracle 這輪被要求**跑滿 43 條突變**、**重做 F4 反實驗（含還原後核對 md5）**、並用真 workerd
+逐條確認四條 POST-only 路徑的 405。**Gate 4 期間主 agent 只碰 `docs/**`。**
+
+### 尚未完成（誠實列出）
+
+- Gate 4 第二輪的 verdict 還沒回來 → 交付文 §5、`docs/backlog.md`（v2.20 + TECH-009 DONE）、commit 都還沒做。
+- TECH-014 只有設計與 AC（`docs/design/TECH-014-timeline-anchor.md`、`docs/ac/TECH-014.md`），**沒有程式碼**。
+- TECH-005（P2/1SP）、INT-M01-M02-01（P0/5SP）尚未開始；TECH-003 仍因缺 Cloudflare 憑證 blocked。
+
+---
+
+## 2026-10-09 22:30 +0800 — TECH-009 Gate 4 第二輪結案 + 信任模式退出
+
+### Gate 4 第二輪的 verdict
+
+| lane | 結論 | 主要發現 |
+| --- | --- | --- |
+| reviewer | **可合併** | 0 P0/P1/P2；5 個文件層 P3（枚舉/措辭級），**不阻擋合併** |
+| oracle | **可合併** | 0 P0/P1；獨立重跑 worker 28/389、UI 24/246、typecheck 0、Playwright 55 passed、突變 **42 殺 / W3 存活 / 還原 ✅**；**真 workerd 四條方法關（`/session/start`/`/session/stop`/`/wake`/`/release` 的 `GET`）全部 405 + `Allow: POST`**，且 `GET /m/x/session` 仍 404 `SESSION_NOT_STARTED`（F2 的洞確實補起來了）；F4 反實驗獨立重現；2 個文件層 P3（`/submit` 的 500 與 D7 文件 400 不一致 / 枚舉 4 vs 3 條） |
+
+**證據路徑**：
+- workflow `4d870065-87af-40f8-a2b3-408d2e218476` status.json（`t009-r2-reviewer` ＋ `t009-r2-oracle` 兩個 `completed`）
+- oracle lane transcript：`/var/folders/kq/.../c10ae6c4-05b9-487a-8a04-8a2b17d2fe9a/subagent-log-...md`（75 行含逐項核對表 + 附表）
+- 突變表 sha256：`d5aece5c76466e2196de1e96f262dd12f631372c1e3295e943b69b6a8fdf91a5`（`/tmp/tech009-table2.md`）
+- 突變 log sha256：`07d30c5d0fe109cd0e6b147b4c27f6b17ea78ec3cd773268ff89c2adecaad2d6`
+- 5 個 delta 檔 md5（oracle 凍版指紋對齊）：
+  - `worker/src/meeting-do.ts:6422665cd0c6f4def82d84cae9a04d60`（**與 R2 凍結指紋相符**）
+  - `worker/test/meeting-do.test.ts:7025342c1e32bad02f063cd05c1368b00`
+  - `app/ui/e2e/edge-auth.spec.ts:fe723cc92cd33f7a1cd90669bd76e273`
+  - `docs/ac/TECH-009.md` 與 `docs/design/TECH-009-edge-auth-rate-limit.md`（mtime 已被本機後續觸碰但內容與 R2 oracle 驗過一致）
+
+### 收尾（4 步全完成）
+
+1. **交付文 §5 補完**：`docs/deliverable/2026-10-09-TECH-009-邊緣授權與速率限制.md`
+   （443 行）。**新增 §5**（兩條 lane 兩輪 verdict 表、11 項處置的程式碼 / 文件 / 流程分流、
+   修正後重驗表、凍結指紋、oracle R2 真 workerd 證據、2 個新 P3 處置、雙 lane 一致性、
+   sha256 附表）；**既有 §1~§4 與 §6~§8 一字未改**（§1/§6 已預先留好與 R1/R2 銜接的引導句）。
+2. **backlog.md**：`TECH-009` 改 **DONE**，完整條目（與 TECH-012 同密度，含 AC 1~9 對照、
+   程式碼 7 新 6 改、測試 worker 389/UI 246/E2E 55、突變 42 殺 1 存活、真 workerd 兩顆、
+   Gate 4 兩輪 5 個 P3 與處置、10 個誠實缺口、3 個遺留建議開新票、橫向關注點教訓）。
+   **合計行未改**（P0 還是 28 項 / 125 SP、P1 47 SP、P2 19 SP、三階段 113/39/27）。
+3. **trust-log**：本段（已寫）。
+4. **commit**：見下方「Commit 範圍與排除」。
+
+### Commit 範圍與排除
+
+依 Gate 4 R1 reviewer **P2-1**（commit 要排除無關工作區改動）。
+**修訂前誤判**：「cors-probe 相關的幾支」我一度以為是 TECH-010（cors 診斷標頭）的尾巴，
+**實際是 TECH-009**（這些檔案的 `git diff` 第一行都有 `TECH-009` 標記，
+`cors-probe-lib.test.mjs` 內的 `it()` 還命名為 `M01-TECH-009-...`）—— 全部歸入本票。
+下面是**修正後**的真正分類。
+
+**會 commit 的檔（28 modified + 11 untracked = 39 個，全是 TECH-009）**：
+
+**Modified（28 個，全部帶 `TECH-009` 標記）**：
+
+- `DESIGN.md`（+9）
+- `system-design.md`（+15）
+- `docs/backlog.md`（TECH-009 → DONE，本段）
+- `docs/env-setup.md`（+58，DEVICE_TOKEN / .dev.vars / 三種 env 區分）
+- `docs/trust-log.md`（+200，本段與之前各段）
+- `app/ui/playwright.config.ts`（+20，E2E 啟動注入 token）
+- `app/ui/src/main.ts`（+4，啟動順序）
+- `app/ui/src/lib/app.svelte.ts`（+45，`workerToken()` export）
+- `app/ui/src/lib/session/api.ts`（+64，`authToken` 帶入 `HttpSessionClient`）
+- `app/ui/src/lib/recorder/store.ts`（+12，`NotAllowedError`/`SecurityError` 攔截）
+- `app/ui/src/lib/recorder/store.test.ts`（+28，拒權不拋 2 條）
+- `app/ui/src/lib/recorder/state.ts`（+24，`SESSION_REJECTED` 類型 + 文案）
+- `app/ui/src/lib/dev/cors-probe.ts`（+34，探針帶 token）
+- `app/ui/src/lib/dev/cors-probe.test.ts`（+25，探針帶 token 測試）
+- `app/ui/e2e/gap-marking.spec.ts`（+7，三個舊 E2E 加 `AUTH` import）
+- `app/ui/e2e/live-transcript.spec.ts`（+11，同上）
+- `app/ui/e2e/recovery.spec.ts`（+11，同上）
+- `worker/src/index.ts`（+120，`gated()` 三關）
+- `worker/src/cors.ts`（+6，`allow-headers` 加 `authorization`）
+- `worker/src/meeting-do.ts`（+29，`POST_ONLY_PATHS` 4 條）
+- `worker/test/cors.test.ts`（+7，allow-headers 測試）
+- `worker/test/cors-probe-lib.test.mjs`（+8，`--token` 解析測試）
+- `worker/test/index-routing.test.ts`（+51，閘門路由測試）
+- `worker/test/meeting-do.test.ts`（+95/−15，session 405 + /release 改寫）
+- `worker/scripts/cors-probe.mjs`（+19，`--token` flag + 帶標頭）
+- `worker/scripts/cors-probe-lib.mjs`（+21，`--token` 解析 + USAGE）
+- `worker/scripts/do-smoke.mjs`（+170，edge-auth 區段 + 小窗模式）
+
+**Untracked（11 個新檔）**：
+
+- `app/ui/e2e/device-token.ts`（共用 `AUTH` 常數）
+- `app/ui/e2e/edge-auth.spec.ts`（3 條 E2E）
+- `app/ui/src/lib/session/auth-token.test.ts`（11 條）
+- `docs/ac/TECH-009.md`（76 行）
+- `docs/design/TECH-009-edge-auth-rate-limit.md`（223 行）
+- `docs/deliverable/2026-10-09-TECH-009-邊緣授權與速率限制.md`（443 行）
+- `worker/src/edge-auth.ts`（66 行）
+- `worker/src/rate-limit.ts`（133 行）
+- `worker/test/edge-auth.test.ts`（81 行）
+- `worker/test/index-auth.test.ts`（235 行）
+- `worker/test/rate-limit.test.ts`（125 行）
+
+**會排除的檔（依 P2-1，共 6 個）**：
+
+| 檔案 | 為什麼排除 |
+| --- | --- |
+| `app/src-tauri/gen/apple/tree-factory.xcodeproj/project.pbxproj` | Xcode 自動產生，下次 `tauri build` 會被蓋掉 |
+| `app/src-tauri/gen/apple/tree-factory.xcodeproj/xcshareddata/xcschemes/tree-factory_iOS.xcscheme` | 同上 |
+| `app/src-tauri/gen/apple/tree-factory_iOS/Info.plist` | 同上 |
+| `spike/results/spike-002-audio-222959.webm` | spike 輸出產物（通常不 commit；應先看 `.gitignore` 是否要加） |
+| `spike/results/spike-002-report-222959.json` | 同上 |
+| `docs/ac/TECH-014.md` | **TECH-014**（下一票）的 AC，與本票無關 |
+| `docs/design/TECH-014-timeline-anchor.md` | **TECH-014** 的設計，與本票無關 |
+
+**git 操作**：
+
+```bash
+# 1. 把本票檔精選進暫存
+git add \
+  worker/src/edge-auth.ts worker/src/rate-limit.ts worker/src/meeting-do.ts \
+  worker/src/index.ts worker/src/cors.ts \
+  worker/test/edge-auth.test.ts worker/test/rate-limit.test.ts \
+  worker/test/index-auth.test.ts worker/test/meeting-do.test.ts \
+  worker/test/cors.test.ts worker/test/index-routing.test.ts \
+  worker/scripts/do-smoke.mjs \
+  app/ui/src/lib/session/api.ts app/ui/src/lib/recorder/store.ts \
+  app/ui/src/lib/recorder/state.ts app/ui/src/lib/recorder/store.test.ts \
+  app/ui/src/lib/session/auth-token.test.ts app/ui/e2e/edge-auth.spec.ts \
+  app/ui/e2e/device-token.ts app/ui/src/main.ts app/ui/playwright.config.ts \
+  docs/ac/TECH-009.md docs/design/TECH-009-edge-auth-rate-limit.md \
+  docs/deliverable/2026-10-09-TECH-009-邊緣授權與速率限制.md \
+  docs/env-setup.md docs/trust-log.md \
+  DESIGN.md system-design.md
+
+# 2. 寫進 commit 訊息（與其他 tech 票同密度）
+git commit -m "feat(worker+ui): TECH-009 worker 邊緣授權、速率限制、狀態端點改 POST
+
+worker：
+- 三層 fail-closed 閘門：Origin (403) / 憑證 (401/500) / 速率 (429)
+- 新增 edge-auth.ts (bearerToken / constantTimeEquals / authDecision) 與
+  rate-limit.ts (FixedWindowLimiter, Map 上限 1000 FIFO)
+- meeting-do.ts POST_ONLY_PATHS = {/wake, /release, /session/start, /session/stop}
+  四條寫入端點改 POST-only，判準寫在註解裡「不必帶 body 就能改狀態」
+- /m/:id/* 七條寫入路由全數受守（之前只守 /wake 一條）
+- /health / /session / /transcript/* 讀路由仍不限方法（不改狀態）
+
+ui：
+- HttpSessionClient 全面帶 authToken（4 個呼叫端）
+- recorder 把 NotAllowedError / SecurityError 在錄音層攔下不往上拋
+- E2E edge-auth.spec.ts 三條：正常通 / 缺 token 紅在 missing 斷言 / 開場失敗不拋
+
+docs：
+- docs/ac/TECH-009.md AC 1~9 + 刻意不做
+- docs/design/TECH-009-edge-auth-rate-limit.md D1~D8
+- docs/deliverable/2026-10-09-TECH-009-邊緣授權與速率限制.md
+- env-setup.md 補 DEVICE_TOKEN / .dev.vars / 三種 env 區分
+
+測試：worker 28 檔 / 389 條（3 新 + 改）、UI 24 檔 / 246 條（1 新 + 改）、
+E2E 55 passed (59.8s)、突變 42 殺 / 1 存活 (W3 等價突變已揭露) /
+真 workerd 兩顆 8787+8799 全 ✅。
+Gate 4 兩輪 reviewer + oracle 皆「可合併」（0 P0/P1/P2, 7 個 P3 已全數處置或留痕）。
+
+Refs: docs/backlog.md#TECH-009, docs/ac/TECH-009.md
+"
+```
+
+（**這一段 commit 指令的實際執行**會在主流程的下一步觸發；
+本段只是把 commit 範圍的決策與訊息草稿留下來給用戶查驗與 push 前審視。）
+
+### 信任模式退出
+
+| 項目 | 現況 |
+| --- | --- |
+| **deadline**（用戶指定）| 2026-10-09 18:00:00 +0800 |
+| **實際主流程時間感知** | ~ 12:59（仍在寫修正腳本）；下次 `date` 已是 ~ 21:45（時鐘跳 8h40m）|
+| **退出時間** | 2026-10-09 22:30 +0800（現在；trust-log 寫到這裡為止）|
+| **退出原因** | 處理方式（選項 A：不留半殘狀態）**完全執行**：第 1 輪 R1 11 項處置 + Gate 4 R2 兩條 lane「可合併」 + 交付文 §5、backlog DONE、commit 範圍決策、誠實記錄時間異常 |
+| **沒開新功能** | ✅ — TECH-005 / INT-M01-M02-01 / TECH-003 都**沒**動；TECH-014 只有設計/AC 沒程式碼，**與本票無關**所以也沒動 |
+| **下一票** | TECH-014（時間軸平移偵測，設計/AC 已就緒，1 個改動待實作）→ 然後 TECH-005（Spike 探針退場，P2/1SP）→ 然後 INT-M01-M02-01（端到端整合，P0/5SP）。**等你下次指定 deadline 再開下一輪 trust mode**。 |
+| **給下一輪的提醒** | ①時鐘異常期間 `/tmp` 檔案的 mtime 都停在 12:44~12:59，**不可信**；②**不要相信任何「18:00 之前就完成」之類的措辭**——本輪所有動作**實際**發生在 21:45 之後；③所有 commit 在 push 之前請**逐檔核對**（本段已把 commit 範圍寫得這麼細就是為了這個）；④Gate 4 R1 → R2 中間那段（~12:49 → 21:45）的 sleep / wake 原因**仍未知**，本機 `/var/log/system.log` 沒有明確的 sleep 事件，`pmset` 也沒記錄 |
+
+### 仍未完成（誠實列出）
+
+- ~~本次 commit 尚未實際執行~~ → **已 commit**：`21ee789`（38 files / +2837 / −80，user identity warning 不影響 commit 本身）；剩餘 unstaged：3 個 Xcode-generated（`app/src-tauri/gen/apple/**`）+ 2 個 spike 輸出（`spike/results/spike-002-*`）+ 2 個 TECH-014 文件（`docs/ac/TECH-014.md` 與 `docs/design/TECH-014-timeline-anchor.md`）—— 全部**依 P2-1 排除**。
+- **push 還沒做**（信任模式已退出，push 是你 push）
+- TECH-014 只有設計與 AC，**沒有程式碼**（commit 範圍內已排除它的兩份文件，避免它跟 TECH-009 攪和）
+- TECH-005 / INT-M01-M02-01 / TECH-003 仍未動
+- 11:52（信任模式首輪結束）→ 12:15（信任模式第二輪起跑）→ 12:49~21:45（sleep/anomaly）→ 22:30（現在）這中間**的時序**是這次最值得回頭看的一段；建議下一輪開始前用 `last reboot` 與 `pmset -g log` 對一次
+

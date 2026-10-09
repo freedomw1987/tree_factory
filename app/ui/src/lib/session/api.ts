@@ -31,6 +31,65 @@ export interface HttpSessionClientOptions {
   baseUrl: string;
   meetingId: string;
   fetchImpl?: typeof fetch;
+  /**
+   * TECH-009：裝置憑證（`VITE_DEVICE_TOKEN`）。
+   *
+   * 為什麼放在 client 而不是每個呼叫點：憑證必須**每一個**請求都帶
+   * （start／stop／上傳音檔／讀帳本／逐字稿／缺口），任何一條漏了都是安靜的半殘。
+   * 集中注入只有一個地方要記得。
+   */
+  token?: string;
+}
+
+/**
+ * TECH-009：把建置期注入的憑證值（`import.meta.env.VITE_DEVICE_TOKEN`）正規化。
+ *
+ * 為什麼要拉成獨立函式：這裡的規則（**沒有預設值**、空值一律回 `undefined`）
+ * 是「忘了設定就不會靜默放行」的唯一保證，而它原本寫在 `app.svelte.ts` 裡，
+ * 那一層沒有單元測試守著——一個手滑寫成 `?? "dev"` 的改動不會被任何測試擋下。
+ *
+ * 為什麼要 trim 設定值、但**不** trim 標頭裡的 token：設定值是複製貼上的產物
+ * （前後空白幾乎一定是意外）；而請求標頭代表呼叫端的原始意圖，伺服端比對時
+ * 必須嚴格（`"Bearer  s3cret"` 的 token 是 `" s3cret"`，不等於 `"s3cret"`）。
+ */
+export function deviceTokenFrom(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+/**
+ * TECH-009：把憑證注入**所有**底層請求。
+ *
+ * 沒給 token 時原樣回傳（不製造 `Bearer undefined`）：讓伺服端回 401 並由 UI 說明，
+ * 比送出一把看起來像憑證的字串好——後者會讓「忘了設定」變成一個很難查的 401。
+ */
+export function withDeviceToken(inner: typeof fetch, token: string | undefined): typeof fetch {
+  if (token === undefined || token === "") return inner;
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    // 以 client 的 token 為準（不讓某處自帶的舊憑證蓋掉單一來源）。
+    headers.set("authorization", `Bearer ${token}`);
+    return inner(input, { ...init, headers });
+  }) as typeof fetch;
+}
+
+/**
+ * TECH-009：把 session 失敗翻譯成人看得懂的一句話。
+ *
+ * 401／429 不可以走「請確認網路」那條路：前者是憑證被拒（重試一百次都一樣），
+ * 後者是忙線（等一下就會過）。把這兩件事講成網路問題，會讓使用者去查一條沒壞的線。
+ */
+export function sessionFailureMessage(error: unknown): string {
+  if (error instanceof SessionApiError) {
+    if (error.status === 401) return "裝置授權已失效，請重新配對";
+    if (error.status === 429) return "伺服器忙線中（RATE_LIMITED），請稍後再試。";
+    if (error.status === 500 && error.code === "AUTH_NOT_CONFIGURED") {
+      return "伺服器尚未完成設定（AUTH_NOT_CONFIGURED），請見 docs/env-setup.md。";
+    }
+    return `伺服端沒有接受這場會議（${error.code}）。請確認網路後再試。`;
+  }
+  return `無法開始會議：${error instanceof Error ? error.message : String(error)}`;
 }
 
 /**
@@ -137,7 +196,10 @@ export class HttpSessionClient implements SessionClient {
   constructor(options: HttpSessionClientOptions) {
     this.#baseUrl = options.baseUrl.replace(/\/$/, "");
     this.#meetingId = options.meetingId;
-    this.#fetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    this.#fetch = withDeviceToken(
+      options.fetchImpl ?? globalThis.fetch.bind(globalThis),
+      options.token,
+    );
   }
 
   async start(): Promise<{ startedAtMs: number; endsAtMs: number }> {

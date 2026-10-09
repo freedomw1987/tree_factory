@@ -267,6 +267,9 @@ v2.0 起 **M02 不含任何檢索邏輯**——「查無不編造」（F10 / F13
 | code | 意義 | `recoverable` | 由誰產生 |
 | --- | --- | --- | --- |
 | `AUTH_INVALID` | device token 失效或不相符 | ❌ | Worker（handshake）|
+| `AUTH_NOT_CONFIGURED` | 伺服端**沒有設定**裝置憑證（入口層 fail-closed；沒設＝全紅）| ❌ | Worker（`/m/**` 閘門）|
+| `ORIGIN_FORBIDDEN` | `Origin` 不在允許清單（來源未被授權，連副作用都不准發生）| ❌ | Worker（`/m/**` 閘門）|
+| `RATE_LIMITED` | 同一來源在時間窗內超過上限 | ✅ | Worker（`/m/**` 閘門，per-isolate）|
 | `STT_FAILED` | 該段轉譯失敗 | ✅ | M01 / Workers AI |
 | `BACKLOG_FULL` | 待補分段超過上限 | ✅ | 裝置端 / M01 |
 | `STORAGE_WRITE_FAILED` | DO SQLite 寫入失敗 | ✅ | M02 |
@@ -277,8 +280,15 @@ v2.0 起 **M02 不含任何檢索邏輯**——「查無不編造」（F10 / F13
 | `SOURCE_UNRESOLVED` | 回答引用的來源句解析失敗（該條結論降級為查無）| ✅ | M03（§5.4 規則 3）|
 | `CONCEPT_FAILED` | 概念提取失敗或產出 0 個概念 | ✅ | M04（§4.7）|
 
-**協定規則**：`recoverable = true` 的錯誤**不得**導致錄音中止；只有 `AUTH_INVALID` 可阻斷流程。
-**共 10 碼**（8 碼會議期 + 2 碼問答 / 概念期），與 `DESIGN.md` §5.1 逐碼對齊（v2.0 已核對）。
+**協定規則**：`recoverable = true` 的錯誤**不得**導致錄音中止；可阻斷流程的是三個憑證 / 來源類的 ❌ 碼
+（`AUTH_INVALID` / `AUTH_NOT_CONFIGURED` / `ORIGIN_FORBIDDEN`）。
+**共 13 碼**（8 碼會議期 + 2 碼問答 / 概念期 + 3 碼入口層），與 `DESIGN.md` §5.1 逐碼對齊（v2.4 已核對）。
+
+**入口層的三個碼（v2.4，TECH-009）**：`/m/**` 的閘門在**轉進 Durable Object 之前**就決定要不要處理，
+所以這三碼是 **HTTP 回應主體**（`{ error, message, recoverable, … }`），不走上面的 WS 下行 `error` 訊息；
+放在同一張表是為了維持「錯誤碼窮盡」的單一來源。
+`METHOD_NOT_ALLOWED`（`405`，`/wake` / `/release` 只收 `POST`）**刻意不進表**：它與 `404` 同級，屬
+**傳輸層的請求形狀錯誤**，不是「會議這件事出了什麼錯」——判準是「**裝置端需不需要理解並改變行為**」。
 
 **「查無資料」不是錯誤碼**：`ask()` 的 `status`（`answered` / `not_found` / `out_of_scope` / `partial`）
 是**正常回答狀態**，不進本表（見 `DESIGN.md` §5.1 與 §5.4 規則 6）。
@@ -463,6 +473,7 @@ M02 擁有、`text` 可被 M04 編輯的那張正規表仍在未來。因此：
 | --- | --- | --- | --- |
 | 2026-10-07 | v1.0 | 初版：技術棧 / 部件圖 / Module 邊界 / 資料流 / 介面契約 / 儲存模型 / 失敗模式 / 部署 | Agent（dav-designer Step 3）|
 | 2026-10-07 | v1.1 | §6 `transcript_segment` 寫入規則由「永遠 append-only」改為**分捕捉期 / 編輯期兩期**（新增 `edited_at` 欄位）；理由：決策 D7 / D8 與 `M01-US-103 AC-3` 的措辭矛盾（AC v1.1 已限定範圍）| §2.1 補規劃（M04 編輯能力）|
+| 2026-10-09 | v2.4 | §5.2 錯誤碼表補 `AUTH_NOT_CONFIGURED` / `ORIGIN_FORBIDDEN` / `RATE_LIMITED`（共 13 碼），寫下「入口層三碼是 HTTP 主體、不走 WS 下行」與「`METHOD_NOT_ALLOWED` 不進表（傳輸層，與 404 同級）」的分類規則 | Agent（trust mode 執行階段 / TECH-009）|
 | 2026-10-09 | v2.3 | §6 補「實作對齊」：M01-US-103 的捕捉期落地表是 DO 本地 `transcript_segments`（複數、無 `meeting_id`、無 `edited_at`、多 `overlap_ms`、主鍵 `seq` + `idempotency_key` UNIQUE），與表中正規 `transcript_segment` 的兩階段關係明文化 | Agent（trust mode 執行階段）|
 | 2026-10-08 | v2.2 | 依 SPIKE-001~004 回寫：§1 `PiHarness`→`Harness.open`、`@cloudflare/voice`→`agents/voice`、模型改 pi-ai `cloudflare-workers-ai`（分階段 8b/70b）；新增「錄音來源」列（webview 背景不收音→原生 plugin）；§1.1 三項結案/部分結案 | Agent（trust mode 執行階段）|
 | 2026-10-07 | v2.1 | Step 4.5 簽核後落地：§1 技術棧新增「對話語音輸入」列（重用 `withVoiceInput`、不重用會議收音管線）；§5.2 錯誤碼表補 `SOURCE_UNRESOLVED` / `CONCEPT_FAILED`（共 10 碼）並明訂「查無資料不是錯誤碼」；§5.4 規則 3 依 `M03-US-302 AC-4` 改寫（來源失效的結論**不輸出**，改以查無呈現）；§4.7 明訂丟棄 0 來源的概念 | Agent（dav-designer Step 4.5 / D11）|
