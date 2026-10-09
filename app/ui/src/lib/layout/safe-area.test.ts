@@ -74,3 +74,36 @@ describe("M01 真機可見性：子畫面不得自己拿視窗高度", () => {
     expect(offenders, "畫面元件自己用視窗高度會溢出父容器底部的 padding（真機按鈕被推去手勢區）").toEqual([]);
   });
 });
+
+
+// TECH-007（橫向）：肖像時瀏海在上下，轉橫之後換到**左右**。規則跟上下完全一樣：
+// 安全區變數只能有一個宣告處（index.html），元件只能用 `var()`。追加這一組的理由是
+// 「宣告了卻沒有人用」——那樣橫向的內容照樣壓在瀏海底下，而且 E2E 注入的假安全區
+// （`--safe-left` / `--safe-right`）會完全沒有效果，那些斷言就變成假的。
+describe("TECH-007 橫向安全區：瀏海在左右（viewport-fit=cover 的第二邊）", () => {
+  it("index.html 也必須宣告左右安全區（只宣告上下，橫向就沒有留白）", () => {
+    const html = sources.find((s) => s.path === "index.html");
+    expect(html?.text, "index.html 應該定義 --safe-left").toContain("--safe-left: env(safe-area-inset-left");
+    expect(html?.text, "index.html 應該定義 --safe-right").toContain("--safe-right: env(safe-area-inset-right");
+  });
+
+  it("左右安全區的 fallback 必須是 0px（少了它，不支援 env() 的環境會整排歪掉）", () => {
+    const html = sources.find((s) => s.path === "index.html");
+    expect(html?.text).toContain("--safe-left: env(safe-area-inset-left, 0px)");
+    expect(html?.text).toContain("--safe-right: env(safe-area-inset-right, 0px)");
+  });
+
+  it("index.html 的左右安全區宣告各只能有一次（重複宣告會蓋掉前一個）", () => {
+    const html = sources.find((s) => s.path === "index.html");
+    const text = html?.text ?? "";
+    expect(text.match(/--safe-left\s*:/g)?.length ?? 0, "index.html 重複宣告 --safe-left").toBe(1);
+    expect(text.match(/--safe-right\s*:/g)?.length ?? 0, "index.html 重複宣告 --safe-right").toBe(1);
+  });
+
+  it("App.svelte 必須真的用 var(--safe-left) / var(--safe-right)（宣告了沒用等於沒宣告）", () => {
+    const app = sources.find((s) => s.path.endsWith("/App.svelte"));
+    expect(app, "找不到 App.svelte 的原始碼").toBeDefined();
+    expect(app!.text, "外框沒有讓開左安全區").toContain("var(--safe-left)");
+    expect(app!.text, "外框沒有讓開右安全區").toContain("var(--safe-right)");
+  });
+});

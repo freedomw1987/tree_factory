@@ -5,13 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>tree_factory</title>
 <!--
-  真機安全區（iPhone 瀏海／狀態列、底部 Home Indicator）只在這裏定義一次。
+  真機安全區（iPhone 瀏海／狀態列、底部 Home Indicator、橫向的左右瀏海）只在這裏定義一次。
 
   為什麼要抽成變數而不是各處直接寫 env()：桌機的 env() 恆為 0，Chromium 上的 E2E
   永遠重現不了真機版面。2026-10-09 連續兩個真機 bug 就是這樣溜過去的——
   「開始會議」被 50pt 的狀態列蓋住（按不到）、「長按結束會議」落進 34pt 的底部手勢區
   （按不到）。抽成變數後，E2E 可以注入 `--safe-top: 50px; --safe-bottom: 34px`
   把 iPhone 12 mini 的版面搬進 CI（見 e2e/iphone-viewport.spec.ts）。
+
+  橫向（TECH-007）：轉橫之後瀏海換到**左右**，`--safe-top/bottom` 幫不上忙；
+  iPhone 12 mini 橫向實測為 left/right 各 44pt、bottom 縮為 21pt（見 e2e/iphone-screens.spec.ts）。
 
   定義放在 index.html 而不是 app.css，是因為 vite 的 `?raw` 讀 .css 會拿到空字串，
   測試就守不住「只能定義一次」這條規則；index.html 讀得到。
@@ -20,6 +23,9 @@
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* 橫向時瀏海／圓角在左右：沒有這兩個變數，橫向的內容會壓在瀏海底下（TECH-007）。 */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 </style>
 </head>

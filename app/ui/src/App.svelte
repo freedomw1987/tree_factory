@@ -82,6 +82,9 @@
        狀態列裡，點擊被 iOS 的「點狀態列回頂部」手勢吃掉。iPhone 12 mini 實測回報
        「按不到開始會議 button」即此故；桌機瀏覽器沒有狀態列，E2E 測不出來。 */
     padding-top: var(--safe-top);
+    /* 橫向（TECH-007）：瀏海換到左右，只讓開上下是不夠的。 */
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 
   .content {
@@ -94,7 +97,9 @@
 
   .tabbar {
     position: fixed;
-    inset: auto 0 0 0;
+    /* fixed 是相對視窗定位，不是相對 .shell——外框的水平 padding 管不到它，
+       所以左右安全區要在這裡自己讓開，否則橫向時分頁按鈕橫跨到瀏海底下（TECH-007）。 */
+    inset: auto var(--safe-right) 0 var(--safe-left);
     display: grid;
     grid-template-columns: 1fr 1fr;
     border-top: 1px solid var(--border);
