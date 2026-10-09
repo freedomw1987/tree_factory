@@ -1288,7 +1288,7 @@ P2-2（快照超上限）**不修**：本碼寫不出這種快照（不等於不
 3. 收結論 → 補交付文 §5 第三輪 → 凍結後再跑一次全量（記錄 md5 前後）→ 三段式 commit
    （feat / docs / docs-add-sha256；不 push）。
 
-## 2026-10-09 10:50 — TECH-012 Gate 4 第三輪結案：兩條通道都「可合併」
+## 2026-10-09 10:33 — TECH-012 Gate 4 第三輪結案：兩條通道都「可合併」
 
 ### 決策 1（結論）
 
@@ -1322,3 +1322,117 @@ P2-2（快照超上限）**不修**：本碼寫不出這種快照（不等於不
 
 1. 凍結後最後一次全量（md5 前後留證）→ 三段式 commit（`feat` / `docs` / docs-add-sha256；**不 push**）。
 2. TECH-012 commit 完 → TECH-007 才可以落地（凍結解除）。
+
+## 2026-10-09 10:57 +0800 — 規劃／設計／執行 — TECH-007（其餘畫面的手機寬度）
+
+**選票理由（為什麼是 TECH-007 而不是其他 TECH）**：
+- 剩餘窗口約 4.5h 時，候選是 TECH-007（P2 / 1 SP）、TECH-009（P1 / 3 SP）、TECH-014（P1 / 3 SP）。
+- TECH-014 需要 DO 之外的受信錨點（設計 D7 已證三個候選都不可行），實測估 2h35m **＞** 窗口 → 不開工。
+- TECH-009（邊緣授權／速率限制 ＋ `/m/:id/wake` 改 POST）3 SP 且要動跨 Module 契約，風險高、窗口不夠。
+- TECH-007 是 1 SP 的**收尾型**票（第一輪 M01-US-101 已修好「會議中」畫面，剩三個畫面＋橫向），可在窗口內「完整」交付＝符合 trust mode 的「做完整」要求。
+
+**決策 D1~D8（設計文 `docs/design/TECH-007-iphone-screens-layout.md`）**
+- **D1** 用**幾何不變式**驗（不溢出／主要互動元素 ≥44px／CTA 落在扣掉安全區的可視矩形），
+  **不用截圖**：我（agent）看不到圖，截圖不能當 CI 斷言，也不能在報告裡宣稱「像素相同」。
+- **D2** 尺寸沿用第一輪的 390×844（肖像）＋**同一台橫向 844×390**（安全區 left/right 44、bottom 21）；刻意不擴尺寸矩陣。
+- **D3** `index.html` 補 `--safe-left` / `--safe-right`（與上下對稱、fallback `0px`）；`.shell` 加水平 padding；
+  `.tabbar` 是 `position: fixed`（相對視窗，**外框 padding 管不到它**）→ 自己的 `inset` 讓開左右。安全區變數仍**只宣告一次**。
+- **D4 白名單縮小**：「主要互動元素」只掃 6 個（`btn-start-meeting` / `input-title` / `btn-start-confirm` /
+  `btn-perm-retry` / `tab-meetings` / `tab-chat`）。`meeting-item` 是**純顯示 `<li>`（沒有 onclick）**
+  → 對不能點的元素斷言 44px 是**類別錯誤**，刻意排除；權限頁「先回首頁」**沒有 `data-testid`** → 也不在名單
+  （**不為了測試而加測試縫**），已寫進 AC 誠實段。
+- **D5 原設計作廢（本輪最重要的一條留痕）**：原設計要在 `test.describe` 內用
+  `test.use({ permissions: [], launchOptions: { args: ["--use-fake-device-for-media-stream"] } })` 進權限阻斷頁。
+  實測 Playwright **當場報錯**：`Cannot use({ launchOptions }) in a describe group, because it forces a new worker.`
+  （**舊版行號**：spec `:230`、`:272`；現行 spec 那兩行已是橫向段）。而且 config 帶 `--use-fake-ui-for-media-stream` 會**自動允許**，
+  就算收回 `permissions` 也不一定拒得成。→ 改成在**瀏覽器邊界**偽造：`page.addInitScript` 覆寫
+  `navigator.mediaDevices.getUserMedia` 直接丟 `NotAllowedError`，由**產品自己的**錯誤映射
+  （`store.ts:62` 的 `NotAllowedError` → `permission_denied` → `PERMISSION_DENIED` → `view = "permission"`）進入該畫面。
+  **這是設計被實測推翻 → 改設計並留下作廢理由，不是偷偷改測試**（V03 精神）。產品碼一行都沒動。
+- **D6** 列表要有「一列」時走**真的流程**（開始 → 長按 1.4s 結束），不塞假資料。
+- **D7** 斷言紅了要**修版面**，不是放寬門檻；每一條新斷言都要用突變證明會紅。
+- **D8** 不做：顏色／動效／對美感；不引入視覺回歸工具。
+
+**執行（4 Gate）**：
+- Gate 1 **紅**：單元 `2 failed ／ 5 passed (7)`；E2E `3 failed ／ 4 passed`，三條紅**全是橫向** →
+  `開始會議（橫向） 右緣 x=828.0 超過 800pt（右安全區 44pt）`（其餘 `x=803.0`）。
+- Gate 1 **綠**：單元 `7 passed`；E2E 新增那支 `7 passed (6.1s)`。
+- Gate 2：`typecheck` 0 errors 0 warnings；圖示守門 PASS；`vitest run` **229 passed（23 檔）**；markdownlint **77 檔 0 issues**。
+- Gate 3：整套 E2E **46 passed（59.9s）**（既有 39 ＋ 新增 7，**既有斷言一條沒改**）。
+- 突變 6 條／**5 條被殺**（M2 `.shell` 拿掉 3 紅、M3 `.tabbar` 改回 `auto 0 0 0` 3 紅、
+  M4 只拿掉 `--safe-right` 1 紅、M1b 同 M1 改打 vitest 1 紅、M5 負向對照 `min-width:2000px` **7 紅**）。
+
+**誠實發現（本票最有價值的產出，不是綠燈）**：
+- **M1（拿掉 `index.html` 的 `--safe-left/--safe-right`）在 E2E 層 0 紅、殺不死**。原因是我自己在測試裡
+  用 `addStyleTag` 注入安全區變數，**注入值覆蓋掉（消失的）宣告** → E2E 驗到的是「元件用了 `var()`」，
+  **驗不到「`var()` 有沒有被宣告」**。處置：把同一個突變改打 vitest 目標（M1b＝**1 紅**）證明那一格有人守，
+  並在**設計 D7、AC-6、交付文 §3.4／§6** 三處明列「M1 殺不死」。
+  **絕對不可以**因為 E2E 是綠的就把「宣告存在」也算成已驗證。
+- `expectInsideSafeArea()` 是 `scrollIntoViewIfNeeded()` **之後**才量 → 它守的是「看得見的時候不被瀏海蓋住」，
+  **不是**「不用捲動就看得到」；已寫進交付文 §6。
+- 橫向的安全區是**注入的常數**（模擬 `env()` 的值），不是真機 `env()` 本身；真機值仍待真機驗收。
+- 「橫向」才是這一票的真洞（第一輪只驗肖像）：專案原本**完全沒有水平留白**，轉橫後瀏海在左右。
+
+**下一步**：Gate 4（reviewer ＋ oracle）已在 10:55 啟動（凍結版；Playwright 只給 oracle lane，避免埠相撞）。
+
+## 2026-10-09 11:53 +0800 — 信任模式結束（finalize）— TECH-007 收尾狀態
+
+**用戶指示**：「為你 trust mode finalize」→ 信任模式在 11:52 結束（原定窗口 07:28:15 ~ 12:00:00）。
+
+### 這次窗口（07:28 ~ 11:53）實際完成的事
+
+| 項目 | 狀態 |
+| --- | --- |
+| TECH-012（跨請求聚段緩衝） | **已提交**（`96c3952` / `491b746` / `09e06ca`；Gate 4 三輪，兩通道「可合併（附註）」） |
+| TECH-007（其餘畫面的手機寬度） | **未提交**：產品碼＋測試＋文件全部落地並跑過 Gate 1／2／3＋突變表；**第二輪 Gate 4 未跑** |
+
+### TECH-007 的誠實狀態
+
+- **已驗（本輪自己跑的）**：Gate 1 紅→綠（單元 `4 failed | 5 passed` → `9 passed`；spec 橫向 9 條紅 → 全檔 `13 passed`）、
+  Gate 2（`typecheck` 0/0、`check:icons` PASS、`vitest` **231 passed**、markdownlint 77 檔 0 issues）、
+  Gate 3（全套 E2E **52 passed**，56.1s）、突變 **10 條／9 條被殺**（M1 明列 `0 紅` 殺不死，由原始碼不變式接手）。
+- **未驗**：**第二輪 Gate 4**（劇本 `/tmp/tech007-gate4-r2.js` 139 行、語法已驗、埠已清空，但未啟動）。
+  因此第一輪那兩張「可合併（附註）」**只覆蓋第一輪那一版**，不覆蓋新增的 6 條橫向斷言、
+  容器幾何斷言與 2 條單元不變式。
+- **未提交的原因**：第一輪的兩個 P2 都動了**測試碼**，依規則要再跑一輪 Gate 4 才能提交；
+  為避免留下「未複驗卻已提交」的紀錄，這一票原封不動留在工作區（`git status` 見交付文 §7）。
+- **已知留痕不修**：橫向權限頁 CTA 底部約 5px 疊在固定 tabbar 下（oracle P3，實測 y=329 > 324）；
+  `AC-4` 未宣稱「不被分頁列覆蓋」，屬既有版面的問題（第二輪複驗更正：`.content` 底部留白是 `calc(44px + 24px)` ＝ **68px**，不是 76px；
+  `.tabbar` 為 `position: fixed` 不佔流、`scrollTop=0` 時卡片可落在其下——此因果為**靜態推理、未實測**）。
+
+### 決策留痕
+
+- **不為了收尾而放寬任何斷言、也不為了收尾而跳過 Gate 4 直接提交**：留下一個「文件說得清楚、
+  可一行重啟」的半成品，比留下一個「看起來完成了但沒人審過」的提交誠實。
+- 交接清單（精確指令）寫在 `docs/deliverable/2026-10-09-trust-mode-handoff-2.md`。
+
+## 2026-10-09 12:10 +0800 — TECH-007 第二輪 Gate 4 結案（信任模式已於 11:53 finalize，此為其後收尾）
+
+**範圍**：11:53 的 finalize 記錄如實寫下「第二輪複驗尚未執行」。使用者選擇**補跑第二輪再提交**，
+這一節就是那個「未執行」的後續：workflow `ae3cf322-3b71-498c-a417-3c912bbbb844`，兩個 lane 都完成。
+
+| lane | child run | 結論 | findings |
+| --- | --- | --- | --- |
+| reviewer（唯讀、無 shell） | `a106e4b5-bbe3-49d9-8aac-3dd1f872d14b` | **可合併（附註）** | 0 × P0/P1/P2；4 × P3（全是文件數字／行號） |
+| oracle（唯一可跑 Playwright） | `e28c27d8-deb5-4981-8373-a2cb73b49aa2` | **可合併** | 0 × P0/P1；3 × P3 |
+
+**oracle 獨立重跑**：`13 passed`／`231 passed`／`typecheck` 0/0；M6／M7／M8／M9 ＝ 6／6／1／1 紅；
+還原後 `index.html`／`App.svelte` 的 md5 等於凍結值（產品碼本輪未被動到）；埠跑完自己關到 0、原子鎖已釋放。
+它另外自己加了 7 個定向突變（A1–A7）：A4／A6 證明三組夾具各有唯一殺手（沒有一組多餘），
+A7 證明**拿掉容器斷言後 M7 這類在 E2E 完全抓不到**，A3 則證實 fallback 只有在單元層殺得掉。
+
+**決策**：
+
+1. reviewer 的 4 條 P3 **全部是文件精確度**，不動產品碼、不動測試碼 → **直接在本輪修文件落地**，不開新的 Gate 4 輪。
+2. oracle P3-1（橫向權限頁「再試一次」底部被分頁列蓋 5.0px）→ **不修、留痕**（與第一輪同：AC-4 從未宣稱不被分頁列覆蓋）。
+3. oracle P3-2（A6 曾出現一次不可重現的 4 紅）→ 照它的建議在提交前**連跑兩次橫向**：`9 passed (7.0s)`／`9 passed (5.3s)`
+   → 判定為單次逾時，不是缺陷。
+4. oracle P3-3（突變表未標層級）→ 交付文 §4 補上「M8／M9 的紅全在單元層、M6 的 6 紅全來自非對稱夾具」。
+5. **更正自己寫錯的數字**：第一輪「`.content` 底部留白 76px < tabbar 78px」是錯的——實際是 `calc(44px + 24px)` ＝
+   **68px**；5px 的真正機制是 `.tabbar` 為 `position: fixed` 不佔流（**靜態推理、未實測**）。
+   交付文 §5.1／§6、`docs/backlog.md` 的 TECH-007 列、本檔上一節三處都改掉了。
+6. **時序留痕**：不把 11:53 的「未執行」改寫成「已執行」，而是在交付文 §5.2／§8.7 與本節並存兩段，
+   讓「先寫未執行、後寫已複驗」都可追溯——狀態欄位可以被推翻，但不能被默默改寫。
+
+**提交**：`feat(app/ui)` `63d52ea`（`index.html`／`App.svelte`／`safe-area.test.ts`／`iphone-screens.spec.ts`）＋ 本批 docs 提交（同批）。
+**仍未驗**：真機 `env(safe-area-inset-*)` 的實際值（夾具是注入常數）、會議中／`RecoverPrompt` 等畫面在橫向、動態字級（放大字型）。
